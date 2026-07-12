@@ -1,0 +1,19 @@
+{
+  "name": "stoppage",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Permissionless, session-key-native settlement protocol for in-play sports micro-markets, powered by TxLINE.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "anchor:build": "cd programs && anchor build",
+    "anchor:test": "cd programs && anchor test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
