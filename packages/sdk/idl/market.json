@@ -1,0 +1,87 @@
+{
+  "address": "92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG",
+  "metadata": {
+    "name": "market",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Stoppage market vaults: create, join (wallet or session key), claim"
+  },
+  "instructions": [
+    {
+      "name": "claim",
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_market",
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "join",
+      "discriminator": [
+        206,
+        55,
+        2,
+        106,
+        113,
+        220,
+        17,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_side",
+          "type": "u8"
+        },
+        {
+          "name": "_amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ]
+}

@@ -10,8 +10,12 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspace=apps/web",
-    "anchor:build": "cd programs && anchor build",
-    "anchor:test": "cd programs && anchor test"
+    "typecheck": "npm run typecheck --workspace=apps/web",
+    "anchor:build": "PATH=\"$HOME/.cargo/bin:$PATH\" anchor build",
+    "anchor:test": "PATH=\"$HOME/.cargo/bin:$PATH\" anchor test",
+    "check:ids": "node scripts/check-ids.js",
+    "sync:ids": "node scripts/sync-ids.js",
+    "deploy:programs": "bash scripts/deploy.sh"
   },
   "engines": {
     "node": ">=18"

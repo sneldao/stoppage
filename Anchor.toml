@@ -1,0 +1,29 @@
+[toolchain]
+anchor_version = "0.32.1"
+
+[features]
+seeds = false
+skip-lint = false
+
+# Program IDs are derived from the committed keypairs in keys/ — those files
+# are the single source of truth. `npm run check:ids` asserts that these
+# values, the declare_id!()s, and the SDK constant all agree. Never edit an
+# ID by hand; run scripts/sync-ids.js instead.
+
+[programs.localnet]
+market = "92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG"
+settlement = "5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF"
+
+[programs.devnet]
+market = "92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG"
+settlement = "5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

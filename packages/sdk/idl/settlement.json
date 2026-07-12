@@ -1,0 +1,51 @@
+{
+  "address": "5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF",
+  "metadata": {
+    "name": "settlement",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Stoppage settlement: verify TxLINE proofs via CPI, mark markets settled"
+  },
+  "instructions": [
+    {
+      "name": "resolve_market",
+      "discriminator": [
+        155,
+        23,
+        80,
+        173,
+        46,
+        74,
+        23,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "resolver",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "txline_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "_statement",
+          "type": "string"
+        },
+        {
+          "name": "_merkle_proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

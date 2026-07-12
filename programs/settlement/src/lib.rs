@@ -10,7 +10,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("Settle11111111111111111111111111111111111");
+declare_id!("5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF");
 
 #[program]
 pub mod settlement {
