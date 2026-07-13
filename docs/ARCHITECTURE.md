@@ -1,21 +1,12 @@
 # Architecture
 
-## Build order (deliberate, not arbitrary)
-
-Given the submission deadline and the fact that judging leans on the demo
-video, sequence matters more than usual:
-
-1. **Session-key signing, end to end.** One market, one user, one real
-   signed transaction from a delegated session key with no wallet popup.
-   Nothing else matters if this doesn't work on camera.
-2. **Market vault (join → pot → claim)** for a single predicate type
-   (`next_goal_within`). Reuse the escrow flow directly.
-3. **TxLINE ingestion → predicate evaluation → settlement CPI.** Wire the
-   SSE stream into a resolver that calls `validate_stat` and releases the
-   vault.
-4. **Verifiable Resolution UI.** Surface the Merkle proof used to settle.
-5. **Blinks route** for join + share.
-6. **Leaderboard / settlement history.** Last, cosmetic relative to 1-4.
+This document describes the design. Sequencing, status, and acceptance
+criteria live in [ROADMAP.md](./ROADMAP.md); working rules and module
+boundaries live in [../CLAUDE.md](../CLAUDE.md). The one sequencing
+principle worth restating here: **session-key signing is built first,
+end to end** — one real transaction signed by a delegated session key
+with no wallet popup. Nothing else matters if that doesn't work on
+camera.
 
 ## Core flow
 

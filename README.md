@@ -69,36 +69,55 @@ stream and call it done. The bets we're making on differentiation:
    proofs feed a public, verifiable accuracy leaderboard — social proof and
    a second use for the same data model, at near-zero extra cost.
 
+## Quickstart
+
+```bash
+npm install
+cp apps/web/.env.local.example apps/web/.env.local   # add Helius API key
+npm run dev                                          # web app on :3000
+npm run anchor:build                                 # build both programs
+```
+
+Full toolchain notes (rustup vs Homebrew cargo, lockfile pins, deploy
+pipeline): [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md).
+
 ## Repo layout
 
 ```
 stoppage/
+├── CLAUDE.md                    Working rules — read before changing anything
 ├── apps/
-│   └── web/                     Next.js app (frontend + Actions/Blinks routes)
+│   └── web/                     Next.js app (UI + Actions/Blinks routes)
 │       ├── app/
-│       │   ├── api/actions/[market]/   Solana Actions (Blinks) endpoint
-│       │   └── markets/[id]/           Market detail + resolution-proof view
+│       │   └── api/actions/[market]/   Solana Actions (Blinks) endpoint
+│       ├── components/                 WalletProvider + UI
 │       ├── lib/
-│       │   ├── wallet/                 Wallet adapter (web + Solana Mobile)
-│       │   ├── session-key/            Session-key auth + signing (core diff.)
-│       │   └── helius/                 Live stream bridge (odds/settlement ticks)
-│       ├── components/
-│       └── store/                      Zustand slices (positions, leaderboard)
+│       │   ├── wallet/                 Wallet adapters (web + Solana Mobile)
+│       │   ├── session-key/            useSessionKey hook (local keypair lifecycle)
+│       │   ├── helius/                 HeliusMonitor (live settlement/odds ticks)
+│       │   └── actions/                Blinks CORS helpers
+│       └── store/                      Zustand slices (markets, positions)
 ├── programs/
 │   ├── market/                  Anchor program: market vaults, join/claim
 │   └── settlement/              Anchor program: CPI into TxLINE validate_stat
 ├── packages/
-│   └── sdk/                     Shared TS types + client (escrow, proofs, session-key)
+│   └── sdk/                     The only TS that touches the chain: types,
+│                                escrow, proofs, session-key signing, program
+│                                IDs, IDLs (idl/ written by deploy.sh)
+├── keys/                        Program keypairs — single source of truth
+│                                for program IDs (devnet only; see keys/README)
+├── scripts/                     check-ids / sync-ids / deploy.sh
 └── docs/
-    ├── ARCHITECTURE.md
-    └── DIFFERENTIATORS.md
+    ├── ARCHITECTURE.md          Design: core flow, session-key delegation
+    ├── DEVELOPMENT.md           Toolchain, commands, ID discipline
+    └── ROADMAP.md               Milestones, status ledger, icebox, risks
 ```
 
 ## Status
 
-Fresh scaffold. Nothing here is wired to devnet yet. See `docs/ARCHITECTURE.md`
-for the build order — session-key signing is first, deliberately, because it's
-the piece the demo video lives or dies on.
+Lives in [docs/ROADMAP.md](./docs/ROADMAP.md) — the single status ledger —
+and nowhere else, so it can't rot here. (The predecessor repo's README
+claimed a program was "LIVE" at an address two deployments stale.)
 
 ## Compliance note (read before writing settlement code)
 
