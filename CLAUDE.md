@@ -69,12 +69,17 @@ Full context: docs/ARCHITECTURE.md (design), docs/DEVELOPMENT.md
 ```
 programs/  (Rust — knows nothing about TS)
     ↑ IDL via deploy.sh
-packages/sdk   — the ONLY TS that builds instructions, derives PDAs,
-                 loads IDLs, or verifies proofs. No React, no Next.
+packages/sdk     — the ONLY TS that builds instructions, derives PDAs,
+                   loads IDLs, or verifies proofs. No React, no Next.
+packages/txline  — TxLINE API client (auth, SSE, fixtures, validation
+                   proofs, normalizer). No React, no Next, no chain.
     ↑
-apps/web       — UI, hooks, store, API routes. Talks to the chain
-                 exclusively through @stoppage/sdk. Components never
-                 build transactions.
+apps/agent       — Autonomous agent: TxLINE events → market create/settle.
+                   Talks to the chain via @stoppage/sdk, to TxLINE via
+                   @stoppage/txline. No UI.
+apps/web         — UI, hooks, store, API routes. Talks to the chain
+                   exclusively through @stoppage/sdk. Components never
+                   build transactions.
 ```
 
 - New chain functionality lands in the SDK first, with the web app as a
@@ -82,8 +87,11 @@ apps/web       — UI, hooks, store, API routes. Talks to the chain
   instructions, it's in the wrong layer (wallet-adapter plumbing in
   `lib/wallet` and `components/WalletProvider.tsx` is the exception).
 - `apps/web/lib/*` is browser-facing glue (wallet, helius, session-key
-  hook). `apps/web/store/*` is zustand slices only — no I/O in slices;
-  fetching lives in hooks/SDK and results are written into the store.
+  hook, share, format). `apps/web/store/*` is zustand slices only — no
+  I/O in slices; fetching lives in hooks/SDK and results are written
+  into the store.
+- `packages/txline` is the ONLY package that makes raw HTTP calls to
+  TxLINE endpoints. No raw fetch to TxLINE elsewhere in the codebase.
 
 ## Build principles
 

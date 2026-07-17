@@ -9,7 +9,7 @@
 ## Commands
 
 ```bash
-npm install              # workspace install (apps/web + packages/sdk)
+npm install              # workspace install (apps/web + apps/agent + packages/*)
 npm run dev              # Next.js dev server
 npm run build            # production web build
 npm run typecheck        # tsc over apps/web (includes the sdk via paths)
@@ -19,6 +19,19 @@ npm run anchor:build     # build both programs
 npm run anchor:test      # build + run program tests against a local validator
 npm run test:programs    # run program tests without rebuilding (faster iteration)
 npm run deploy:programs  # the ONLY supported deploy path (scripts/deploy.sh)
+```
+
+### Agent commands
+
+```bash
+# Dry-run replay (default — no on-chain txs, safe for testing):
+npx tsx apps/agent/src/index.ts replay 18237038
+
+# Live transactions on devnet (requires funded wallet + Helius RPC):
+npx tsx apps/agent/src/index.ts live --live-tx
+
+# TxLINE subscription (one-time, saves credentials to .txline-credentials.json):
+npx tsx scripts/subscribe-txline.ts
 ```
 
 ## Program tests

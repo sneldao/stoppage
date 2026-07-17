@@ -87,26 +87,38 @@ pipeline): [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md).
 stoppage/
 ├── CLAUDE.md                    Working rules — read before changing anything
 ├── apps/
+│   ├── agent/                   Autonomous agent: TxLINE SSE → market create/settle
+│   │   └── src/
+│   │       ├── index.ts         Entry point (live / replay modes, --live-tx flag)
+│   │       ├── source.ts        TxLINE event source (live SSE + historical replay)
+│   │       ├── loop.ts          Agent loop: create/settle/void + proof attestation
+│   │       └── strategy.ts      Predicate evaluator + settlement logic
 │   └── web/                     Next.js app (UI + Actions/Blinks routes)
 │       ├── app/
-│       │   └── api/actions/[market]/   Solana Actions (Blinks) endpoint
-│       ├── components/                 WalletProvider + UI
+│       │   ├── api/actions/[market]/   Solana Actions (Blinks) endpoint
+│       │   └── api/fixtures/           TxLINE fixtures proxy (server-side)
+│       ├── components/                 WalletProvider, ShareBar, StatsPanel,
+│       │                               PositionHistory, MatchCalendar, ReferralInit
 │       ├── lib/
 │       │   ├── wallet/                 Wallet adapters (web + Solana Mobile)
 │       │   ├── session-key/            useSessionKey hook (local keypair lifecycle)
 │       │   ├── helius/                 HeliusMonitor (live settlement/odds ticks)
-│       │   └── actions/                Blinks CORS helpers
-│       └── store/                      Zustand slices (markets, positions)
+│       │   ├── markets/                useMarkets, useMarketActions, useMyPositions
+│       │   ├── share/                  Tweet generation (buildMarketTweet, buildTweetIntent)
+│       │   ├── actions/                Blinks CORS helpers
+│       │   └── format.ts               Shared formatters (formatSol, LAMPORTS_PER_SOL)
+│       └── store/                      Zustand slices (markets, positions, referral, history)
 ├── programs/
 │   ├── market/                  Anchor program: market vaults, join/claim
-│   └── settlement/              Anchor program: CPI into TxLINE validate_stat
+│   └── settlement/              Anchor program: proof-carrying settlement event
 ├── packages/
-│   └── sdk/                     The only TS that touches the chain: types,
-│                                escrow, proofs, session-key signing, program
-│                                IDs, IDLs (idl/ written by deploy.sh)
+│   ├── sdk/                     TS that touches the chain: types, escrow, proofs,
+│   │                            session-key signing, program IDs, IDLs, PREDICATE_LABEL
+│   └── txline/                  TxLINE API client: auth, SSE, fixtures, scores,
+│                                validation proofs, normalizer, credential loading
 ├── keys/                        Program keypairs — single source of truth
 │                                for program IDs (devnet only; see keys/README)
-├── scripts/                     check-ids / sync-ids / deploy.sh
+├── scripts/                     check-ids / sync-ids / deploy.sh / subscribe-txline.ts
 └── docs/
     ├── ARCHITECTURE.md          Design: core flow, session-key delegation
     ├── DEVELOPMENT.md           Toolchain, commands, ID discipline

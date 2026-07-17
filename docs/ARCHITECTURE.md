@@ -14,17 +14,38 @@ camera.
 TxLINE SSE stream
       │
       ▼
-Predicate resolver (packages/sdk)  ── evaluates e.g. "goal scored, team=X, before t"
-      │
+@stoppage/txline (packages/txline)  ── auth, SSE, fixtures, validation proofs
+      │  normalizes TxLINE events into NormalizedEvent stream
       ▼
-Settlement program (programs/settlement)
-      │  CPI: validate_stat(match_id, event, merkle_proof)
+Autonomous agent (apps/agent)
+      │  evaluates predicates (strategy.ts)
+      │  creates markets on match_started
+      │  on match_ended: fetches Merkle proof from TxLINE (fetchStatValidation)
+      │  settles via force_settle + attest_verification
       ▼
 Market program (programs/market)
-      │  on verified match: release vault per predicate outcome
+      │  force_settle releases vault per predicate outcome
+      │  attest_verification records on-chain attestation
       ▼
-Web app: position updated, proof receipt shown, leaderboard updated
+Web app: position updated, proof receipt shown, stats/history updated
 ```
+
+### Settlement design decision
+
+The original design called for on-chain CPI into TxLINE's `validate_stat`
+program. In practice, the TxLINE proof format differs from what the
+settlement program expects, so the implemented path is **agent-side
+validation**:
+
+1. Agent fetches the Merkle proof from TxLINE (`fetchStatValidation`).
+2. Agent settles the market via `force_settle` (authority mock).
+3. Agent includes `attest_verification` in the same transaction,
+   marking the market as independently verified on-chain.
+
+The proof is verifiable off-chain via TxLINE's API; the attestation is
+on-chain. This is a pragmatic descope — the "proof is the product" story
+holds (users can verify the proof themselves), just without the on-chain
+CPI verification step.
 
 ## Session-key delegation (the differentiator)
 
