@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { impliedProbability } from "@stoppage/sdk";
 import type { Market } from "@stoppage/sdk";
+import { buildMarketTweet, buildTweetIntent } from "@/lib/share/tweet";
+import { useStoppageStore } from "@/store";
 
 const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
 const PREDICATE_LABEL: Record<string, string> = {
@@ -27,41 +30,64 @@ function statusBadge(status: Market["status"]) {
 }
 
 function MarketRow({ market }: { market: Market }) {
+  const { publicKey } = useWallet();
+  const recordShare = useStoppageStore((s) => s.recordShare);
+  const referrer = useStoppageStore((s) => s.referrer);
   const odds = impliedProbability(market);
   const pred = market.predicate;
   const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
   const team = pred.params.team ? ` · ${pred.params.team}` : "";
   const total = market.yesPool + market.noPool;
 
+  const refTag = publicKey?.toBase58() ?? referrer ?? undefined;
+  const pageUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/markets/${market.id}`
+    : `/markets/${market.id}`;
+  const tweetIntent = buildTweetIntent(
+    buildMarketTweet(market, pageUrl, refTag)
+  );
+
   return (
-    <Link
-      href={`/markets/${market.id}`}
-      className="block rounded-lg border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="truncate font-medium">
-            {PREDICATE_LABEL[pred.kind] ?? pred.kind} {param}{team}
-          </p>
-          <p className="mt-1 text-xs text-neutral-500">
-            match {pred.matchId} · pool {SOL(total)}
-          </p>
-        </div>
-        <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${statusBadge(market.status)}`}>
-          {market.status.replace("_", " ")}
-        </span>
-      </div>
-      {market.status === "open" && (
-        <div className="mt-3 flex items-center gap-4 text-sm">
-          <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
-          <span className="text-neutral-600">|</span>
-          <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
-          <span className="ml-auto text-xs text-neutral-600">
-            {market.verifications > 0 && `${market.verifications} ✓`}
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]">
+      <Link href={`/markets/${market.id}`} className="block">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate font-medium">
+              {PREDICATE_LABEL[pred.kind] ?? pred.kind} {param}{team}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              match {pred.matchId} · pool {SOL(total)}
+            </p>
+          </div>
+          <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${statusBadge(market.status)}`}>
+            {market.status.replace("_", " ")}
           </span>
         </div>
+        {market.status === "open" && (
+          <div className="mt-3 flex items-center gap-4 text-sm">
+            <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
+            <span className="text-neutral-600">|</span>
+            <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
+            <span className="ml-auto text-xs text-neutral-600">
+              {market.verifications > 0 && `${market.verifications} ✓`}
+            </span>
+          </div>
+        )}
+      </Link>
+      {market.status === "open" && (
+        <div className="mt-2 flex justify-end">
+          <a
+            href={tweetIntent}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => recordShare()}
+            className="text-xs text-neutral-500 transition hover:text-neutral-300"
+          >
+            Share on X →
+          </a>
+        </div>
       )}
-    </Link>
+    </div>
   );
 }
 

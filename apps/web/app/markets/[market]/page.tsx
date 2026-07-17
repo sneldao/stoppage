@@ -15,6 +15,7 @@ import { useMarketActions } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
+import { ShareBar } from "@/components/ShareBar";
 
 const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
 const LAMPORTS_PER_SOL = 1e9;
@@ -181,6 +182,18 @@ export default function MarketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Share bar (viral: tweet, Blink URL, referral) ── */}
+      {canJoin && (
+        <ShareBar
+          market={market}
+          pageUrl={
+            typeof window !== "undefined"
+              ? `${window.location.origin}/markets/${marketAddr}`
+              : `/markets/${marketAddr}`
+          }
+        />
+      )}
 
       {/* ── Join panel ── */}
       {canJoin && (
