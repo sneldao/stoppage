@@ -71,8 +71,12 @@ function MarketRow({ market }: { market: Market }) {
             <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
             <span className="text-neutral-600">|</span>
             <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
-            <span className="ml-auto text-xs text-neutral-600">
-              {market.verifications > 0 && `${market.verifications} ✓`}
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-neutral-600">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              LIVE
             </span>
           </div>
         )}
@@ -112,7 +116,7 @@ export default function MarketsPage() {
   }, [markets]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-4 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Markets</h1>

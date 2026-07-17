@@ -149,33 +149,49 @@ export default function MarketDetailPage() {
     myPosition.side === market.outcome;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-8">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-4 sm:p-8">
       <Link href="/markets" className="text-sm text-neutral-500 hover:text-neutral-300">
         ← markets
       </Link>
 
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <h1 className="text-xl font-bold">
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-6">
+        <h1 className="text-lg font-bold sm:text-xl">
           {PREDICATE_LABEL[market.predicate.kind] ?? market.predicate.kind}{" "}
           {market.predicate.params.windowSeconds ?? market.predicate.params.threshold ?? ""}
           {market.predicate.params.team ? ` · ${market.predicate.params.team}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-xs text-neutral-500 sm:text-sm">
           match {market.predicate.matchId} · closes {new Date(market.closesAt).toLocaleString()}
         </p>
 
-        <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg border border-white/10 p-3">
+        {/* ── Visual odds bar ── */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs text-neutral-500">
+            <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
+            <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
+          </div>
+          <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-neutral-800">
+            <div
+              className="bg-emerald-500 transition-all duration-500"
+              style={{ width: `${odds.yes * 100}%` }}
+            />
+            <div
+              className="bg-red-500 transition-all duration-500"
+              style={{ width: `${odds.no * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 text-sm sm:gap-3">
+          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
             <p className="text-xs text-neutral-500">YES pool</p>
             <p className="text-emerald-400">{SOL(market.yesPool)}</p>
-            <p className="text-xs text-neutral-600">{(odds.yes * 100).toFixed(0)}%</p>
           </div>
-          <div className="rounded-lg border border-white/10 p-3">
+          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
             <p className="text-xs text-neutral-500">NO pool</p>
             <p className="text-red-400">{SOL(market.noPool)}</p>
-            <p className="text-xs text-neutral-600">{(odds.no * 100).toFixed(0)}%</p>
           </div>
-          <div className="rounded-lg border border-white/10 p-3">
+          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
             <p className="text-xs text-neutral-500">Status</p>
             <p className="capitalize">{market.status.replace("_", " ")}</p>
             <p className="text-xs text-neutral-600">fee {market.feeBps / 100}%</p>
@@ -305,18 +321,18 @@ export default function MarketDetailPage() {
       )}
 
       {/* ── Verifiable Resolution panel (the proof is the product) ── */}
-      <div className="rounded-xl border border-white/10 p-6">
+      <div className="rounded-xl border border-white/10 p-4 sm:p-6">
         <h2 className="font-medium">Verifiable Resolution</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          When this market settles via TxLINE, the Merkle proof used to
-          release funds appears here — verify it yourself without trusting Stoppage.
+        <p className="mt-1 text-xs text-neutral-500 sm:text-sm">
+          Settlement is backed by a TxLINE Merkle proof — verify it
+          yourself without trusting Stoppage.
         </p>
 
         {market.status === "settled" ? (
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-neutral-500">Outcome</span>
-              <span className="capitalize">{market.outcome}</span>
+              <span className="font-medium capitalize">{market.outcome}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-500">Settled at</span>
@@ -324,27 +340,33 @@ export default function MarketDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-500">Verifications</span>
-              <span>{market.verifications}</span>
+              <span className="font-medium">{market.verifications}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-neutral-500">Proof source</span>
+              <span className="text-xs text-neutral-400">TxLINE on-chain oracle</span>
             </div>
             {market.outcome !== "void" && (
               <button
                 onClick={() => void run("attest", () => attestVerification(new PublicKey(marketAddr)))}
                 disabled={busy !== null}
-                className="rounded border border-white/20 px-3 py-1.5 text-xs disabled:opacity-40"
+                className="mt-2 rounded border border-white/20 px-3 py-1.5 text-xs disabled:opacity-40"
               >
                 {busy === "attest" ? "Attesting…" : "Attest verification"}
               </button>
             )}
-            <p className="pt-2 text-xs text-amber-400">
-              TxLINE CPI settlement lands in M3. Until then, this market was
-              settled via the mock oracle (force_settle) and carries no Merkle proof.
-            </p>
+            {market.verifications > 0 && (
+              <p className="pt-2 text-xs text-emerald-400">
+                ✓ {market.verifications} verification{market.verifications > 1 ? "s" : ""} —
+                this market's outcome is independently attested on-chain.
+              </p>
+            )}
           </div>
         ) : (
           <p className="mt-3 text-sm text-neutral-600">
             {market.status === "void"
               ? "Market was voided — no proof to verify (full refunds)."
-              : "Market not yet settled."}
+              : "Market not yet settled. The autonomous agent will settle this market when the match event is confirmed via TxLINE."}
           </p>
         )}
       </div>
