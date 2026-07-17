@@ -1,0 +1,5 @@
+# Keep this file on the VPS as /home/linuxuser/stoppage/.env.agent (mode 600).
+TXLINE_NETWORK=devnet
+TXLINE_JWT=replace-me
+TXLINE_API_TOKEN=replace-me
+SOLANA_KEYPAIR_PATH=/home/linuxuser/stoppage/secrets/agent-devnet.json

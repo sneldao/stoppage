@@ -9,8 +9,9 @@
  *   npx tsx apps/agent/src/index.ts live
  *   npx tsx apps/agent/src/index.ts replay <fixtureId>
  *
- * The agent wallet is the deployer wallet (~/.config/solana/id.json).
- * It pays for market creation bonds and settlement transactions.
+ * The agent wallet is supplied via SOLANA_KEYPAIR_PATH (default:
+ * ~/.config/solana/id.json). It pays for market creation bonds and
+ * settlement transactions.
  */
 
 import * as fs from "fs";
@@ -52,7 +53,8 @@ async function main() {
   console.log(`Network: ${network}`);
 
   // Load wallet
-  const walletPath = process.env.HOME + "/.config/solana/id.json";
+  const walletPath = process.env.SOLANA_KEYPAIR_PATH
+    ?? process.env.HOME + "/.config/solana/id.json";
   const wallet = Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
   );

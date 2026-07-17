@@ -10,6 +10,23 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { Network, TxLineCredentials } from "./types";
 
+function loadEnvironmentCredentials(): { network: Network; creds: TxLineCredentials } | null {
+  const jwt = process.env.TXLINE_JWT;
+  const apiToken = process.env.TXLINE_API_TOKEN;
+  const network = process.env.TXLINE_NETWORK;
+
+  if (!jwt && !apiToken && !network) return null;
+
+  if (!jwt || !apiToken) {
+    throw new Error("TXLINE_JWT and TXLINE_API_TOKEN must both be set");
+  }
+  if (network !== "devnet" && network !== "mainnet") {
+    throw new Error("TXLINE_NETWORK must be devnet or mainnet");
+  }
+
+  return { network, creds: { jwt, apiToken } };
+}
+
 /**
  * Load TxLINE credentials from the saved file.
  *
@@ -19,6 +36,9 @@ import type { Network, TxLineCredentials } from "./types";
 export function loadCredentials(
   baseDir?: string
 ): { network: Network; creds: TxLineCredentials } {
+  const environmentCredentials = loadEnvironmentCredentials();
+  if (environmentCredentials) return environmentCredentials;
+
   const cwd = baseDir ?? process.cwd();
   const paths = [
     join(cwd, ".txline-credentials.json"),
@@ -36,5 +56,7 @@ export function loadCredentials(
       // try next path
     }
   }
-  throw new Error("TxLINE credentials not found — run scripts/subscribe-txline.ts first");
+  throw new Error(
+    "TxLINE credentials not found — set TXLINE_JWT, TXLINE_API_TOKEN, and TXLINE_NETWORK, or run scripts/subscribe-txline.ts first"
+  );
 }

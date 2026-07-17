@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
-  transpilePackages: ["@stoppage/sdk"],
+  transpilePackages: ["@stoppage/sdk", "@stoppage/txline"],
   // Next 16 builds with Turbopack by default; an empty turbopack config
   // acknowledges that so the webpack block below only applies to --webpack
   // builds (same approach pir8 landed on).

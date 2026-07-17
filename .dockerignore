@@ -1,0 +1,15 @@
+.git
+node_modules
+**/node_modules
+**/.next
+target
+.anchor
+.env
+.env.*
+.txline-credentials.json
+secrets
+keys
+programs
+tests
+docs
+*.log

@@ -17,8 +17,10 @@ or descoped, it's recorded here and nowhere else.
   `G33naaudTAyEWFnfLET51aWGNLry5BwUtZt6KwcniFoj`.
 - **Settlement proof-receipt upgrade confirmed on devnet.** Deployment tx:
   `39yH8bz6SJbTTqGMfshKqeeYFUFMJYBRdJkpJXjwEr5LFamsf6GmsLNrp2DW6AMDBRrPuSMwSxQFupqS8bARSYjd`.
-  The market program account has been extended for the matching upgrade;
-  final upgrade confirmation is pending a rate-limit-free devnet RPC check.
+- **Matching market upgrade confirmed on devnet.** The devnet program account
+  reports a later deployment slot (`477002674`) than the settlement program
+  (`477000686`), under the expected upgrade authority, with the extended
+  program-data account required by `settle_from_proof`.
 - **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
   Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`, treasury
   PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.

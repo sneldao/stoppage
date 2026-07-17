@@ -45,6 +45,41 @@ npx tsx apps/agent/src/index.ts live --live-tx
 npx tsx scripts/subscribe-txline.ts
 ```
 
+## VPS deployment (nuncio-vultr)
+
+The VPS uses the shared Coolify-managed Traefik network. The web app is a
+Docker container on that network; it publishes no host port. The autonomous
+agent is a PM2 process with no HTTP listener. This keeps the public surface to
+the HTTPS web app while letting Traefik manage TLS.
+
+1. Clone the public repo to `/home/linuxuser/stoppage` and run `npm ci`.
+2. Copy `deploy/production-config.example` to `.env.production`, replace the
+   values, and choose a DNS name whose A/AAAA record already points to the VPS.
+3. Copy `deploy/agent-config.example` to `.env.agent`, set mode `600`, and place
+   a funded devnet-only agent keypair at the configured `SOLANA_KEYPAIR_PATH`.
+4. Build and start the web app:
+
+   ```bash
+   docker compose --env-file .env.production -f deploy/docker-compose.vps.yml up -d --build
+   ```
+
+5. Start the keeper and persist PM2 state:
+
+   ```bash
+   set -a
+   source .env.agent
+   set +a
+   pm2 start deploy/ecosystem.agent.config.cjs
+   pm2 save
+   ```
+
+6. Verify the public page, `pm2 logs stoppage-agent`, and a proof-gated
+   settlement transaction before recording the demo.
+
+`TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
+runtime. The legacy `.txline-credentials.json` file remains supported for
+local development only.
+
 ## Program tests
 
 `npm run anchor:test` runs the Anchor test suite in `tests/` against a

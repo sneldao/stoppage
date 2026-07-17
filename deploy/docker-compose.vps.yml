@@ -1,0 +1,35 @@
+# Stoppage web app deployment for nuncio-vultr.
+#
+# Traefik owns public ports 80/443. This container has no host port: it is
+# reachable only over the existing external `coolify` Docker network.
+services:
+  stoppage-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_HELIUS_RPC_URL: ${NEXT_PUBLIC_HELIUS_RPC_URL}
+    container_name: stoppage-web
+    restart: unless-stopped
+    env_file:
+      - ../.env.production
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+        compress: "true"
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.stoppage-web.rule=Host(`${STOPPAGE_DOMAIN}`)
+      - traefik.http.routers.stoppage-web.entrypoints=https
+      - traefik.http.routers.stoppage-web.tls.certresolver=letsencrypt
+      - traefik.http.services.stoppage-web.loadbalancer.server.port=3000
+
+networks:
+  coolify:
+    external: true
