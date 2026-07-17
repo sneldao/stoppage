@@ -4,15 +4,19 @@ import { useEffect } from "react";
 import { useStoppageStore } from "@/store";
 
 /**
- * Initializes the referral slice on app load.
+ * Initializes client-side store slices on app load.
  *
- * Reads ?ref=WALLET from the URL (if present) and persists it to
- * localStorage so attribution survives navigation. Renders nothing.
+ * - Referral: reads ?ref=WALLET from the URL, persists to localStorage.
+ * - History: loads settled position history from localStorage.
+ *
+ * Renders nothing.
  */
 export function ReferralInit() {
   const initReferral = useStoppageStore((s) => s.initReferral);
+  const initHistory = useStoppageStore((s) => s.initHistory);
   useEffect(() => {
     initReferral();
-  }, [initReferral]);
+    initHistory();
+  }, [initReferral, initHistory]);
   return null;
 }

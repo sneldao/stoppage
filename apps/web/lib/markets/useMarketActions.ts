@@ -19,10 +19,12 @@ import {
   buildAttestVerificationIx,
   signWithSessionKey,
   findPositionPda,
+  getMarket,
   type Side,
   type MarketPredicate,
 } from "@stoppage/sdk";
 import type { Keypair } from "@solana/web3.js";
+import { useStoppageStore } from "@/store";
 
 export interface JoinParams {
   market: PublicKey;
@@ -87,14 +89,43 @@ export function useMarketActions() {
     [connection]
   );
 
-  /** Claim a settled position (wallet signs). */
+  /** Claim a settled position (wallet signs). Records to history. */
   const claim = useCallback(
     async (market: PublicKey) => {
       if (!publicKey) throw new Error("Wallet not connected");
       const ix = buildClaimIx(publicKey, market);
-      return sendWalletTx(ix);
+      const sig = await sendWalletTx(ix);
+
+      // Record the settled position in history (for stats/leaderboard)
+      try {
+        const m = await getMarket(connection, market);
+        const positions = useStoppageStore.getState().positions;
+        const pos = positions[`${market.toBase58()}:${publicKey.toBase58()}`];
+        if (pos && (m.status === "settled" || m.status === "void")) {
+          const payoutLamports = m.status === "void"
+            ? pos.amountLamports // full refund
+            : pos.side === m.outcome
+            ? Math.floor((pos.amountLamports * (m.yesPool + m.noPool)) /
+              (pos.side === "yes" ? m.yesPool : m.noPool))
+            : 0;
+          useStoppageStore.getState().addSettledPosition({
+            marketId: market.toBase58(),
+            owner: publicKey.toBase58(),
+            side: pos.side,
+            amountLamports: pos.amountLamports,
+            outcome: m.outcome ?? "void",
+            payoutLamports,
+            settledAt: Date.now(),
+            label: `${m.predicate.kind} ${m.predicate.params.windowSeconds ?? m.predicate.params.threshold ?? ""}`,
+          });
+        }
+      } catch {
+        // Non-fatal — history just won't be recorded
+      }
+
+      return sig;
     },
-    [publicKey, sendWalletTx]
+    [connection, publicKey, sendWalletTx]
   );
 
   /** Create a market (wallet signs, pays the bond). */

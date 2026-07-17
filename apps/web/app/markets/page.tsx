@@ -10,6 +10,9 @@ import { impliedProbability } from "@stoppage/sdk";
 import type { Market } from "@stoppage/sdk";
 import { buildMarketTweet, buildTweetIntent } from "@/lib/share/tweet";
 import { useStoppageStore } from "@/store";
+import { StatsPanel } from "@/components/StatsPanel";
+import { PositionHistory } from "@/components/PositionHistory";
+import { MatchCalendar } from "@/components/MatchCalendar";
 
 const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
 const PREDICATE_LABEL: Record<string, string> = {
@@ -129,8 +132,8 @@ export default function MarketsPage() {
         <div className="rounded-lg border border-dashed border-white/10 p-8 text-center text-neutral-500">
           <p>No markets yet.</p>
           <p className="mt-1 text-xs">
-            Markets appear here once created on-chain. Run the M2 acceptance
-            flow or create one from the session-key demo.
+            Markets appear here once created on-chain. Run the agent
+            or create one from the session-key demo.
           </p>
         </div>
       ) : (
@@ -140,6 +143,13 @@ export default function MarketsPage() {
           ))}
         </div>
       )}
+
+      {/* ── Retention: stats, history, calendar ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StatsPanel />
+        <MatchCalendar />
+      </div>
+      <PositionHistory />
 
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-300">
         ← back to session-key demo
