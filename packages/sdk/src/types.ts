@@ -88,11 +88,29 @@ export interface Position {
 export interface SettlementProof {
   marketId: string;
   matchId: MatchId;
-  merkleProof: string[];
   statement: string;
-  anchoredRoot: string;
+  anchoredRoot: string | number[];
   verifiedAt: string;
   outcome: Outcome;
+  /** The TxLINE fixture ID. */
+  fixtureId: number;
+  /** Score record sequence number from the observed update. */
+  seq: number;
+  /** Timestamp (ms) of the score update — used for PDA derivation. */
+  timestamp: number;
+  /** The stat that was proven (key + value). */
+  statKey: number;
+  statValue: number;
+  /** Merkle proof path from leaf to root (normalized 32-byte hashes). */
+  statProof: Array<{ hash: Uint8Array; isRightSibling: boolean }>;
+  /** Merkle proof for the fixture subtree. */
+  subTreeProof: Array<{ hash: Uint8Array; isRightSibling: boolean }>;
+  /** Merkle proof for the main tree. */
+  mainTreeProof: Array<{ hash: Uint8Array; isRightSibling: boolean }>;
+  /** The event stat root (hex string or byte array from TxLINE API). */
+  eventStatRoot: string | number[];
+  /** The fixture subtree root (hex string or byte array from TxLINE API). */
+  subTreeRoot: string | number[];
 }
 
 export interface SessionKeyGrant {

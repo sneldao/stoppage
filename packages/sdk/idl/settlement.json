@@ -12,14 +12,19 @@
       "docs": [
         "Resolve a market by verifying a TxLINE Merkle proof on-chain.",
         "",
-        "1. CPI into TxLINE's `validate_stat` with (statement, merkle_proof)",
-        "2. On success, write outcome + proof reference to the market's",
-        "state account (owned by programs/market)",
-        "3. Emit `MarketResolved` carrying the full proof data so the UI",
-        "can render it without a second fetch",
+        "1. CPI into TxLINE's `validate_stat` with the full proof data",
+        "2. Read the return data (bool) — true means the predicate holds",
+        "3. Verify the result matches the expected outcome",
+        "4. Emit `MarketResolved` carrying the full proof data",
         "",
         "Permissionless: any keeper can call this. The proof itself is the",
-        "authority — if `validate_stat` rejects it, the call fails."
+        "authority — if `validate_stat` rejects it, the call fails and the",
+        "entire transaction reverts (including any force_settle in the same tx).",
+        "",
+        "The `txline_ix_data` is the pre-built instruction data for TxLINE's",
+        "`validate_stat` instruction (discriminator + borsh-serialized args).",
+        "Building it in the SDK keeps the complex TxLINE type serialization",
+        "in TypeScript, where the TxLINE types are already defined."
       ],
       "discriminator": [
         155,
@@ -44,14 +49,24 @@
         {
           "name": "market",
           "docs": [
-            "The market being resolved. Owned by programs/market — we read",
-            "its key for the event and will CPI to write its status in M3.",
-            "the CPI in M3 will verify ownership."
+            "The market being resolved. Owned by programs/market."
           ],
           "writable": true
         },
         {
-          "name": "txline_program"
+          "name": "txline_program",
+          "docs": [
+            "The address is verified by the CPI call — if it's not the real",
+            "TxLINE program, validate_stat will fail."
+          ]
+        },
+        {
+          "name": "daily_scores_merkle_roots",
+          "docs": [
+            "The daily_scores_merkle_roots PDA from TxLINE. This is the account",
+            "that stores the anchored Merkle root for the given epoch day.",
+            "The PDA is derived as: [\"daily_scores_roots\", epoch_day_u16_le]"
+          ]
         }
       ],
       "args": [
@@ -60,15 +75,21 @@
           "type": "string"
         },
         {
-          "name": "merkle_proof",
+          "name": "merkle_root",
           "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "array": [
+              "u8",
+              32
+            ]
           }
+        },
+        {
+          "name": "outcome",
+          "type": "u8"
+        },
+        {
+          "name": "txline_ix_data",
+          "type": "bytes"
         }
       ]
     }
@@ -86,6 +107,23 @@
         199,
         202
       ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NoReturnData",
+      "msg": "TxLINE validate_stat returned no data"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidReturnSource",
+      "msg": "Return data did not come from the TxLINE program"
+    },
+    {
+      "code": 6002,
+      "name": "ProofOutcomeMismatch",
+      "msg": "Proof outcome does not match validate_stat result"
     }
   ],
   "types": [
@@ -118,7 +156,7 @@
           {
             "name": "merkle_root",
             "docs": [
-              "The Merkle root anchored on Solana (from TxLINE's validate_stat)."
+              "The Merkle root anchored on Solana (from TxLINE's daily_scores_roots PDA)."
             ],
             "type": {
               "array": [
@@ -137,11 +175,7 @@
           {
             "name": "proof_hash",
             "docs": [
-              "Compact XOR-fold reference of the Merkle proof path — NOT",
-              "cryptographically secure (see `hash_proof`); it's a UI identifier,",
-              "not the verification itself. The real verification happens on-chain",
-              "via `validate_stat` CPI and off-chain via `verifyProofLocally`.",
-              "Replaced with a real hash (Keccak/SHA256) when M3 lands."
+              "Keccak-256 hash of the Merkle root — compact on-chain reference."
             ],
             "type": {
               "array": [
@@ -163,6 +197,13 @@
               "On-chain timestamp of resolution."
             ],
             "type": "i64"
+          },
+          {
+            "name": "validated_on_chain",
+            "docs": [
+              "Whether the proof was verified on-chain via validate_stat CPI."
+            ],
+            "type": "bool"
           }
         ]
       }
