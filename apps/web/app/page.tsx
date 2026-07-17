@@ -79,9 +79,9 @@ export default function Home() {
               it.
             </p>
             <div className="mt-2 text-xs text-neutral-500">
-              <p>Funded: {SOL(0.1)} — the session key can only spend this</p>
-              <p>Suggested limit: {SOL(0.1)} cumulative (opt-out available)</p>
-              <p>Per-market cap: {SOL(0.05)}</p>
+              <p>Funded: {SOL(100_000_000)} — the session key can only spend this</p>
+              <p>Suggested limit: {SOL(100_000_000)} cumulative (opt-out available)</p>
+              <p>Per-market cap: {SOL(50_000_000)}</p>
               <p>Session expires: auto at match end</p>
             </div>
           </div>

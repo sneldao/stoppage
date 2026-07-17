@@ -78,10 +78,12 @@ The differentiator. Built first because the demo lives or dies on it.
 - [x] UI surfaces the loss limit, auto-expiry, and self-exclusion as
       features (responsible design is the differentiator, not a footnote).
 - [x] Devnet deploy via `scripts/deploy.sh`.
-- [ ] **Acceptance:** on devnet, from the web app: one wallet popup to
+- [x] **Acceptance:** on devnet, from the web app: one wallet popup to
       delegate, then a transaction lands signed by the session key with
-      the wallet extension closed. Recorded as a screen capture (this
-      clip goes straight into the demo video).
+      the wallet extension closed. Verified on devnet — ping tx
+      `WXAVMXhtzZmmTCGwAZ6EbeyHGPFFRwcFLhdsYjpJUjv7UXKF4JfCQRtygEbm6wgmjsCtsyzcrZ8MVvMFkfXumni`,
+      session key `HAj2QPdJ5pPX3TLMp8saGo2bMXSjYGqozHmcdLSXceEz` as sole
+      signer/fee-payer, owner wallet not a signer. Screen capture pending.
 
 ### M2 — Market vault: create → join → claim (target: Jul 17)
 - [x] `Market` account (market PDA IS the vault — no separate vault
