@@ -338,71 +338,10 @@
       ]
     },
     {
-      "name": "force_settle",
-      "docs": [
-        "Authority-only mock settle for M2 acceptance (real settlement",
-        "comes via the settlement program's CPI in M3). Clearly labeled."
-      ],
-      "discriminator": [
-        201,
-        10,
-        239,
-        245,
-        47,
-        198,
-        225,
-        204
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "protocol_config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  114,
-                  111,
-                  116,
-                  111,
-                  99,
-                  111,
-                  108,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "market",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "outcome",
-          "type": "u8"
-        }
-      ]
-    },
-    {
       "name": "initialize_protocol",
       "docs": [
         "One-time initialization after deploy. Sets the protocol authority",
-        "(who can force-settle markets as a mock oracle) and the fee rate.",
+        "and the fee rate.",
         "The treasury PDA is created here and receives fees on every claim."
       ],
       "discriminator": [
@@ -789,6 +728,49 @@
       "args": []
     },
     {
+      "name": "settle_from_proof",
+      "docs": [
+        "Permissionless settlement that is cryptographically gated by the",
+        "settlement program's one-time TxLINE proof receipt."
+      ],
+      "discriminator": [
+        232,
+        8,
+        28,
+        31,
+        83,
+        231,
+        83,
+        105
+      ],
+      "accounts": [
+        {
+          "name": "resolver",
+          "docs": [
+            "Any keeper may settle; authorization comes exclusively from the",
+            "proof-gated receipt account."
+          ],
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "resolution",
+          "docs": [
+            "discriminator, market binding, and outcome binding)."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "void_market",
       "docs": [
         "Permissionless void: if a market hasn't settled by closes_at +",
@@ -1127,16 +1109,36 @@
     },
     {
       "code": 6021,
-      "name": "NotAuthorized",
-      "msg": "Signer is not the protocol authority"
+      "name": "InvalidResolutionOwner",
+      "msg": "Resolution account is not owned by the settlement program"
     },
     {
       "code": 6022,
+      "name": "InvalidResolutionPda",
+      "msg": "Resolution account is not the canonical receipt PDA for this market"
+    },
+    {
+      "code": 6023,
+      "name": "MalformedResolution",
+      "msg": "Resolution receipt has an invalid layout"
+    },
+    {
+      "code": 6024,
+      "name": "ResolutionMarketMismatch",
+      "msg": "Resolution receipt belongs to a different market"
+    },
+    {
+      "code": 6025,
+      "name": "ResolutionOutcomeMismatch",
+      "msg": "Resolution receipt outcome does not match settlement outcome"
+    },
+    {
+      "code": 6026,
       "name": "NotCreator",
       "msg": "Signer is not the market creator"
     },
     {
-      "code": 6023,
+      "code": 6027,
       "name": "BondAlreadyClaimed",
       "msg": "Bond has already been claimed"
     }

@@ -56,10 +56,10 @@ stream and call it done. The bets we're making on differentiation:
    "transparency" pitch in the demo video.
 
 4. **Composable market templates, not a fixed odds book.**
-   Markets are defined by small predicate templates (`next_goal_within(t)`,
-   `corners(team) > n`, `card_shown(team, player_role)`) evaluated against
-   the normalized TxLINE schema, rather than one bespoke contract per bet
-   type. New market types are template instances, not new programs.
+   Markets are defined by small predicate templates, rather than one bespoke
+   contract per bet type. The proof-gated keeper currently activates total
+   goals and total corners templates, whose TxLINE stat-proof mappings are
+   deterministic; new market types are added only with an equivalent mapping.
 
 5. **Blinks-native bet slips.**
    Every market and every open position is a shareable Solana Action —

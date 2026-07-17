@@ -4,7 +4,7 @@
  * Boundary (CLAUDE.md → Module boundaries): this module builds
  * instructions and derives PDAs. It never imports the wallet adapter.
  * The web layer orchestrates wallet signing for create/claim_bond/
- * force_settle; join_via_session_key uses signWithSessionKey from
+ * proof-gated settlement; join_via_session_key uses signWithSessionKey from
  * sessionKey.ts (no wallet popup).
  *
  * Instruction discriminators and account layouts are read from the IDL
@@ -26,6 +26,7 @@ import type {
   Side,
 } from "./types";
 import { PREDICATE_KIND, STATUS_FROM_NUM, OUTCOME_FROM_NUM } from "./types";
+import { SETTLEMENT_PROGRAM_ID } from "./programIds";
 
 const MARKET_PROGRAM_ID = new PublicKey(marketIdl.address);
 const SYSTEM_PROGRAM_ID = SystemProgram.programId;
@@ -288,21 +289,24 @@ export function buildJoinViaSessionKeyIx(
   });
 }
 
-export function buildForceSettleIx(
-  authority: PublicKey,
+export function buildSettleFromProofIx(
+  resolver: PublicKey,
   market: PublicKey,
   outcome: Side
 ): TransactionInstruction {
-  const [config] = findProtocolConfigPda();
+  const [resolution] = PublicKey.findProgramAddressSync(
+    [Buffer.from("resolution"), market.toBuffer()],
+    new PublicKey(SETTLEMENT_PROGRAM_ID)
+  );
   return new TransactionInstruction({
     programId: MARKET_PROGRAM_ID,
     keys: [
-      { pubkey: authority, isSigner: true, isWritable: true },
-      { pubkey: config, isSigner: false, isWritable: false },
+      { pubkey: resolver, isSigner: true, isWritable: false },
       { pubkey: market, isSigner: false, isWritable: true },
+      { pubkey: resolution, isSigner: false, isWritable: false },
     ],
     data: Buffer.concat([
-      ixDiscriminator("force_settle"),
+      ixDiscriminator("settle_from_proof"),
       encodeU8(outcome === "yes" ? 0 : 1),
     ]),
   });

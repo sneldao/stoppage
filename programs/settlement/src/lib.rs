@@ -13,7 +13,7 @@
 //
 // The agent submits a single transaction containing:
 //   1. resolve_market  (this program — CPIs into TxLINE validate_stat)
-//   2. force_settle    (market program — settles with the outcome)
+//   2. settle_from_proof (market program — consumes the resolution receipt)
 //   3. attest_verification (market program — increments verification counter)
 //
 // If resolve_market fails (proof invalid), the entire transaction reverts,
@@ -26,6 +26,9 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 
 declare_id!("5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF");
+
+const MARKET_PROGRAM_ID: Pubkey = pubkey!("92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG");
+const TXLINE_DEVNET_PROGRAM_ID: Pubkey = pubkey!("6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J");
 
 // TxLINE validate_stat instruction discriminator (from the TxLINE IDL).
 const VALIDATE_STAT_DISCRIMINATOR: [u8; 8] = [107, 197, 232, 90, 191, 136, 105, 185];
@@ -44,7 +47,8 @@ pub mod settlement {
     ///
     /// Permissionless: any keeper can call this. The proof itself is the
     /// authority — if `validate_stat` rejects it, the call fails and the
-    /// entire transaction reverts (including any force_settle in the same tx).
+    /// entire transaction reverts. On success it creates the receipt the
+    /// market program requires for settlement.
     ///
     /// The `txline_ix_data` is the pre-built instruction data for TxLINE's
     /// `validate_stat` instruction (discriminator + borsh-serialized args).
@@ -57,6 +61,22 @@ pub mod settlement {
         outcome: u8,
         txline_ix_data: Vec<u8>,
     ) -> Result<()> {
+        require!(outcome <= 1, SettlementError::InvalidOutcome);
+        require_keys_eq!(
+            *ctx.accounts.market.owner,
+            MARKET_PROGRAM_ID,
+            SettlementError::InvalidMarketOwner
+        );
+        require_keys_eq!(
+            ctx.accounts.txline_program.key(),
+            TXLINE_DEVNET_PROGRAM_ID,
+            SettlementError::InvalidTxlineProgram
+        );
+        require_keys_eq!(
+            *ctx.accounts.daily_scores_merkle_roots.owner,
+            TXLINE_DEVNET_PROGRAM_ID,
+            SettlementError::InvalidMerkleRootsOwner
+        );
         // Build the CPI instruction for TxLINE's validate_stat.
         // The data is pre-built by the SDK (discriminator + borsh args).
         // We prepend the validate_stat discriminator to make the full
@@ -105,9 +125,17 @@ pub mod settlement {
 
         let clock = Clock::get()?;
         let proof_hash = hash_proof(&merkle_root);
+        let receipt = &mut ctx.accounts.resolution;
+        receipt.market = ctx.accounts.market.key();
+        receipt.outcome = outcome;
+        receipt.merkle_root = merkle_root;
+        receipt.resolver = ctx.accounts.resolver.key();
+        receipt.resolved_at = clock.unix_timestamp;
+        receipt.bump = ctx.bumps.resolution;
 
         emit!(MarketResolved {
             market: ctx.accounts.market.key(),
+            resolution: receipt.key(),
             statement: statement.clone(),
             merkle_root,
             outcome,
@@ -137,6 +165,14 @@ pub struct ResolveMarket<'info> {
     /// CHECK: validated by the caller passing the correct market address.
     #[account(mut)]
     pub market: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = resolver,
+        space = Resolution::SPACE,
+        seeds = [b"resolution", market.key().as_ref()],
+        bump,
+    )]
+    pub resolution: Account<'info, Resolution>,
     /// CHECK: TxLINE validation program (6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J on devnet).
     /// The address is verified by the CPI call — if it's not the real
     /// TxLINE program, validate_stat will fail.
@@ -146,6 +182,23 @@ pub struct ResolveMarket<'info> {
     /// The PDA is derived as: ["daily_scores_roots", epoch_day_u16_le]
     /// CHECK: owned by txline_program, verified by the CPI call.
     pub daily_scores_merkle_roots: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+/// Immutable proof-gated receipt. The market program checks this exact PDA
+/// before it can change a market from open to settled.
+#[account]
+pub struct Resolution {
+    pub market: Pubkey,
+    pub outcome: u8,
+    pub merkle_root: [u8; 32],
+    pub resolver: Pubkey,
+    pub resolved_at: i64,
+    pub bump: u8,
+}
+
+impl Resolution {
+    pub const SPACE: usize = 8 + 32 + 1 + 32 + 32 + 8 + 1;
 }
 
 // ── Events ──────────────────────────────────────────────────────────
@@ -159,6 +212,7 @@ pub struct ResolveMarket<'info> {
 pub struct MarketResolved {
     /// The market that was resolved.
     pub market: Pubkey,
+    pub resolution: Pubkey,
     /// The raw statement being proven, e.g. "GOAL:FRA:63:00".
     pub statement: String,
     /// The Merkle root anchored on Solana (from TxLINE's daily_scores_roots PDA).
@@ -188,4 +242,12 @@ pub enum SettlementError {
     /// The proof verified but the outcome doesn't match the validation result.
     #[msg("Proof outcome does not match validate_stat result")]
     ProofOutcomeMismatch,
+    #[msg("Resolution outcome must be YES (0) or NO (1)")]
+    InvalidOutcome,
+    #[msg("Market is not owned by the Stoppage market program")]
+    InvalidMarketOwner,
+    #[msg("TxLINE program does not match the pinned devnet program")]
+    InvalidTxlineProgram,
+    #[msg("Merkle roots account is not owned by the TxLINE program")]
+    InvalidMerkleRootsOwner,
 }

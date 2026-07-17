@@ -15,7 +15,6 @@ import {
   buildJoinViaSessionKeyIx,
   buildClaimIx,
   buildCreateMarketIx,
-  buildForceSettleIx,
   buildAttestVerificationIx,
   signWithSessionKey,
   findPositionPda,
@@ -142,16 +141,6 @@ export function useMarketActions() {
     [publicKey, sendWalletTx]
   );
 
-  /** Authority-only mock settle (M2 acceptance / demo). */
-  const forceSettle = useCallback(
-    async (market: PublicKey, outcome: Side) => {
-      if (!publicKey) throw new Error("Wallet not connected");
-      const ix = buildForceSettleIx(publicKey, market, outcome);
-      return sendWalletTx(ix);
-    },
-    [publicKey, sendWalletTx]
-  );
-
   /** Permissionless attestation — anyone can verify a settled market. */
   const attestVerification = useCallback(
     async (market: PublicKey) => {
@@ -177,7 +166,6 @@ export function useMarketActions() {
     joinViaSessionKey,
     claim,
     createMarket,
-    forceSettle,
     attestVerification,
     myPositionPda,
   };

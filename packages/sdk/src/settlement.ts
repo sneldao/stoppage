@@ -15,7 +15,7 @@
  *   - enums: 1 byte variant index + variant fields
  */
 
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { SETTLEMENT_PROGRAM_ID } from "./programIds";
 
 // ── TxLINE type encoders ────────────────────────────────────────────
@@ -216,6 +216,14 @@ export function deriveDailyScoresRootsPda(
   );
 }
 
+/** One immutable proof receipt is created for each resolved market. */
+export function deriveResolutionPda(market: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("resolution"), market.toBuffer()],
+    new PublicKey(SETTLEMENT_PROGRAM_ID)
+  );
+}
+
 /**
  * Build the resolve_market instruction for the settlement program.
  *
@@ -270,8 +278,10 @@ export function buildResolveMarketIx(
   const keys = [
     { pubkey: resolver, isSigner: true, isWritable: true },
     { pubkey: market, isSigner: false, isWritable: true },
+    { pubkey: deriveResolutionPda(market)[0], isSigner: false, isWritable: true },
     { pubkey: txlineProgramId, isSigner: false, isWritable: false },
     { pubkey: dailyScoresMerkleRoots, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ];
 
   return new TransactionInstruction({

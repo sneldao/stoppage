@@ -38,12 +38,6 @@ export type AgentAction =
 
 // ── Strategy config ─────────────────────────────────────────────────
 
-/** Window for "next goal within X seconds" markets. */
-const NEXT_GOAL_WINDOW_S = 300; // 5 minutes
-
-/** How long before a market auto-closes if no event happens. */
-const MARKET_TTL_S = 600; // 10 minutes
-
 // ── Strategy ────────────────────────────────────────────────────────
 
 /**
@@ -64,49 +58,15 @@ export function decideActions(
     case "match_started":
       // Create initial markets for the match
       actions.push(
-        createNextGoalMarket(event.matchId, event.ts),
         createTotalGoalsMarket(event.matchId, event.ts, 3),
         createCornersMarket(event.matchId, event.ts, 9)
       );
       break;
 
     case "goal_scored":
-      // Settle any open "next goal within" markets — YES wins
-      for (const m of openMarkets) {
-        if (m.predicate.kind === "next_goal_within" && m.predicate.matchId === event.matchId) {
-          actions.push({
-            type: "settle_market",
-            predicate: m.predicate,
-            outcome: "yes",
-            seq: event.seq,
-            statKey: 0, // The goal itself is the proof, not a stat key
-            label: m.label,
-          });
-        }
-      }
-      // Create a new "next goal within" market
-      actions.push(createNextGoalMarket(event.matchId, event.ts));
-      break;
-
     case "halftime":
-      // Settle open "next goal within" — NO wins (no goal before halftime)
-      for (const m of openMarkets) {
-        if (m.predicate.kind === "next_goal_within" && m.predicate.matchId === event.matchId) {
-          actions.push({
-            type: "settle_market",
-            predicate: m.predicate,
-            outcome: "no",
-            seq: event.seq,
-            statKey: 0,
-            label: m.label,
-          });
-        }
-      }
-      break;
-
     case "second_half_started":
-      // Create a new "next goal within" for the second half
-      actions.push(createNextGoalMarket(event.matchId, event.ts));
+      // These events do not have a settlement mapping to a TxLINE stat proof.
       break;
 
     case "match_ended":
@@ -114,17 +74,7 @@ export function decideActions(
       for (const m of openMarkets) {
         if (m.predicate.matchId !== event.matchId) continue;
 
-        if (m.predicate.kind === "next_goal_within") {
-          // No more goals after match ends — NO wins
-          actions.push({
-            type: "settle_market",
-            predicate: m.predicate,
-            outcome: "no",
-            seq: event.seq,
-            statKey: 0,
-            label: m.label,
-          });
-        } else if (m.predicate.kind === "total_goals_over") {
+        if (m.predicate.kind === "total_goals_over") {
           // Settle based on final score
           const totalGoals = event.finalScore.home + event.finalScore.away;
           const threshold = Number(m.predicate.params.threshold ?? 0);
@@ -154,25 +104,6 @@ export function decideActions(
       }
       break;
 
-    case "heartbeat":
-      // Check for expired markets (TTL exceeded)
-      for (const m of openMarkets) {
-        if (m.predicate.kind === "next_goal_within") {
-          const ageS = (Date.now() - m.createdAt) / 1000;
-          if (ageS > m.ttlSeconds) {
-            actions.push({
-              type: "settle_market",
-              predicate: m.predicate,
-              outcome: "no",
-              seq: 0,
-              statKey: 0,
-              label: m.label,
-            });
-          }
-        }
-      }
-      break;
-
     // corner_awarded, card_shown — no immediate market actions
     // (these feed into the over/under markets which settle at match end)
   }
@@ -191,20 +122,6 @@ export interface OpenMarket {
 }
 
 // ── Market creation helpers ─────────────────────────────────────────
-
-function createNextGoalMarket(matchId: string, ts: number): AgentAction {
-  const predicate: MarketPredicate = {
-    kind: "next_goal_within",
-    matchId,
-    params: { team: "", windowSeconds: NEXT_GOAL_WINDOW_S },
-  };
-  return {
-    type: "create_market",
-    predicate,
-    closesInSeconds: NEXT_GOAL_WINDOW_S,
-    label: `Next goal within ${NEXT_GOAL_WINDOW_S / 60}min — ${matchId}`,
-  };
-}
 
 function createTotalGoalsMarket(matchId: string, ts: number, threshold: number): AgentAction {
   const predicate: MarketPredicate = {

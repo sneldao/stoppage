@@ -26,7 +26,7 @@ export default function MarketDetailPage() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { state, getSessionSigner } = useSessionKey();
-  const { joinViaWallet, joinViaSessionKey, claim, forceSettle } = useMarketActions();
+  const { joinViaWallet, joinViaSessionKey, claim } = useMarketActions();
   useMyPositions();
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
@@ -112,12 +112,6 @@ export default function MarketDetailPage() {
 
   const onClaim = () => {
     void run("claim", () => claim(new PublicKey(marketAddr)));
-  };
-
-  const onForceSettle = (outcome: Side) => {
-    void run(`settle-${outcome}`, () =>
-      forceSettle(new PublicKey(marketAddr), outcome)
-    );
   };
 
   if (!market) {
@@ -286,32 +280,6 @@ export default function MarketDetailPage() {
             </button>
           )}
         </div>
-      )}
-
-      {/* ── Mock settle (M2 demo / authority only) ── */}
-      {market.status === "open" && publicKey && (
-        <details className="rounded-xl border border-white/10 p-4 text-sm">
-          <summary className="cursor-pointer text-neutral-400">Authority: force-settle (mock oracle)</summary>
-          <div className="mt-3 flex gap-3">
-            <button
-              onClick={() => onForceSettle("yes")}
-              disabled={busy !== null}
-              className="rounded border border-emerald-500/30 px-3 py-1.5 text-emerald-400 disabled:opacity-40"
-            >
-              Settle YES
-            </button>
-            <button
-              onClick={() => onForceSettle("no")}
-              disabled={busy !== null}
-              className="rounded border border-red-500/30 px-3 py-1.5 text-red-400 disabled:opacity-40"
-            >
-              Settle NO
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-neutral-600">
-            M2 mock oracle. Real settlement comes via the TxLINE CPI in M3.
-          </p>
-        </details>
       )}
 
       {/* ── Verifiable Resolution panel (the proof is the product) ── */}

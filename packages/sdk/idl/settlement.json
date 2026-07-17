@@ -19,7 +19,8 @@
         "",
         "Permissionless: any keeper can call this. The proof itself is the",
         "authority — if `validate_stat` rejects it, the call fails and the",
-        "entire transaction reverts (including any force_settle in the same tx).",
+        "entire transaction reverts. On success it creates the receipt the",
+        "market program requires for settlement.",
         "",
         "The `txline_ix_data` is the pre-built instruction data for TxLINE's",
         "`validate_stat` instruction (discriminator + borsh-serialized args).",
@@ -54,6 +55,33 @@
           "writable": true
         },
         {
+          "name": "resolution",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  108,
+                  117,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
           "name": "txline_program",
           "docs": [
             "The address is verified by the CPI call — if it's not the real",
@@ -67,6 +95,10 @@
             "that stores the anchored Merkle root for the given epoch day.",
             "The PDA is derived as: [\"daily_scores_roots\", epoch_day_u16_le]"
           ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -91,6 +123,21 @@
           "name": "txline_ix_data",
           "type": "bytes"
         }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Resolution",
+      "discriminator": [
+        31,
+        13,
+        235,
+        201,
+        17,
+        66,
+        5,
+        138
       ]
     }
   ],
@@ -124,6 +171,26 @@
       "code": 6002,
       "name": "ProofOutcomeMismatch",
       "msg": "Proof outcome does not match validate_stat result"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidOutcome",
+      "msg": "Resolution outcome must be YES (0) or NO (1)"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidMarketOwner",
+      "msg": "Market is not owned by the Stoppage market program"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidTxlineProgram",
+      "msg": "TxLINE program does not match the pinned devnet program"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidMerkleRootsOwner",
+      "msg": "Merkle roots account is not owned by the TxLINE program"
     }
   ],
   "types": [
@@ -144,6 +211,10 @@
             "docs": [
               "The market that was resolved."
             ],
+            "type": "pubkey"
+          },
+          {
+            "name": "resolution",
             "type": "pubkey"
           },
           {
@@ -204,6 +275,47 @@
               "Whether the proof was verified on-chain via validate_stat CPI."
             ],
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Resolution",
+      "docs": [
+        "Immutable proof-gated receipt. The market program checks this exact PDA",
+        "before it can change a market from open to settled."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "merkle_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

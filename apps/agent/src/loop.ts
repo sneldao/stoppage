@@ -23,14 +23,12 @@ import {
 } from "@solana/web3.js";
 import {
   buildCreateMarketIx,
-  buildForceSettleIx,
+  buildSettleFromProofIx,
   buildVoidMarketIx,
   buildAttestVerificationIx,
   buildResolveMarketIx,
   buildValidateStatData,
   deriveDailyScoresRootsPda,
-  verifyProofLocally,
-  buildSettlementProof,
   findMarketPdaFromPredicate,
   type MarketPredicate,
   type Side,
@@ -68,6 +66,7 @@ export interface ActionResult {
   success: boolean;
   signature?: string;
   marketPda?: string;
+  skipped?: boolean;
   error?: string;
 }
 
@@ -236,10 +235,8 @@ export class Agent {
       return { success: false, error: "Market PDA unknown" };
     }
 
-    // Remove from open markets regardless of mode
-    this.openMarkets.splice(idx, 1);
-
-    // Fetch TxLINE validation proof for the settlement (when available)
+    // Fetch a TxLINE validation proof. A market remains open if proof
+    // retrieval or its proof-gated transaction fails, so the keeper can retry.
     let proofSummary = "";
     let resolveIx: TransactionInstruction | null = null;
     const outcome: Side = action.outcome === "yes" ? "yes" : "no";
@@ -263,31 +260,6 @@ export class Agent {
           const mainTreeProofNorm = normalizeProof(proof.mainTreeProof);
           const eventStatRootBytes = toBytes32(proof.eventStatRoot);
           const subTreeRootBytes = toBytes32(proof.summary.eventStatsSubTreeRoot);
-
-          // Build the settlement proof for local verification
-          const settlementProof = buildSettlementProof({
-            marketId: market.marketPda,
-            matchId: action.predicate.matchId,
-            fixtureId,
-            seq: action.seq,
-            timestamp: proof.summary.updateStats.maxTimestamp,
-            statKey: proof.statToProve.key,
-            statValue: proof.statToProve.value,
-            outcome: action.outcome,
-            statement: action.label,
-            eventStatRoot: proof.eventStatRoot,
-            subTreeRoot: proof.summary.eventStatsSubTreeRoot,
-            anchoredRoot: proof.eventStatRoot, // The event stat root is what validate_stat checks
-            statProof: statProofNorm,
-            subTreeProof: subTreeProofNorm,
-            mainTreeProof: mainTreeProofNorm,
-          });
-
-          const localValid = verifyProofLocally(settlementProof);
-          console.log(`[agent] Local proof verification: ${localValid ? "VALID" : "INVALID"}`);
-          if (!localValid) {
-            console.warn(`[agent] Local verification failed — proceeding with on-chain verification only`);
-          }
 
           // Build the validate_stat instruction data
           const txlineProgramId = new PublicKey(TXLINE_CONFIG[txlineNetwork].programId);
@@ -325,7 +297,6 @@ export class Agent {
             predicate: {
               // The predicate threshold comes from the market's params
               // (e.g. "over 3 goals" → threshold=3).
-              // For next_goal_within (no threshold), use 0.
               threshold: Number(action.predicate.params.threshold ?? 0),
               comparison: 0, // GreaterThan — "over" markets
             },
@@ -358,8 +329,12 @@ export class Agent {
           proofSummary += ` [on-chain CPI via PDA epoch_day=${epochDay}]`;
         }
       } catch (err) {
-        console.warn(`[agent] Proof fetch/build failed (non-fatal):`, (err as Error).message);
+        return { success: false, error: `Proof fetch/build failed: ${(err as Error).message}` };
       }
+    }
+
+    if (!resolveIx) {
+      return { success: false, error: "Proof-gated settlement requires TxLINE credentials and a validation proof" };
     }
 
     if (dryRun) {
@@ -367,16 +342,17 @@ export class Agent {
       if (resolveIx) {
         console.log(`[agent] (dry-run)   + resolve_market (on-chain validate_stat CPI)`);
       }
-      console.log(`[agent] (dry-run)   + force_settle + attest_verification`);
+      console.log(`[agent] (dry-run)   + settle_from_proof + attest_verification`);
+      this.openMarkets.splice(idx, 1);
       return { success: true, marketPda: market.marketPda };
     }
 
     // Build the transaction:
-    // 1. resolve_market (if proof available) — CPIs into TxLINE validate_stat
-    // 2. force_settle — settles the market with the outcome
+    // 1. resolve_market — CPIs into TxLINE validate_stat and creates receipt
+    // 2. settle_from_proof — consumes the matching receipt to settle the vault
     // 3. attest_verification — increments verification counter
     // If resolve_market fails (proof invalid), the entire tx reverts.
-    const settleIx = buildForceSettleIx(
+    const settleIx = buildSettleFromProofIx(
       wallet.publicKey,
       new PublicKey(market.marketPda),
       outcome
@@ -394,11 +370,9 @@ export class Agent {
       lastValidBlockHeight,
     });
 
-    // Add compute budget instruction for the CPI call (TxLINE needs ~1.4M units)
-    if (resolveIx) {
-      tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
-      tx.add(resolveIx);
-    }
+    // TxLINE's CPI needs a larger compute budget.
+    tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
+    tx.add(resolveIx);
     tx.add(settleIx, attestIx);
     tx.sign(wallet);
 
@@ -406,6 +380,7 @@ export class Agent {
       skipPreflight: true,
     });
     await connection.confirmTransaction(sig, "confirmed");
+    this.openMarkets.splice(idx, 1);
 
     console.log(
       `[agent] Settled market: ${action.label} → ${action.outcome.toUpperCase()}${proofSummary} (tx: ${sig.slice(0, 16)}...)`

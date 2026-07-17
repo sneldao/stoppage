@@ -7,8 +7,8 @@
 //     once; later session-key-signed instructions check the on-chain
 //     grant. Cumulative spend cap = loss limit (rule 9).
 //   - Market vault (M2): create/join/claim on peer-funded markets, with
-//     creation bond (spam filter), force-settle (mock oracle for M2
-//     acceptance), void (permissionless refund after grace period), and
+//     creation bond (spam filter), proof-gated settlement, void
+//     (permissionless refund after grace period), and
 //     attest_verification (permissionless validation made countable).
 //
 // Payouts move lamports directly (rule 4): try_borrow_mut_lamports on
@@ -21,6 +21,8 @@
 use anchor_lang::prelude::*;
 
 declare_id!("92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG");
+
+const SETTLEMENT_PROGRAM_ID: Pubkey = pubkey!("5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF");
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ pub mod market {
     // ── Protocol config ───────────────────────────────────────────
 
     /// One-time initialization after deploy. Sets the protocol authority
-    /// (who can force-settle markets as a mock oracle) and the fee rate.
+    /// and the fee rate.
     /// The treasury PDA is created here and receives fees on every claim.
     pub fn initialize_protocol(ctx: Context<InitializeProtocol>, fee_bps: u16) -> Result<()> {
         require!(fee_bps <= 500, MarketError::FeeTooHigh); // max 5%
@@ -302,16 +304,29 @@ pub mod market {
         Ok(())
     }
 
-    /// Authority-only mock settle for M2 acceptance (real settlement
-    /// comes via the settlement program's CPI in M3). Clearly labeled.
-    pub fn force_settle(ctx: Context<ForceSettle>, outcome: u8) -> Result<()> {
+    /// Permissionless settlement that is cryptographically gated by the
+    /// settlement program's one-time TxLINE proof receipt.
+    pub fn settle_from_proof(ctx: Context<SettleFromProof>, outcome: u8) -> Result<()> {
         require!(outcome == SIDE_YES || outcome == SIDE_NO, MarketError::InvalidOutcome);
-        let config = &ctx.accounts.protocol_config;
         require!(
-            config.authority == ctx.accounts.authority.key(),
-            MarketError::NotAuthorized
+            *ctx.accounts.resolution.owner == SETTLEMENT_PROGRAM_ID,
+            MarketError::InvalidResolutionOwner
         );
         let market = &mut ctx.accounts.market;
+        let (expected_resolution, _) = Pubkey::find_program_address(
+            &[b"resolution", market.key().as_ref()],
+            &SETTLEMENT_PROGRAM_ID,
+        );
+        require_keys_eq!(
+            expected_resolution,
+            ctx.accounts.resolution.key(),
+            MarketError::InvalidResolutionPda
+        );
+        verify_resolution_receipt(
+            &ctx.accounts.resolution.to_account_info(),
+            market.key(),
+            outcome,
+        )?;
         require!(
             market.status == STATUS_OPEN || market.status == STATUS_AWAITING,
             MarketError::AlreadySettled
@@ -324,7 +339,7 @@ pub mod market {
             market: market.key(),
             outcome,
             settles_at: clock.unix_timestamp,
-            mock: true,
+            mock: false,
         });
         Ok(())
     }
@@ -485,6 +500,31 @@ pub mod market {
         });
         Ok(())
     }
+}
+
+/// Decodes the stable prefix of settlement::Resolution. We intentionally do
+/// not depend on the settlement crate so both programs can be deployed and
+/// upgraded independently; owner, PDA, Anchor discriminator, market and
+/// outcome are all checked before a vault can settle.
+fn verify_resolution_receipt(
+    resolution: &AccountInfo,
+    market: Pubkey,
+    outcome: u8,
+) -> Result<()> {
+    let data = resolution.try_borrow_data()?;
+    const PREFIX_LEN: usize = 8 + 32 + 1;
+    require!(data.len() >= PREFIX_LEN, MarketError::MalformedResolution);
+    // Anchor discriminator for `account:Resolution`.
+    let expected_discriminator = [31, 13, 235, 201, 17, 66, 5, 138];
+    require!(
+        data[..8] == expected_discriminator[..8],
+        MarketError::MalformedResolution
+    );
+    let receipt_market = Pubkey::try_from(&data[8..40])
+        .map_err(|_| error!(MarketError::MalformedResolution))?;
+    require_keys_eq!(receipt_market, market, MarketError::ResolutionMarketMismatch);
+    require!(data[40] == outcome, MarketError::ResolutionOutcomeMismatch);
+    Ok(())
 }
 
 // ── Shared join logic ───────────────────────────────────────────────
@@ -738,13 +778,15 @@ pub struct JoinSessionKey<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ForceSettle<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(seeds = [b"protocol_config"], bump)]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+pub struct SettleFromProof<'info> {
+    /// Any keeper may settle; authorization comes exclusively from the
+    /// proof-gated receipt account.
+    pub resolver: Signer<'info>,
     #[account(mut)]
     pub market: Account<'info, Market>,
+    /// CHECK: validated in settle_from_proof (owner, canonical PDA, account
+    /// discriminator, market binding, and outcome binding).
+    pub resolution: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -916,8 +958,16 @@ pub enum MarketError {
     NothingToClaim,
     #[msg("Claimant is not the position owner")]
     NotPositionOwner,
-    #[msg("Signer is not the protocol authority")]
-    NotAuthorized,
+    #[msg("Resolution account is not owned by the settlement program")]
+    InvalidResolutionOwner,
+    #[msg("Resolution account is not the canonical receipt PDA for this market")]
+    InvalidResolutionPda,
+    #[msg("Resolution receipt has an invalid layout")]
+    MalformedResolution,
+    #[msg("Resolution receipt belongs to a different market")]
+    ResolutionMarketMismatch,
+    #[msg("Resolution receipt outcome does not match settlement outcome")]
+    ResolutionOutcomeMismatch,
     #[msg("Signer is not the market creator")]
     NotCreator,
     #[msg("Bond has already been claimed")]

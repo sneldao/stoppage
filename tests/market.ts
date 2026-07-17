@@ -323,9 +323,8 @@ describe("stoppage / market program (M2)", () => {
   // The full grace-period void (closes_at + 1h, then permissionless
   // void_market) requires either a 1h wall-clock wait or a clock-warp
   // harness (bankrun). Neither belongs in the default `anchor test`
-  // suite. The void *refund math* (full stake back, no fee) is exercised
-  // here by force-settling to VOID... but force_settle only accepts
-  // YES/NO by design (it's the M2 mock oracle, not the void path).
+  // suite. Settlement is now proof-gated, so void refund math needs its
+  // own clock-warp test rather than an authority mock.
   //
   // TODO(M3+): add a bankrun-based test that warps the clock past
   // closes_at + GRACE_PERIOD_SECONDS and asserts void_market + void

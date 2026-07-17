@@ -1,22 +1,24 @@
 # Roadmap
 
 Target: TxODDS "Prediction Markets and Settlement" bounty (Superteam Earn,
-World Cup track). Winners announced **July 29, 2026**. ⚠️ The exact
-submission cutoff is not stated on the listing — **confirm it via the
-TxLINEChat Telegram before planning the final week.** All dates below
-assume submission must be complete by ~July 26 and leave buffer.
+World Cup track). **Submissions close July 19, 2026 at 23:59 UTC.** Winners
+are announced July 29, 2026.
 
 This file is the single status ledger. If something is deployed, broken,
 or descoped, it's recorded here and nowhere else.
 
-## Current state (2026-07-14)
+## Current state (2026-07-18)
 
 - Monorepo builds end to end (web app, SDK, both Anchor programs).
 - Program-ID discipline tooling in place and green.
-- **Both programs deployed to devnet.** Market:
+- **Both programs have stable devnet IDs.** Market:
   `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
   `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`. Upgrade authority:
   `G33naaudTAyEWFnfLET51aWGNLry5BwUtZt6KwcniFoj`.
+- **Settlement proof-receipt upgrade confirmed on devnet.** Deployment tx:
+  `39yH8bz6SJbTTqGMfshKqeeYFUFMJYBRdJkpJXjwEr5LFamsf6GmsLNrp2DW6AMDBRrPuSMwSxQFupqS8bARSYjd`.
+  The market program account has been extended for the matching upgrade;
+  final upgrade confirmation is pending a rate-limit-free devnet RPC check.
 - **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
   Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`, treasury
   PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.
@@ -38,7 +40,7 @@ or descoped, it's recorded here and nowhere else.
   into TxLINE `validate_stat`, reads the boolean return, and emits a
   proof-carrying `MarketResolved` event.
 - **M4 UI is built**: market list (`/markets`), market detail with
-  session-key join + wallet join + claim + force-settle + attest +
+  session-key join + wallet join + claim + attest +
   Verifiable Resolution panel (ProofPanel with local verification
   button). HeliusMonitor hook wires live updates into the store.
   Blinks GET/POST return real market metadata and a real unsigned join
@@ -51,10 +53,11 @@ or descoped, it's recorded here and nowhere else.
   SSE or historical replay), normalizes events, creates/settles markets
   on-chain. Fetches TxLINE Merkle proofs before settlement, builds
   `validate_stat` instruction data, includes `resolve_market` (CPI) +
-  `force_settle` + `attest_verification` in a single transaction with
-  1.4M compute budget. Verified end-to-end in dry-run mode replaying
-  France vs Spain semi-final (8 market creates, 8 settles, 2 proof
-  fetches with correct outcomes).
+  `settle_from_proof` + `attest_verification` in a single transaction with
+  1.4M compute budget. Dry-run replay against the France vs Spain
+  semi-final now constructs the proof-gated resolution path for the
+  supported total goals and total corners templates; templates without a
+  deterministic TxLINE stat-proof mapping are left inactive.
 - **Viral mechanics complete**: ShareBar component (tweet generation,
   Blink URL copy, direct link copy), referral tracking via URL params
   + localStorage, tweet generation with market odds + pool size.
@@ -78,8 +81,10 @@ or descoped, it's recorded here and nowhere else.
     made literal in the contract.
   - `void_market` (permissionless after grace period) + `attest_verification`
     (permissionless validation counter) — judge-visible.
-- Remaining before submission: M1 acceptance capture (delegate → close
-  wallet → ping → no-popup clip), demo video, public remote.
+- Remaining before submission: record the M1 acceptance capture (delegate ->
+  close wallet -> ping -> no-popup clip), publish the demo video, confirm the
+  public GitHub repository, and provide a judge-accessible deployed web app
+  or functional devnet endpoint.
 
 ## Milestones
 
@@ -121,8 +126,9 @@ The differentiator. Built first because the demo lives or dies on it.
 - [x] `claim()` gated on settled/void status; **direct lamport transfers**
       (rule 4); pro-rata payout to winners; protocol fee skimmed to
       treasury PDA; void = full refund, no fee.
-- [x] `force_settle` (authority mock for M2 acceptance), `void_market`
-      (permissionless after closes_at + 1h grace), `claim_bond` (creator
+- [x] `settle_from_proof` (permissionless and requires a TxLINE-verified
+      settlement receipt), `void_market` (permissionless after closes_at +
+      1h grace), `claim_bond` (creator
       refund), `attest_verification` (permissionless validation counter).
 - [x] SDK instruction builders for all 12 market instructions; `getMarket`
       fetches + parses on-chain account; `impliedProbability` derives
@@ -133,16 +139,18 @@ The differentiator. Built first because the demo lives or dies on it.
       refund path pending — needs a clock-warp harness; see test note.)
 - [x] Blinks POST returns a real unsigned join transaction.
 - [ ] **Acceptance:** two wallets join opposite sides on devnet; market is
-  force-settled by authority (oracle comes in M3); winner claims; vault
-  drains to zero; loser's claim fails cleanly.
+  settled from a TxLINE proof receipt; winner claims; vault drains to zero;
+  loser's claim fails cleanly.
 
-### M3 — TxLINE settlement (target: Jul 21)
+### M3 — TxLINE settlement (target: Jul 19)
 The bounty's core ask. Highest external risk — de-risk the unknowns
 during M1/M2.
 - [x] TxLINE SSE ingestion → normalized event stream (`@stoppage/txline`).
-- [x] Predicate evaluator for the four launch templates
-      (`next_goal_within`, `corners_over`, `card_shown`,
-      `total_goals_over`) — in `apps/agent/src/strategy.ts`.
+- [x] Predicate evaluator for the launch templates — in
+      `apps/agent/src/strategy.ts`. The proof-gated keeper activates only
+      `corners_over` and `total_goals_over`; `next_goal_within` and
+      `card_shown` remain available as future templates until their TxLINE
+      proof mappings are defined.
 - [x] Autonomous agent: connects to TxLINE SSE (live or replay),
       creates markets on match start, settles on match events, fetches
       Merkle proofs from TxLINE before settlement, attests verification
@@ -156,7 +164,7 @@ during M1/M2.
       `buildResolveMarketIx` + `buildValidateStatData` handle the borsh
       encoding for all TxLINE types (ScoreStat, StatTerm, ProofNode,
       TraderPredicate, Comparison, BinaryExpression, Option). The agent
-      includes `resolve_market` + `force_settle` + `attest_verification`
+      includes `resolve_market` + `settle_from_proof` + `attest_verification`
       in a single transaction with 1.4M compute budget. Devnet
       verification: fixture 17952170, seq 941, statKey 1002 — predicate
       evaluates to `true`, return data `AQ==` (0x01). Devnet tx
@@ -167,9 +175,10 @@ during M1/M2.
   and `attest_verification` marks the market as verified on-chain.
   CPI verified on devnet with a known-good fixture. Live agent replay
   against the FRA-SPA fixture requires a rate-limit-free RPC (Helius)
-  for reliable transaction landing.
+  and the market-program upgrade confirmation for reliable transaction
+  landing.
 
-### M4 — Verifiable Resolution UI + market surfaces (target: Jul 23)
+### M4 — Verifiable Resolution UI + market surfaces (target: Jul 19)
 - [x] Market list (live + settled) and market detail page; positions and
       claim button; odds/implied probability derived from vault balances.
 - [x] Resolution proof panel: `ProofPanel` component shows raw statement,
@@ -181,7 +190,7 @@ during M1/M2.
 - **Acceptance:** a judge can open a settled market and verify the proof
   themselves without reading code.
 
-### M5 — Blinks + leaderboard + polish (target: Jul 25)
+### M5 — Blinks + leaderboard + polish (target: Jul 19)
 - [x] Blinks GET/POST complete with real market metadata; returns a real
       unsigned join transaction. Unfurl in a wallet-enabled X client
       against devnet still pending (needs the public remote + devnet
@@ -193,7 +202,7 @@ during M1/M2.
 - [x] Mobile-width pass; responsive layouts on all pages.
 - [x] Visual odds bar, LIVE pulse indicator, polished proof panel.
 
-### M6 — Submission (complete by: confirmed deadline, assume ~Jul 26)
+### M6 — Submission (complete by: July 19, 2026 23:59 UTC)
 - [ ] Demo video: cold open on the no-popup bet (M1 clip), then settle →
       proof verification → claim. Under 3 minutes.
 - [ ] Submission writeup: architecture, what's verifiable and how, honest
