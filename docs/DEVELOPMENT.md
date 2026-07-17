@@ -52,6 +52,13 @@ Docker container on that network; it publishes no host port. The autonomous
 agent is a PM2 process with no HTTP listener. This keeps the public surface to
 the HTTPS web app while letting Traefik manage TLS.
 
+Current devnet deployment:
+
+- Public URL: `https://stoppage.sportwarren.com`
+- DNS: GoDaddy `A` record, host `stoppage`, value `144.202.117.160`
+- Web service: Docker Compose service `stoppage-web`
+- Agent service: PM2 process `stoppage-agent`
+
 1. Clone the public repo to `/home/linuxuser/stoppage` and run `npm ci`.
 2. Copy `deploy/production-config.example` to `.env.production`, replace the
    values, and choose a DNS name whose A/AAAA record already points to the VPS.

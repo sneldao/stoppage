@@ -60,6 +60,14 @@ or descoped, it's recorded here and nowhere else.
   semi-final now constructs the proof-gated resolution path for the
   supported total goals and total corners templates; templates without a
   deterministic TxLINE stat-proof mapping are left inactive.
+- **Public devnet deployment live.** Web app:
+  `https://stoppage.sportwarren.com`. DNS points to `nuncio-vultr`
+  (`144.202.117.160`), Traefik terminates HTTPS, and the `stoppage-web`
+  Docker service runs on the shared `coolify` network without a host port.
+  `/api/fixtures` returns TxLINE fixture data publicly. The autonomous
+  keeper runs as PM2 process `stoppage-agent` on the same VPS, using a
+  dedicated funded devnet wallet, and is connected to live TxLINE SSE with
+  `--live-tx`.
 - **Viral mechanics complete**: ShareBar component (tweet generation,
   Blink URL copy, direct link copy), referral tracking via URL params
   + localStorage, tweet generation with market odds + pool size.
@@ -84,9 +92,10 @@ or descoped, it's recorded here and nowhere else.
   - `void_market` (permissionless after grace period) + `attest_verification`
     (permissionless validation counter) — judge-visible.
 - Remaining before submission: record the M1 acceptance capture (delegate ->
-  close wallet -> ping -> no-popup clip), publish the demo video, confirm the
-  public GitHub repository, and provide a judge-accessible deployed web app
-  or functional devnet endpoint.
+  close wallet -> ping -> no-popup clip), record the deployed app + TxLINE
+  fixture/API walkthrough, publish the demo video, confirm the public GitHub
+  repository visibility, add the missing public Blink icon asset, and complete
+  the submission writeup/feedback.
 
 ## Milestones
 
@@ -210,7 +219,13 @@ during M1/M2.
 - [ ] Submission writeup: architecture, what's verifiable and how, honest
       limitations section.
 - [ ] README quickstart re-tested on a clean clone.
-- [ ] Push repo to a public remote (GitHub) — currently local-only.
+- [x] Judge-accessible deployed web app:
+      `https://stoppage.sportwarren.com`.
+- [x] Push repo to remote GitHub (`sneldao/stoppage`).
+- [ ] Confirm GitHub repository visibility is public from an incognito/non-owner
+      session.
+- [ ] Add public app icon for Blinks (`/icon-512x512.png`) before recording
+      the share flow.
 
 ## Icebox (explicitly not now)
 
