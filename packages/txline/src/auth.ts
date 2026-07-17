@@ -67,8 +67,16 @@ export async function activateApiToken(
     throw new Error(`Activation failed: ${resp.status} ${await resp.text()}`);
   }
 
-  const data = await resp.json();
-  return data.token || data;
+  // The activation endpoint may return either JSON ({ token: "..." })
+  // or a raw token string. Handle both.
+  const text = await resp.text();
+  try {
+    const data = JSON.parse(text);
+    return data.token || data;
+  } catch {
+    // Not JSON — the raw text IS the token
+    return text;
+  }
 }
 
 /**

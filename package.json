@@ -20,5 +20,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@solana/spl-token": "^0.4.15",
+    "tweetnacl": "^1.0.3"
   }
 }
