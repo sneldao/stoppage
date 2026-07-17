@@ -1,7 +1,14 @@
 /**
- * Solana Actions (Blinks) CORS helpers — ported from pir8 verbatim.
+ * Solana Actions (Blinks) CORS helpers.
  * Every /api/actions/* route must respond with these headers and export
  * an OPTIONS handler, or wallets/clients will refuse the Action.
+ *
+ * The wildcard Access-Control-Allow-Origin is required by the Solana
+ * Actions spec — wallets and X clients fetch these endpoints from
+ * arbitrary origins. This is intentional and safe: the endpoints are
+ * read-only (GET returns market metadata, POST returns an unsigned
+ * transaction that the wallet signs locally — no server-side signing,
+ * no fund movement, no authenticated actions).
  */
 
 export const ACTIONS_CORS_HEADERS = {

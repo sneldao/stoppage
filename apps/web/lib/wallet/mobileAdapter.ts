@@ -14,7 +14,9 @@ type Cluster = "devnet" | "testnet" | "mainnet-beta";
 
 export const APP_IDENTITY = {
   name: "Stoppage",
-  uri: process.env["NEXT_PUBLIC_APP_URL"] || "https://stoppage.vercel.app",
+  // Production: set NEXT_PUBLIC_APP_URL to your deployed URL.
+  // Development: fallback to localhost so the mobile adapter works locally.
+  uri: process.env["NEXT_PUBLIC_APP_URL"] || "http://localhost:3000",
   icon: "/icon-192x192.png",
 } as const;
 

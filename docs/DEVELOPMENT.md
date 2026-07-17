@@ -21,6 +21,17 @@ npm run test:programs    # run program tests without rebuilding (faster iteratio
 npm run deploy:programs  # the ONLY supported deploy path (scripts/deploy.sh)
 ```
 
+### Git hooks
+
+```bash
+./scripts/install-hooks.sh   # install pre-commit hook (secret detection + check:ids)
+```
+
+The pre-commit hook scans staged files for secrets (JWTs, API keys, PEM
+keys), blocks forbidden files (`.env`, `.txline-credentials.json`), and
+runs `check:ids` when program-related files are touched. Bypass with
+`git commit --no-verify` only for false positives.
+
 ### Agent commands
 
 ```bash

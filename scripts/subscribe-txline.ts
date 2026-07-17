@@ -223,8 +223,8 @@ async function main() {
     durationWeeks: DURATION_WEEKS,
   };
 
-  fs.writeFileSync(credPath, JSON.stringify(credentials, null, 2));
-  console.log("Credentials saved to:", credPath);
+  fs.writeFileSync(credPath, JSON.stringify(credentials, null, 2), { mode: 0o600 });
+  console.log("Credentials saved to:", credPath, "(permissions: 600)");
   console.log();
   console.log("=== Subscription complete ===");
   console.log("The agent can now use these credentials to stream TxLINE data.");
