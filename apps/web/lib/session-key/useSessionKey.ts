@@ -36,8 +36,8 @@ const SESSION_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6 hours
 // passing maxTotalStake: 0. The real financial guardrail is
 // fundLamports — the session key can only spend what it's been given.
 const DEFAULT_MAX_STAKE_PER_MARKET = 50_000_000; // 0.05 SOL
-const SUGGESTED_MAX_TOTAL_STAKE = 200_000_000; // 0.2 SOL — suggested, not forced
-const DEFAULT_FUND_LAMPORTS = 250_000_000; // 0.25 SOL — the real financial limit
+const SUGGESTED_MAX_TOTAL_STAKE = 100_000_000; // 0.1 SOL — suggested, not forced
+const DEFAULT_FUND_LAMPORTS = 100_000_000; // 0.1 SOL — covers ping fees + a few bets
 
 export interface SessionKeyState {
   keypair: Keypair | null;
@@ -168,6 +168,17 @@ export function useSessionKey() {
     async (opts: DelegateOptions = {}): Promise<string> => {
       if (!publicKey) throw new Error("Wallet not connected");
       if (!connection) throw new Error("Connection not available");
+
+      // Pre-flight balance check — the delegate tx funds the session key
+      // from the owner wallet. Give a clear error instead of the opaque
+      // "Attempt to debit an account but found no record of a prior credit."
+      const fundLamports = opts.fundLamports ?? DEFAULT_FUND_LAMPORTS;
+      const balance = await connection.getBalance(publicKey, "confirmed");
+      if (balance < fundLamports + 10_000) {
+        throw new Error(
+          `Insufficient SOL: need ~${(fundLamports / 1e9).toFixed(3)} SOL for the session fund + fees, but your wallet has ${(balance / 1e9).toFixed(4)} SOL. Get devnet SOL from https://faucet.solana.com/`
+        );
+      }
 
       const keypair = state.keypair ?? createSession();
       const ttlSeconds = opts.ttlSeconds ?? Math.floor(SESSION_TIMEOUT_MS / 1000);

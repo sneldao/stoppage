@@ -9,7 +9,7 @@
 import { useCallback, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { MARKET_PROGRAM_ID } from "@stoppage/sdk";
+import { MARKET_PROGRAM_ID, readU64LE } from "@stoppage/sdk";
 import { useStoppageStore } from "@/store";
 import type { Position } from "@stoppage/sdk";
 
@@ -46,7 +46,7 @@ export function useMyPositions() {
         offset += 32; // owner (already filtered)
         const side = data.readUInt8(offset) === 0 ? "yes" : "no";
         offset += 1;
-        const amountLamports = Number(data.readBigUInt64LE(offset));
+        const amountLamports = Number(readU64LE(data, offset));
         offset += 8;
         const openedViaSessionKey = data.readUInt8(offset) !== 0;
         const pos: Position = {

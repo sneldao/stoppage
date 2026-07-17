@@ -58,8 +58,7 @@ export function findMarketPda(
   team: Buffer,
   paramU64: bigint
 ): [PublicKey, number] {
-  const paramLeBytes = Buffer.alloc(8);
-  paramLeBytes.writeBigUInt64LE(paramU64, 0);
+  const paramLeBytes = writeU64LE(paramU64);
   return PublicKey.findProgramAddressSync(
     [Buffer.from("market"), matchId, Buffer.from([kind]), team, paramLeBytes],
     MARKET_PROGRAM_ID
@@ -77,6 +76,10 @@ export function findPositionPda(
 }
 
 // ── Encoding helpers ─────────────────────────────────────────────────
+//
+// Browser Buffer polyfills (e.g. the 'buffer' npm package) often omit
+// BigInt methods (writeBigUInt64LE, readBigUInt64LE). We write/read
+// 64-bit integers manually via DataView to stay polyfill-agnostic.
 
 function encodeU8(n: number): Buffer {
   const buf = Buffer.alloc(1);
@@ -91,15 +94,43 @@ function encodeU16(n: number): Buffer {
 }
 
 function encodeU64(n: number): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(BigInt(n), 0);
-  return buf;
+  return writeU64LE(BigInt(n));
 }
 
 function encodeI64(n: number): Buffer {
+  return writeI64LE(BigInt(n));
+}
+
+/** Write a u64 as little-endian bytes (polyfill-safe — no BigInt Buffer methods). */
+export function writeU64LE(value: bigint): Buffer {
   const buf = Buffer.alloc(8);
-  buf.writeBigInt64LE(BigInt(n), 0);
+  let v = value;
+  for (let i = 0; i < 8; i++) {
+    buf[i] = Number(v & 0xffn);
+    v >>= 8n;
+  }
   return buf;
+}
+
+/** Write an i64 as little-endian bytes (polyfill-safe). */
+export function writeI64LE(value: bigint): Buffer {
+  // Two's complement for negatives, same byte layout as u64.
+  return writeU64LE(BigInt.asUintN(64, value));
+}
+
+/** Read a u64 from little-endian bytes at offset (polyfill-safe). */
+export function readU64LE(buf: Buffer, offset: number): bigint {
+  let result = 0n;
+  for (let i = 7; i >= 0; i--) {
+    result = (result << 8n) | BigInt(buf[offset + i]);
+  }
+  return result;
+}
+
+/** Read an i64 from little-endian bytes at offset (polyfill-safe). */
+export function readI64LE(buf: Buffer, offset: number): bigint {
+  const u = readU64LE(buf, offset);
+  return BigInt.asIntN(64, u);
 }
 
 /** Pad a string to a fixed-size buffer. */
@@ -323,14 +354,14 @@ export function parseMarket(accountData: Buffer, marketAddress: string): Market 
   const kind = accountData.readUInt8(offset); offset += 1;
   const matchIdBuf = accountData.subarray(offset, offset + 32); offset += 32;
   const teamBuf = accountData.subarray(offset, offset + 8); offset += 8;
-  const paramU64 = Number(accountData.readBigUInt64LE(offset)); offset += 8;
+  const paramU64 = Number(readU64LE(accountData, offset)); offset += 8;
   const creator = new PublicKey(accountData.subarray(offset, offset + 32)).toString(); offset += 32;
-  const bondLamports = Number(accountData.readBigUInt64LE(offset)); offset += 8;
+  const bondLamports = Number(readU64LE(accountData, offset)); offset += 8;
   const bondClaimed = accountData.readUInt8(offset) !== 0; offset += 1;
-  const yesPool = Number(accountData.readBigUInt64LE(offset)); offset += 8;
-  const noPool = Number(accountData.readBigUInt64LE(offset)); offset += 8;
-  const closesAt = Number(accountData.readBigInt64LE(offset)); offset += 8;
-  const settlesAt = Number(accountData.readBigInt64LE(offset)); offset += 8;
+  const yesPool = Number(readU64LE(accountData, offset)); offset += 8;
+  const noPool = Number(readU64LE(accountData, offset)); offset += 8;
+  const closesAt = Number(readI64LE(accountData, offset)); offset += 8;
+  const settlesAt = Number(readI64LE(accountData, offset)); offset += 8;
   const status = accountData.readUInt8(offset); offset += 1;
   const outcome = accountData.readUInt8(offset); offset += 1;
   const feeBps = accountData.readUInt16LE(offset); offset += 2;

@@ -62,16 +62,17 @@ function encodeVecPubkey(pubkeys: PublicKey[]): Buffer {
   return buf;
 }
 
+// Re-export the polyfill-safe u64/i64 writers from escrow.ts (rule 6 —
+// one implementation). These avoid BigInt Buffer methods that browser
+// polyfills omit.
+import { writeU64LE, writeI64LE } from "./escrow";
+
 function encodeU64(n: number): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(BigInt(n), 0);
-  return buf;
+  return writeU64LE(BigInt(n));
 }
 
 function encodeI64(n: number): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigInt64LE(BigInt(n), 0);
-  return buf;
+  return writeI64LE(BigInt(n));
 }
 
 // ── Instruction builders ───────────────────────────────────────────
