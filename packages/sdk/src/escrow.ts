@@ -65,6 +65,29 @@ export function findMarketPda(
   );
 }
 
+/**
+ * Derive a market PDA from a MarketPredicate.
+ * This is the high-level helper consumers should use — it handles
+ * kind encoding, matchId/team padding, and param extraction.
+ * The low-level `findMarketPda` is for cases where you already have
+ * the raw buffers (e.g. parsing on-chain data).
+ */
+export function findMarketPdaFromPredicate(
+  predicate: MarketPredicate
+): [PublicKey, number] {
+  const kind = PREDICATE_KIND[predicate.kind];
+  const matchId = matchIdToBuffer(predicate.matchId);
+  const team = teamToBuffer(String(predicate.params.team ?? ""));
+  const paramU64 = BigInt(
+    Number(
+      predicate.params.windowSeconds ??
+        predicate.params.threshold ??
+        0
+    )
+  );
+  return findMarketPda(kind, matchId, team, paramU64);
+}
+
 export function findPositionPda(
   market: PublicKey,
   owner: PublicKey

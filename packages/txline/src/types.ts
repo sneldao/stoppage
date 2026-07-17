@@ -88,12 +88,16 @@ export interface ScoreUpdate {
   FixtureId: number;
   Seq: number;
   Ts: number; // timestamp in ms
-  StatusId: number;
-  Period: number;
-  GameState?: number;
+  StatusId?: number;
+  Period?: number;
+  GameState?: string | number;
   Action?: string;
   Stats?: Record<string, number>;
   Data?: Record<string, unknown>;
+  /** Which participant (1 or 2) the event belongs to. */
+  Participant?: number;
+  /** Confirmed flag — unconfirmed events may be amended. */
+  Confirmed?: boolean;
 }
 
 // ── Validation proofs ───────────────────────────────────────────────
@@ -152,7 +156,7 @@ export type NormalizedEvent =
   | { type: "goal_scored"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
   | { type: "corner_awarded"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
   | { type: "card_shown"; fixtureId: number; matchId: string; team: string; cardType: "yellow" | "red"; ts: number; seq: number }
-  | { type: "match_ended"; fixtureId: number; matchId: string; finalScore: { home: number; away: number }; ts: number; seq: number }
+  | { type: "match_ended"; fixtureId: number; matchId: string; finalScore: { home: number; away: number }; finalStats: Record<string, number>; ts: number; seq: number }
   | { type: "halftime"; fixtureId: number; matchId: string; ts: number; seq: number }
   | { type: "second_half_started"; fixtureId: number; matchId: string; ts: number; seq: number }
   | { type: "heartbeat"; ts: number };

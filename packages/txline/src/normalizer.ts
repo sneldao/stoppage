@@ -2,19 +2,20 @@
  * Event normalizer — converts raw TxLINE score updates into the
  * domain events the Stoppage agent reacts to.
  *
- * This is the bridge between TxLINE's feed format and Stoppage's
- * market logic. It is stateless — it maps one score update to zero
- * or more normalized events. The agent maintains match state across
- * updates.
+ * Uses two signals:
+ *   1. The `Action` field (e.g., "goal", "corner", "yellow_card") to
+ *      detect WHAT happened.
+ *   2. The `Participant` field (1 or 2) to determine WHICH team.
+ *   3. The `StatusId` field for game phase transitions.
+ *
+ * Stat diffs are used as a fallback when `Participant` is not present.
  */
 
 import type { ScoreUpdate, NormalizedEvent, Fixture } from "./types";
 import { GamePhase, FINAL_STATUS_ID, StatKey } from "./types";
 
 /**
- * Build a human-readable match ID from a fixture (e.g., "FRA-ESP").
- * Uses 3-letter country codes from team names, falling back to
- * the first 3 chars.
+ * Build a human-readable match ID from a fixture (e.g., "FRA-SPA").
  */
 export function matchIdFromFixture(fixture: Fixture): string {
   const code = (name: string) => {
@@ -26,37 +27,46 @@ export function matchIdFromFixture(fixture: Fixture): string {
 }
 
 /**
- * Derive the team name from a stat key.
- * Stat keys 1-8: odd keys = Participant1, even keys = Participant2.
+ * Resolve the team name from a Participant field (1 or 2).
+ */
+function teamFromParticipant(participant: number, fixture: Fixture): string {
+  return participant === 1 ? fixture.Participant1 : fixture.Participant2;
+}
+
+/**
+ * Resolve the team name from a stat key (odd = P1, even = P2).
  */
 function teamFromStatKey(statKey: number, fixture: Fixture): string {
-  const isP1 = statKey % 2 === 1; // 1,3,5,7 = P1; 2,4,6,8 = P2
+  const baseKey = statKey % 1000;
+  const isP1 = baseKey % 2 === 1;
   return isP1 ? fixture.Participant1 : fixture.Participant2;
 }
 
 /**
  * Normalize a raw score update into domain events.
  *
- * Returns an array because a single update might contain multiple
- * stat changes (e.g., a goal also updates the score). In practice
- * most updates map to 0 or 1 events.
- *
  * @param update - Raw TxLINE score update
  * @param fixture - The fixture this update belongs to
  * @param prevStats - Previous stats snapshot (for diffing). Null on first update.
+ * @param matchStarted - Whether match_started has already been emitted for this fixture.
+ * @param secondHalfStarted - Whether second_half_started has already been emitted.
+ * @param halftimeEmitted - Whether halftime has already been emitted.
  */
 export function normalizeScoreUpdate(
   update: ScoreUpdate,
   fixture: Fixture,
-  prevStats: Record<string, number> | null
+  prevStats: Record<string, number> | null,
+  matchStarted = false,
+  secondHalfStarted = false,
+  halftimeEmitted = false
 ): NormalizedEvent[] {
   const events: NormalizedEvent[] = [];
   const matchId = matchIdFromFixture(fixture);
-  const stats = update.Stats ?? {};
   const action = update.Action ?? "";
   const statusId = update.StatusId ?? 0;
+  const stats = update.Stats ?? {};
 
-  // Match finalised — this is the terminal event
+  // ── Match finalised ──────────────────────────────────────────────
   if (action === "game_finalised" || statusId === FINAL_STATUS_ID) {
     const p1Goals = stats[String(StatKey.P1Goals)] ?? 0;
     const p2Goals = stats[String(StatKey.P2Goals)] ?? 0;
@@ -65,15 +75,15 @@ export function normalizeScoreUpdate(
       fixtureId: fixture.FixtureId,
       matchId,
       finalScore: { home: p1Goals, away: p2Goals },
+      finalStats: stats,
       ts: update.Ts,
       seq: update.Seq,
     });
     return events;
   }
 
-  // Game phase transitions
-  const phase = statusId as GamePhase;
-  if (phase === GamePhase.FirstHalf && prevStats === null) {
+  // ── Game phase transitions (StatusId) ────────────────────────────
+  if (statusId === GamePhase.FirstHalf && !matchStarted) {
     events.push({
       type: "match_started",
       fixtureId: fixture.FixtureId,
@@ -82,7 +92,9 @@ export function normalizeScoreUpdate(
       awayTeam: fixture.Participant2,
       ts: update.Ts,
     });
-  } else if (phase === GamePhase.Halftime) {
+  }
+
+  if (statusId === GamePhase.Halftime && !halftimeEmitted) {
     events.push({
       type: "halftime",
       fixtureId: fixture.FixtureId,
@@ -90,8 +102,7 @@ export function normalizeScoreUpdate(
       ts: update.Ts,
       seq: update.Seq,
     });
-  } else if (phase === GamePhase.SecondHalf && prevStats !== null) {
-    // Only emit if transitioning from halftime
+  } else if (statusId === GamePhase.SecondHalf && !secondHalfStarted) {
     events.push({
       type: "second_half_started",
       fixtureId: fixture.FixtureId,
@@ -101,62 +112,66 @@ export function normalizeScoreUpdate(
     });
   }
 
-  // Stat diffs — detect goals, corners, cards by comparing to prevStats
-  if (prevStats) {
-    const diff = diffStats(prevStats, stats);
-    for (const { key, delta } of diff) {
-      if (delta <= 0) continue;
+  // ── Action-based events ──────────────────────────────────────────
+  // Use the Participant field when available, fall back to stat diffs.
 
-      const baseKey = key % 1000; // strip period prefix
-      const team = teamFromStatKey(baseKey, fixture);
-
-      if (baseKey === StatKey.P1Goals || baseKey === StatKey.P2Goals) {
-        for (let i = 0; i < delta; i++) {
-          events.push({
-            type: "goal_scored",
-            fixtureId: fixture.FixtureId,
-            matchId,
-            team,
-            ts: update.Ts,
-            seq: update.Seq,
-          });
-        }
-      } else if (baseKey === StatKey.P1Corners || baseKey === StatKey.P2Corners) {
-        for (let i = 0; i < delta; i++) {
-          events.push({
-            type: "corner_awarded",
-            fixtureId: fixture.FixtureId,
-            matchId,
-            team,
-            ts: update.Ts,
-            seq: update.Seq,
-          });
-        }
-      } else if (baseKey === StatKey.P1YellowCards || baseKey === StatKey.P2YellowCards) {
-        for (let i = 0; i < delta; i++) {
-          events.push({
-            type: "card_shown",
-            fixtureId: fixture.FixtureId,
-            matchId,
-            team,
-            cardType: "yellow",
-            ts: update.Ts,
-            seq: update.Seq,
-          });
-        }
-      } else if (baseKey === StatKey.P1RedCards || baseKey === StatKey.P2RedCards) {
-        for (let i = 0; i < delta; i++) {
-          events.push({
-            type: "card_shown",
-            fixtureId: fixture.FixtureId,
-            matchId,
-            team,
-            cardType: "red",
-            ts: update.Ts,
-            seq: update.Seq,
-          });
-        }
-      }
+  if (action === "goal") {
+    const team = update.Participant
+      ? teamFromParticipant(update.Participant, fixture)
+      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Goals, StatKey.P2Goals], fixture);
+    if (team) {
+      events.push({
+        type: "goal_scored",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        team,
+        ts: update.Ts,
+        seq: update.Seq,
+      });
+    }
+  } else if (action === "corner") {
+    const team = update.Participant
+      ? teamFromParticipant(update.Participant, fixture)
+      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Corners, StatKey.P2Corners], fixture);
+    if (team) {
+      events.push({
+        type: "corner_awarded",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        team,
+        ts: update.Ts,
+        seq: update.Seq,
+      });
+    }
+  } else if (action === "yellow_card") {
+    const team = update.Participant
+      ? teamFromParticipant(update.Participant, fixture)
+      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1YellowCards, StatKey.P2YellowCards], fixture);
+    if (team) {
+      events.push({
+        type: "card_shown",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        team,
+        cardType: "yellow",
+        ts: update.Ts,
+        seq: update.Seq,
+      });
+    }
+  } else if (action === "red_card" || action === "second_yellow_card") {
+    const team = update.Participant
+      ? teamFromParticipant(update.Participant, fixture)
+      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1RedCards, StatKey.P2RedCards], fixture);
+    if (team) {
+      events.push({
+        type: "card_shown",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        team,
+        cardType: "red",
+        ts: update.Ts,
+        seq: update.Seq,
+      });
     }
   }
 
@@ -164,25 +179,23 @@ export function normalizeScoreUpdate(
 }
 
 /**
- * Compute the diff between two stat snapshots.
- * Returns only keys that increased.
+ * Detect which team's stat increased by diffing prev and curr stats.
+ * Returns the team name, or null if no relevant increase was found.
  */
-function diffStats(
-  prev: Record<string, number>,
-  curr: Record<string, number>
-): Array<{ key: number; delta: number }> {
-  const diffs: Array<{ key: number; delta: number }> = [];
-  const allKeys = new Set([...Object.keys(prev), ...Object.keys(curr)]);
+function detectTeamFromStatDiff(
+  prev: Record<string, number> | null,
+  curr: Record<string, number>,
+  candidateKeys: StatKey[],
+  fixture: Fixture
+): string | null {
+  if (!prev) return null;
 
-  for (const keyStr of allKeys) {
-    const key = Number(keyStr);
-    const prevVal = prev[keyStr] ?? 0;
-    const currVal = curr[keyStr] ?? 0;
-    const delta = currVal - prevVal;
-    if (delta > 0) {
-      diffs.push({ key, delta });
+  for (const key of candidateKeys) {
+    const prevVal = prev[String(key)] ?? 0;
+    const currVal = curr[String(key)] ?? 0;
+    if (currVal > prevVal) {
+      return teamFromStatKey(key, fixture);
     }
   }
-
-  return diffs;
+  return null;
 }
