@@ -113,8 +113,11 @@ pub struct MarketResolved {
     pub merkle_root: [u8; 32],
     /// The outcome: 0=YES, 1=NO, 2=VOID.
     pub outcome: u8,
-    /// Keccak hash of the Merkle proof path — compact reference for
-    /// the UI to confirm it's displaying the right proof.
+    /// Compact XOR-fold reference of the Merkle proof path — NOT
+    /// cryptographically secure (see `hash_proof`); it's a UI identifier,
+    /// not the verification itself. The real verification happens on-chain
+    /// via `validate_stat` CPI and off-chain via `verifyProofLocally`.
+    /// Replaced with a real hash (Keccak/SHA256) when M3 lands.
     pub proof_hash: [u8; 32],
     /// Who called resolve_market (permissionless — anyone).
     pub resolver: Pubkey,
