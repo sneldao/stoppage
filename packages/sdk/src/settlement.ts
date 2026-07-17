@@ -241,19 +241,30 @@ export function buildResolveMarketIx(
   outcome: number,
   txlineIxData: Buffer
 ): TransactionInstruction {
-  // Anchor discriminator for resolve_market
+  // Anchor discriminator for resolve_market (from the IDL).
   // sha256("global:resolve_market")[0..8]
-  const discriminator = Buffer.from([166, 215, 158, 53, 175, 205, 50, 223]);
+  const discriminator = Buffer.from([155, 23, 80, 173, 46, 74, 23, 239]);
 
   const statementBuf = Buffer.from(statement, "utf8");
   const merkleRootBuf = Buffer.from(merkleRoot);
 
+  // Borsh String = 4 bytes length (LE) + UTF8 bytes
+  const statementEncoded = Buffer.concat([
+    encodeU32(statementBuf.length),
+    statementBuf,
+  ]);
+  // Borsh Vec<u8> = 4 bytes length (LE) + bytes
+  const txlineDataEncoded = Buffer.concat([
+    encodeU32(txlineIxData.length),
+    txlineIxData,
+  ]);
+
   const data = Buffer.concat([
     discriminator,
-    encodeVec([statementBuf]), // String as Vec<u8>
+    statementEncoded, // String
     merkleRootBuf, // [u8; 32]
     encodeU8(outcome), // u8
-    encodeVec([txlineIxData]), // Vec<u8>
+    txlineDataEncoded, // Vec<u8>
   ]);
 
   const keys = [

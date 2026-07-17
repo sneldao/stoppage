@@ -18,6 +18,7 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  ComputeBudgetProgram,
   clusterApiUrl,
 } from "@solana/web3.js";
 import {
@@ -130,12 +131,12 @@ export class Agent {
 
       this.config.onAction?.(action, result);
 
-      // Small delay between chain actions to avoid devnet rate limits
-      await sleep(500);
+      // Delay between chain actions to avoid devnet rate limits
+      await sleep(2000);
     } catch (err) {
       console.error(`[agent] Action ${action.type} failed:`, err);
       this.config.onAction?.(action, { success: false, error: String(err) });
-      await sleep(1000); // Longer delay after errors
+      await sleep(3000); // Longer delay after errors
     }
   }
 
@@ -148,7 +149,27 @@ export class Agent {
     // Derive the market PDA for tracking (single source of truth — SDK)
     const [marketPda] = findMarketPdaFromPredicate(action.predicate);
 
-    // Track the open market regardless of mode
+    // Check if market already exists on-chain (skip if already created)
+    if (!dryRun) {
+      try {
+        const existing = await connection.getAccountInfo(marketPda);
+        if (existing) {
+          console.log(`[agent] Market already exists: ${action.label} → ${marketPda.toBase58()} (skipping creation)`);
+          this.openMarkets.push({
+            predicate: action.predicate,
+            label: action.label,
+            createdAt: Date.now(),
+            ttlSeconds: action.closesInSeconds,
+            marketPda: marketPda.toBase58(),
+          });
+          return { success: true, marketPda: marketPda.toBase58(), skipped: true };
+        }
+      } catch (e) {
+        // Ignore fetch errors — proceed with creation
+      }
+    }
+
+    // Track the open market
     this.openMarkets.push({
       predicate: action.predicate,
       label: action.label,
@@ -250,7 +271,7 @@ export class Agent {
             fixtureId,
             seq: action.seq,
             timestamp: proof.summary.updateStats.maxTimestamp,
-            statKey: proof.statToProve.statKey,
+            statKey: proof.statToProve.key,
             statValue: proof.statToProve.value,
             outcome: action.outcome,
             statement: action.label,
@@ -270,7 +291,8 @@ export class Agent {
 
           // Build the validate_stat instruction data
           const txlineProgramId = new PublicKey(TXLINE_CONFIG[txlineNetwork].programId);
-          const epochDay = epochDayFromTimestamp(proof.summary.updateStats.maxTimestamp);
+          // Per TxLINE docs: derive epoch day from minTimestamp, not maxTimestamp
+          const epochDay = epochDayFromTimestamp(proof.summary.updateStats.minTimestamp);
           const [dailyScoresRoots] = deriveDailyScoresRootsPda(txlineProgramId, epochDay);
 
           const statProofForChain = statProofNorm.map((n) => ({
@@ -287,7 +309,8 @@ export class Agent {
           }));
 
           const txlineIxData = buildValidateStatData({
-            ts: proof.summary.updateStats.maxTimestamp,
+            // Per TxLINE docs: ts = minTimestamp in milliseconds
+            ts: proof.summary.updateStats.minTimestamp,
             fixtureSummary: {
               fixtureId: proof.summary.fixtureId,
               updateStats: {
@@ -300,14 +323,17 @@ export class Agent {
             fixtureProof: subTreeProofForChain,
             mainTreeProof: mainTreeProofForChain,
             predicate: {
-              threshold: proof.statToProve.value,
-              comparison: 0, // GreaterThan — the stat value exceeds the threshold
+              // The predicate threshold comes from the market's params
+              // (e.g. "over 3 goals" → threshold=3).
+              // For next_goal_within (no threshold), use 0.
+              threshold: Number(action.predicate.params.threshold ?? 0),
+              comparison: 0, // GreaterThan — "over" markets
             },
             statA: {
               statToProve: {
-                key: proof.statToProve.statKey,
+                key: proof.statToProve.key,
                 value: proof.statToProve.value,
-                period: 0,
+                period: proof.statToProve.period ?? 0,
               },
               eventStatRoot: eventStatRootBytes,
               statProof: statProofForChain,
@@ -368,7 +394,9 @@ export class Agent {
       lastValidBlockHeight,
     });
 
+    // Add compute budget instruction for the CPI call (TxLINE needs ~1.4M units)
     if (resolveIx) {
+      tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
       tx.add(resolveIx);
     }
     tx.add(settleIx, attestIx);

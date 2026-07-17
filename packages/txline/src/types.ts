@@ -108,8 +108,10 @@ export interface ProofNode {
 }
 
 export interface StatToProve {
-  statKey: number;
+  /** Stat key (API field name: "key"). */
+  key: number;
   value: number;
+  period?: number;
 }
 
 export interface UpdateStats {
