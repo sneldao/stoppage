@@ -35,15 +35,18 @@ stream and call it done. The bets we're making on differentiation:
 2. **Protocol, not sportsbook.**
    Stoppage never custodies a house position and never sets odds. Markets
    are peer-funded vaults (PDA escrows); Stoppage's code only (a) verifies a
-   TxLINE Merkle proof via CPI into `validate_stat`, and (b) releases funds
-   per pre-declared, deterministic rules. There's no operator taking the
-   other side of a bet — the protocol is closer to an escrow + oracle-CPI
-   settlement layer than a bookmaker. This is a real architectural choice,
-   not just a compliance fig leaf: it's also what the bounty's "permissionless
-   results validation" track explicitly rewards. It does **not** by itself
-   make this compliant with UK gambling law — that determination needs
-   actual legal advice before any real-money/mainnet launch — but it is the
-   correct shape to build toward either way.
+   TxLINE Merkle proof via on-chain CPI into `validate_stat`, and (b) releases
+   funds per pre-declared, deterministic rules. There's no operator taking
+   the other side of a bet — the protocol is closer to an escrow + oracle-CPI
+   settlement layer than a bookmaker. The on-chain CPI is verified on devnet:
+   the settlement program's `resolve_market` instruction calls TxLINE's
+   `validate_stat`, reads the boolean return, and emits a proof-carrying
+   `MarketResolved` event. This is a real architectural choice, not just a
+   compliance fig leaf: it's also what the bounty's "permissionless results
+   validation" track explicitly rewards. It does **not** by itself make this
+   compliant with UK gambling law — that determination needs actual legal
+   advice before any real-money/mainnet launch — but it is the correct shape
+   to build toward either way.
 
 3. **Verifiable Resolution UI — the proof is the product.**
    Every settled market surfaces the raw TxLINE Merkle proof/receipt used
@@ -110,7 +113,8 @@ stoppage/
 │       └── store/                      Zustand slices (markets, positions, referral, history)
 ├── programs/
 │   ├── market/                  Anchor program: market vaults, join/claim
-│   └── settlement/              Anchor program: proof-carrying settlement event
+│   └── settlement/              Anchor program: on-chain CPI into TxLINE
+│                                 validate_stat + proof-carrying MarketResolved
 ├── packages/
 │   ├── sdk/                     TS that touches the chain: types, escrow, proofs,
 │   │                            session-key signing, program IDs, IDLs, PREDICATE_LABEL

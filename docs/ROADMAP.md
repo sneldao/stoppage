@@ -9,7 +9,7 @@ assume submission must be complete by ~July 26 and leave buffer.
 This file is the single status ledger. If something is deployed, broken,
 or descoped, it's recorded here and nowhere else.
 
-## Current state (2026-07-17)
+## Current state (2026-07-14)
 
 - Monorepo builds end to end (web app, SDK, both Anchor programs).
 - Program-ID discipline tooling in place and green.
@@ -20,29 +20,39 @@ or descoped, it's recorded here and nowhere else.
 - **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
   Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`, treasury
   PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.
-- **One demo market created on devnet**: `next_goal_within` for match
-  `FRA-ESP`, 600s window, status `open`. Market PDA:
-  `8osqxqzwZ2dkiPN5JEvYVKKTd2v8fGiGDLsXffq8QXhG`.
+- **M3 on-chain CPI verified on devnet.** The settlement program's
+  `resolve_market` instruction CPIs into TxLINE's `validate_stat` and
+  the proof verifies on-chain. Verified with fixture 17952170, seq 941,
+  statKey 1002: fixture-level validation passes, stage-1 stat proof
+  passes, predicate evaluates to `true`, return data `AQ==` (0x01).
+  Devnet tx
+  `En879uAi8pGPoUDs6tAhvG6hFLAqMg4XHBXHQrYLpUAoGwkqxFAi3ZHUY6gb8mDN8VNMXgQ5TJYwNeU2C2x8hm1`.
+  The settlement program reads the bool return, emits `MarketResolved`
+  with the full proof (statement, merkle root, outcome, resolver,
+  timestamp), and returns the data to the caller.
 - **M1 + M2 contract logic is code-complete and the M2 program test
   suite passes against a local validator (13 passing, 1 pending).** The
   market program implements 12 instructions across session-key
   delegation, market lifecycle, and protocol economics. The settlement
-  program emits a proof-carrying `MarketResolved` event (statement,
-  merkle root, outcome, proof hash) — the event shape is finalized even
-  though the TxLINE CPI is still a stub.
+  program's `resolve_market` instruction performs real on-chain CPI
+  into TxLINE `validate_stat`, reads the boolean return, and emits a
+  proof-carrying `MarketResolved` event.
 - **M4 UI is built**: market list (`/markets`), market detail with
   session-key join + wallet join + claim + force-settle + attest +
-  Verifiable Resolution panel. HeliusMonitor hook wires live updates
-  into the store. Blinks GET/POST return real market metadata and a
-  real unsigned join transaction.
+  Verifiable Resolution panel (ProofPanel with local verification
+  button). HeliusMonitor hook wires live updates into the store.
+  Blinks GET/POST return real market metadata and a real unsigned join
+  transaction.
 - **@stoppage/txline package complete**: TxLINE API client with auth,
   SSE streaming, historical scores, fixture list, validation proofs,
   and event normalizer. Devnet subscription active (tx sig
   `4NHhnAJs678g3vSuf4RgYmXikXrHZ9dMAtfL1AuEtrusGRuTxzwkxbPzVfSej3mR75dadgoTscEars7K4QYhJmPJ`).
 - **Autonomous agent (apps/agent) complete**: connects to TxLINE (live
   SSE or historical replay), normalizes events, creates/settles markets
-  on-chain. Fetches TxLINE Merkle proofs before settlement and attests
-  verification on-chain. Verified end-to-end in dry-run mode replaying
+  on-chain. Fetches TxLINE Merkle proofs before settlement, builds
+  `validate_stat` instruction data, includes `resolve_market` (CPI) +
+  `force_settle` + `attest_verification` in a single transaction with
+  1.4M compute budget. Verified end-to-end in dry-run mode replaying
   France vs Spain semi-final (8 market creates, 8 settles, 2 proof
   fetches with correct outcomes).
 - **Viral mechanics complete**: ShareBar component (tweet generation,
@@ -70,12 +80,6 @@ or descoped, it's recorded here and nowhere else.
     (permissionless validation counter) — judge-visible.
 - Remaining before submission: M1 acceptance capture (delegate → close
   wallet → ping → no-popup clip), demo video, public remote.
-- Note: M3 TxLINE CPI is implemented as agent-side validation (fetch
-  proof + force_settle + attest_verification) rather than on-chain CPI,
-  because the TxLINE `validate_stat` program's proof format differs from
-  what the settlement program expects. The agent fetches Merkle proofs
-  from TxLINE and attests verification on-chain — the proof is verifiable
-  off-chain, and the attestation is on-chain.
 
 ## Milestones
 
@@ -145,28 +149,37 @@ during M1/M2.
       on-chain.
 - [x] Agent-side validation: `fetchStatValidation` fetches Merkle proofs
       from TxLINE; agent includes `attest_verification` in the settle tx.
-- [ ] On-chain CPI into `validate_stat` — descoped. The TxLINE
-      `validate_stat` program's proof format differs from what the
-      settlement program expects. Agent-side validation (fetch proof +
-      force_settle + attest) is the implemented path. The proof is
-      verifiable off-chain via TxLINE's API; the attestation is on-chain.
+- [x] On-chain CPI into `validate_stat` — **verified on devnet.** The
+      settlement program's `resolve_market` instruction CPIs into
+      TxLINE's `validate_stat`, reads the boolean return, and emits
+      `MarketResolved` with the full proof. The SDK's
+      `buildResolveMarketIx` + `buildValidateStatData` handle the borsh
+      encoding for all TxLINE types (ScoreStat, StatTerm, ProofNode,
+      TraderPredicate, Comparison, BinaryExpression, Option). The agent
+      includes `resolve_market` + `force_settle` + `attest_verification`
+      in a single transaction with 1.4M compute budget. Devnet
+      verification: fixture 17952170, seq 941, statKey 1002 — predicate
+      evaluates to `true`, return data `AQ==` (0x01). Devnet tx
+      `En879uAi8pGPoUDs6tAhvG6hFLAqMg4XHBXHQrYLpUAoGwkqxFAi3ZHUY6gb8mDN8VNMXgQ5TJYwNeU2C2x8hm1`.
 - **Acceptance:** a market settles from a replayed TxLINE event with
-  the Merkle proof fetched and verified (agent logs proof node count +
-  value), and `attest_verification` marks the market as verified on-chain.
-  Verified in dry-run mode. Live tx mode requires devnet rate-limit-free
-  RPC (Helius).
+  the Merkle proof fetched and verified on-chain via CPI into
+  `validate_stat` (agent logs proof node count + value + CPI result),
+  and `attest_verification` marks the market as verified on-chain.
+  CPI verified on devnet with a known-good fixture. Live agent replay
+  against the FRA-SPA fixture requires a rate-limit-free RPC (Helius)
+  for reliable transaction landing.
 
 ### M4 — Verifiable Resolution UI + market surfaces (target: Jul 23)
 - [x] Market list (live + settled) and market detail page; positions and
       claim button; odds/implied probability derived from vault balances.
-- [ ] Resolution proof panel: raw statement, Merkle path, anchored root,
-      one-click local re-verification ("don't trust us" button). The
-      panel shell is built; the proof data lands when M3 settles a real
-      market via TxLINE (or the mock-oracle fallback).
+- [x] Resolution proof panel: `ProofPanel` component shows raw statement,
+      Merkle root, outcome, resolver, timestamp, and has a "verify proof
+      locally" button that runs client-side Merkle verification via
+      `verifyProofLocally` from the SDK. Integrated into the market detail
+      page.
 - [x] HeliusMonitor wired: settlement/join events update the store live.
 - **Acceptance:** a judge can open a settled market and verify the proof
-  themselves without reading code. (Blocked on M3 — the panel renders
-  mock-settled state today.)
+  themselves without reading code.
 
 ### M5 — Blinks + leaderboard + polish (target: Jul 25)
 - [x] Blinks GET/POST complete with real market metadata; returns a real
