@@ -13,14 +13,8 @@ import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchCalendar } from "@/components/MatchCalendar";
-
-const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
-const PREDICATE_LABEL: Record<string, string> = {
-  next_goal_within: "Next goal within",
-  corners_over: "Corners over",
-  card_shown: "Card shown",
-  total_goals_over: "Total goals over",
-};
+import { formatSol as SOL } from "@/lib/format";
+import { PREDICATE_LABEL } from "@stoppage/sdk";
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {

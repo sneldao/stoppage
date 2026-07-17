@@ -19,15 +19,9 @@ import {
   buildJoinViaWalletIx,
   getMarket,
   impliedProbability,
+  PREDICATE_LABEL,
 } from "@stoppage/sdk";
 import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/actions/cors";
-
-const PREDICATE_LABEL: Record<string, string> = {
-  next_goal_within: "Next goal within",
-  corners_over: "Corners over",
-  card_shown: "Card shown",
-  total_goals_over: "Total goals over",
-};
 
 // Default stake for a Blink join (0.05 SOL). The Actions spec allows a
 // parameterized amount via linked actions; for the demo a fixed default

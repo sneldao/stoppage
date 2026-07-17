@@ -9,12 +9,12 @@
  * doesn't know which mode it's in.
  */
 
-import * as fs from "fs";
 import {
   streamScores,
   fetchHistoricalScores,
   normalizeScoreUpdate,
   matchIdFromFixture,
+  loadCredentials,
   type Network,
   type TxLineCredentials,
   type ScoreUpdate,
@@ -149,18 +149,5 @@ export function createReplaySource(
       stopped = true;
       if (timer) clearTimeout(timer);
     },
-  };
-}
-
-/**
- * Load TxLINE credentials from the saved file.
- */
-export function loadCredentials(): { network: Network; creds: TxLineCredentials } {
-  const data = JSON.parse(
-    fs.readFileSync(".txline-credentials.json", "utf8")
-  );
-  return {
-    network: data.network as Network,
-    creds: { jwt: data.jwt, apiToken: data.apiToken },
   };
 }

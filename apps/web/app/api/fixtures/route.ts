@@ -6,19 +6,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { fetchFixtures, type Network, type TxLineCredentials } from "@stoppage/txline";
-
-function loadCredentials(): { network: Network; creds: TxLineCredentials } {
-  // The credentials file is at the monorepo root (written by scripts/subscribe-txline.ts)
-  // apps/web runs from apps/web, so go up two levels.
-  const credPath = /*turbopackIgnore: true*/ `${process.cwd()}/../../.txline-credentials.json`;
-  const data = JSON.parse(readFileSync(credPath, "utf8"));
-  return {
-    network: data.network as Network,
-    creds: { jwt: data.jwt, apiToken: data.apiToken },
-  };
-}
+import { fetchFixtures, loadCredentials } from "@stoppage/txline";
 
 export async function GET() {
   try {

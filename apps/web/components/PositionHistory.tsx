@@ -1,8 +1,7 @@
 "use client";
 
 import { useStoppageStore } from "@/store";
-
-const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
+import { formatSol as SOL } from "@/lib/format";
 
 /**
  * Position history — shows the user's settled bet history.

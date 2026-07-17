@@ -3,8 +3,7 @@
 import { useMemo } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStoppageStore, computeHistoryStats } from "@/store";
-
-const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
+import { formatSol as SOL } from "@/lib/format";
 
 /**
  * Stats panel — shows the user's betting history stats.

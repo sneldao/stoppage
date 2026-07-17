@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
+import { formatSol as SOL } from "@/lib/format";
 
 // SSR-safe wallet button — Phantom injects its icon on the client only,
 // which causes a hydration mismatch if rendered during SSR.
@@ -11,8 +12,6 @@ const WalletMultiButton = dynamic(
   () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
   { ssr: false, loading: () => <div className="h-10 w-40" /> }
 );
-
-const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
 
 export default function Home() {
   const { state, delegate, ping, revoke, isSessionValid } = useSessionKey();

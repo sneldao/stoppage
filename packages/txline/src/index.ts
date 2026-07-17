@@ -12,3 +12,4 @@ export * from "./scores";
 export * from "./fixtures";
 export * from "./validation";
 export * from "./normalizer";
+export * from "./credentials";

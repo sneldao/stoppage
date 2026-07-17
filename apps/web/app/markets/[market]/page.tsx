@@ -8,6 +8,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import {
   getMarket,
   impliedProbability,
+  PREDICATE_LABEL,
   type Market,
   type Side,
 } from "@stoppage/sdk";
@@ -16,15 +17,7 @@ import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
-
-const SOL = (lamports: number) => `${(lamports / 1e9).toFixed(3)} SOL`;
-const LAMPORTS_PER_SOL = 1e9;
-const PREDICATE_LABEL: Record<string, string> = {
-  next_goal_within: "Next goal within",
-  corners_over: "Corners over",
-  card_shown: "Card shown",
-  total_goals_over: "Total goals over",
-};
+import { formatSol as SOL, LAMPORTS_PER_SOL } from "@/lib/format";
 
 export default function MarketDetailPage() {
   const params = useParams<{ market: string }>();

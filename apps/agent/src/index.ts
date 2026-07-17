@@ -27,8 +27,8 @@ import { Agent } from "./loop";
 import {
   createLiveSource,
   createReplaySource,
-  loadCredentials,
 } from "./source";
+import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
 
 async function main() {

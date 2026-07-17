@@ -22,6 +22,14 @@ export const PREDICATE_KIND: Record<PredicateKind, number> = {
   total_goals_over: 3,
 };
 
+/** Human-readable labels for each PredicateKind (single source of truth). */
+export const PREDICATE_LABEL: Record<PredicateKind, string> = {
+  next_goal_within: "Next goal within",
+  corners_over: "Corners over",
+  card_shown: "Card shown",
+  total_goals_over: "Total goals over",
+};
+
 export interface MarketPredicate {
   kind: PredicateKind;
   matchId: MatchId;

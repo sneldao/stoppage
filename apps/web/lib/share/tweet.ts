@@ -6,14 +6,7 @@
  */
 
 import type { Market } from "@stoppage/sdk";
-import { impliedProbability } from "@stoppage/sdk";
-
-const PREDICATE_LABEL: Record<string, string> = {
-  next_goal_within: "Next goal within",
-  corners_over: "Corners over",
-  card_shown: "Card shown",
-  total_goals_over: "Total goals over",
-};
+import { impliedProbability, PREDICATE_LABEL } from "@stoppage/sdk";
 
 /**
  * Build a tweet-friendly string for a market.
