@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["mocha", "chai", "node"],
+    "lib": ["ES2020", "DOM"]
+  },
+  "ts-node": {
+    "esm": true,
+    "compilerOptions": {
+      "module": "ES2020"
+    },
+    "transpileOnly": true
+  },
+  "include": ["tests/**/*.ts"]
+}

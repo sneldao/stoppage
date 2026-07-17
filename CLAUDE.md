@@ -48,6 +48,22 @@ Full context: docs/ARCHITECTURE.md (design), docs/DEVELOPMENT.md
    staking, wagering, or P2P transfer — locked to TxODDS per the bounty
    rules. Stakes are SOL (devnet) in market vaults.
 
+9. **Session grants offer optional self-imposed limits and always
+   track spending.** `max_total_stake` on `SessionGrant` is a
+   user-set behavioral limit, not a protocol-imposed one: `0` means
+   "no cap" (the user's explicit choice), any other value is a
+   self-imposed limit the protocol enforces. `join_via_session_key`
+   must always increment `staked_so_far` (transparency) and only
+   enforce the cap check when `max_total_stake > 0`. The real
+   financial guardrail is `fund_lamports` — the session key can only
+   spend what it's been funded with. The UI defaults to *suggesting*
+   a limit (nudge, not mandate) but allows "no limit" as a clear
+   opt-out. The session expiry (`expires_at`) is the cool-off
+   mechanism: re-delegation after expiry is a conscious
+   re-commitment, not an automatic renewal. `revoke_session_key` is
+   the self-exclude path and must remain prominent in the UI, not
+   buried.
+
 ## Module boundaries (import direction is one-way)
 
 ```
@@ -68,6 +84,47 @@ apps/web       — UI, hooks, store, API routes. Talks to the chain
 - `apps/web/lib/*` is browser-facing glue (wallet, helius, session-key
   hook). `apps/web/store/*` is zustand slices only — no I/O in slices;
   fetching lives in hooks/SDK and results are written into the store.
+
+## Build principles
+
+These sit below the hard rules as day-to-day defaults. Where a principle
+and a hard rule overlap, the hard rule wins and the principle is just the
+reminder. pir8's codebase violated every one of these by the end.
+
+- **Enhancement first.** Extend an existing program/module/component before
+  creating a new one. A second market program "for later" is the bug rule 6
+  forbids; a second session-key hook is the same shape. If you reach for a
+  new file, ask first whether an existing one is the right home.
+- **Delete, don't deprecate.** No `old/`, no `_v2`, no "kept for reference."
+  When you refactor, the old version dies in the same commit (rule 6). Dead
+  code is a liability, not a safety net — git is the safety net.
+- **Audit before adding.** Before a new feature, scan for the duplication
+  it would create. pir8 carried three copies of its constants and a
+  2,500-line stale engine because each addition felt small. If the new
+  thing overlaps existing logic, consolidate first.
+- **One source of truth (DRY).** Shared logic lives in exactly one module
+  and is imported, not copied. Program IDs already enforce this (rule 1);
+  apply the same standard to constants, types, PDA seeds, and predicate
+  evaluators. A type defined in two places will drift.
+- **Explicit dependencies, one direction.** The module boundary diagram
+  above is the law: `programs → sdk → web`, never sideways or back. If a
+  component needs chain data, it goes through `@stoppage/sdk`; if the SDK
+  needs UI, it's in the wrong layer. Dependencies are declared in
+  `package.json`/`Cargo.toml`, not smuggled via dynamic imports.
+- **Composable, testable modules.** Each SDK function builds one thing
+  (an instruction, a PDA, a proof) and is unit-testable without a wallet
+  or a browser. The web layer composes them; it doesn't reimplement them.
+  Programs are tested with Anchor's test harness; SDK functions are tested
+  with a plain `Connection` against devnet or a local validator.
+- **Performance is a feature.** Lazy-load heavy client code (the IDL, the
+  wallet adapters), cache account fetches, and prefer one Helius
+  subscription over polling. In-play betting is latency-sensitive — a UI
+  that blocks on a full account scan before rendering odds loses the demo.
+- **Predictable, domain-driven layout.** Files live where the domain
+  naming says: `lib/session-key/` for session-key glue, `store/marketsSlice`
+  for market state, `packages/sdk/src/proofs` for proof logic. New code
+  follows the existing pattern; if you can't tell where something belongs,
+  the layout is wrong and should be fixed, not worked around.
 
 ## Scope discipline
 

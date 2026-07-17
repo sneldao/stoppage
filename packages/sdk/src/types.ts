@@ -1,7 +1,9 @@
 /**
  * Shared types for the Stoppage protocol SDK.
- * Kept deliberately small at scaffold stage — grow this as the predicate
- * library and settlement program stabilize.
+ * Kept deliberately small — grow this as the predicate library and
+ * settlement program stabilize. On-chain account layouts are defined
+ * in the IDL (packages/sdk/idl/); these TS types mirror them for
+ * client-side ergonomics.
  */
 
 export type MatchId = string; // TxLINE match identifier
@@ -12,6 +14,14 @@ export type PredicateKind =
   | "card_shown"
   | "total_goals_over";
 
+/** Numeric encoding of PredicateKind on-chain (u8). */
+export const PREDICATE_KIND: Record<PredicateKind, number> = {
+  next_goal_within: 0,
+  corners_over: 1,
+  card_shown: 2,
+  total_goals_over: 3,
+};
+
 export interface MarketPredicate {
   kind: PredicateKind;
   matchId: MatchId;
@@ -19,45 +29,78 @@ export interface MarketPredicate {
   params: Record<string, string | number>;
 }
 
+export type MarketStatus = "open" | "awaiting_settlement" | "settled" | "void";
+export type Outcome = "yes" | "no" | "void";
+export type Side = "yes" | "no";
+
+export const STATUS: Record<MarketStatus, number> = {
+  open: 0,
+  awaiting_settlement: 1,
+  settled: 2,
+  void: 3,
+};
+
+export const STATUS_FROM_NUM: Record<number, MarketStatus> = {
+  0: "open",
+  1: "awaiting_settlement",
+  2: "settled",
+  3: "void",
+};
+
+export const OUTCOME_FROM_NUM: Record<number, Outcome> = {
+  0: "yes",
+  1: "no",
+  2: "void",
+};
+
 export interface Market {
   id: string;
   predicate: MarketPredicate;
-  /** Vault PDA holding staked funds for this market. */
-  vaultAddress: string;
-  createdAt: string;
-  /** ISO timestamp after which no new positions can be opened. */
+  creator: string;
+  bondLamports: number;
+  bondClaimed: boolean;
+  yesPool: number;
+  noPool: number;
   closesAt: string;
-  status: "open" | "awaiting_settlement" | "settled" | "void";
+  settlesAt: string | null;
+  status: MarketStatus;
+  outcome: Outcome;
+  feeBps: number;
+  verifications: number;
 }
 
 export interface Position {
   marketId: string;
-  owner: string; // wallet pubkey (the *authority*, not necessarily the signer)
-  side: "yes" | "no";
+  owner: string;
+  side: Side;
   amountLamports: number;
   openedViaSessionKey: boolean;
-  txSignature: string;
 }
 
 export interface SettlementProof {
   marketId: string;
   matchId: MatchId;
-  /** Raw Merkle proof as returned by TxLINE's validation primitive. */
   merkleProof: string[];
-  /** The leaf/statement being proven, e.g. "GOAL:FRA:63:00". */
   statement: string;
-  /** Root anchored on Solana, per TxLINE's docs. */
   anchoredRoot: string;
   verifiedAt: string;
-  outcome: "yes" | "no" | "void";
+  outcome: Outcome;
 }
 
 export interface SessionKeyGrant {
-  owner: string; // wallet pubkey that authorized the delegation
+  owner: string;
   sessionPubkey: string;
-  /** Programs this session key is allowed to invoke. Keep this tight. */
   allowedPrograms: string[];
-  maxStakeLamportsPerMarket: number;
+  maxStakePerMarket: number;
+  /** Cumulative spend cap = loss limit (rule 9). */
+  maxTotalStake: number;
+  stakedSoFar: number;
   expiresAt: string;
   revoked: boolean;
+}
+
+export interface ProtocolConfig {
+  authority: string;
+  feeBps: number;
+  treasury: string;
 }

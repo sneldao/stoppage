@@ -8,7 +8,43 @@
   },
   "instructions": [
     {
+      "name": "attest_verification",
+      "docs": [
+        "Permissionless attestation: anyone can sign to increment a",
+        "market's verification counter after it's settled. Makes",
+        "\"permissionless validation\" legible on chain — a judge can see",
+        "\"47 independent verifications\" without reading code."
+      ],
+      "discriminator": [
+        174,
+        250,
+        164,
+        34,
+        215,
+        158,
+        186,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "verifier",
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "claim",
+      "docs": [
+        "Claim a settled position. Winners get pro-rata share of the",
+        "losing pool + their stake back, minus protocol fee. Losers get",
+        "nothing. Voided markets: everyone gets stake back, no fee.",
+        "Payouts are direct lamport transfers (rule 4)."
+      ],
       "discriminator": [
         62,
         198,
@@ -24,12 +60,103 @@
           "name": "claimant",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "claimant"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_bond",
+      "docs": [
+        "Creator claims the bond back after a market settles or voids.",
+        "If the market never settles and never voids (shouldn't happen",
+        "given the grace-period void path), the bond stays locked — that's",
+        "the spam-filter incentive."
+      ],
+      "discriminator": [
+        173,
+        34,
+        157,
+        61,
+        45,
+        120,
+        246,
+        11
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
         }
       ],
       "args": []
     },
     {
       "name": "create_market",
+      "docs": [
+        "Create a market for a predicate. Requires a refundable bond",
+        "(spam filter — refunded on settle/void via claim_bond). Fee is",
+        "snapshotted from ProtocolConfig at creation time so later config",
+        "changes don't retroactively alter existing markets."
+      ],
       "discriminator": [
         103,
         226,
@@ -42,46 +169,1402 @@
       ],
       "accounts": [
         {
-          "name": "payer",
+          "name": "creator",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "kind",
+          "type": "u8"
+        },
+        {
+          "name": "match_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "team",
+          "type": {
+            "array": [
+              "u8",
+              8
+            ]
+          }
+        },
+        {
+          "name": "param_u64",
+          "type": "u64"
+        },
+        {
+          "name": "closes_at",
+          "type": "i64"
+        }
+      ]
     },
     {
-      "name": "join",
+      "name": "delegate_session_key",
+      "docs": [
+        "Owner signs once to authorize a session keypair on-chain, scoped",
+        "by program allowlist, per-market stake cap, optional cumulative",
+        "spend cap (self-imposed limit; 0 = no cap — rule 9), and expiry.",
+        "Also funds the session key with lamports so it can pay tx fees",
+        "AND place stakes — without this the no-popup flow can't send",
+        "anything. The real financial guardrail is fund_lamports: the",
+        "session key can only spend what it's been given."
+      ],
       "discriminator": [
-        206,
-        55,
-        2,
-        106,
-        113,
-        220,
+        49,
         17,
-        163
+        156,
+        96,
+        82,
+        135,
+        9,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_pubkey",
+          "writable": true
+        },
+        {
+          "name": "grant",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  103,
+                  114,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "session_pubkey"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "allowed_programs",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "max_stake_per_market",
+          "type": "u64"
+        },
+        {
+          "name": "max_total_stake",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        },
+        {
+          "name": "fund_lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "force_settle",
+      "docs": [
+        "Authority-only mock settle for M2 acceptance (real settlement",
+        "comes via the settlement program's CPI in M3). Clearly labeled."
+      ],
+      "discriminator": [
+        201,
+        10,
+        239,
+        245,
+        47,
+        198,
+        225,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "initialize_protocol",
+      "docs": [
+        "One-time initialization after deploy. Sets the protocol authority",
+        "(who can force-settle markets as a mock oracle) and the fee rate.",
+        "The treasury PDA is created here and receives fees on every claim."
+      ],
+      "discriminator": [
+        188,
+        233,
+        252,
+        106,
+        134,
+        146,
+        202,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "join_via_session_key",
+      "docs": [
+        "Join a market via a session key (no wallet popup). The session",
+        "key signs; the position is attributed to the grant owner (the",
+        "wallet). Enforces the cumulative spend cap (rule 9 — loss limit),",
+        "per-market cap, program allowlist, expiry, and revocation."
+      ],
+      "discriminator": [
+        231,
+        53,
+        200,
+        135,
+        252,
+        45,
+        34,
+        17
+      ],
+      "accounts": [
+        {
+          "name": "session_key",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "grant",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  103,
+                  114,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "session_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": "u8"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "join_via_wallet",
+      "docs": [
+        "Join a market via the owner wallet (one popup). Use this when no",
+        "session key is delegated. The wallet is both the signer and the",
+        "position owner."
+      ],
+      "discriminator": [
+        150,
+        139,
+        26,
+        211,
+        175,
+        22,
+        217,
+        200
       ],
       "accounts": [
         {
           "name": "signer",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "_side",
+          "name": "side",
           "type": "u8"
         },
         {
-          "name": "_amount",
+          "name": "amount",
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "revoke_session_key",
+      "docs": [
+        "Owner revokes a delegation early (one more popup — revocation is",
+        "deliberately not frictionless; this is the self-exclude path,",
+        "rule 9). Grant account is closed, rent refunded to owner."
+      ],
+      "discriminator": [
+        81,
+        192,
+        32,
+        110,
+        104,
+        116,
+        144,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_pubkey"
+        },
+        {
+          "name": "grant",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  103,
+                  114,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "session_pubkey"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "session_ping",
+      "docs": [
+        "Session-key-signed no-op that verifies the grant is active.",
+        "M1 acceptance artifact + de-risks M2 grant checks."
+      ],
+      "discriminator": [
+        109,
+        151,
+        199,
+        217,
+        151,
+        127,
+        137,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "session_key",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "grant",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  103,
+                  114,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "session_key"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "void_market",
+      "docs": [
+        "Permissionless void: if a market hasn't settled by closes_at +",
+        "grace period, anyone can void it. Triggers full refunds (claim",
+        "returns stake, no fee, no winner). This is the \"what if TxLINE",
+        "is down\" answer."
+      ],
+      "discriminator": [
+        243,
+        175,
+        46,
+        124,
+        95,
+        101,
+        39,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "Position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
+      ]
+    },
+    {
+      "name": "ProtocolConfig",
+      "discriminator": [
+        207,
+        91,
+        250,
+        28,
+        152,
+        179,
+        215,
+        209
+      ]
+    },
+    {
+      "name": "SessionGrant",
+      "discriminator": [
+        34,
+        113,
+        59,
+        89,
+        44,
+        90,
+        49,
+        149
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BondClaimed",
+      "discriminator": [
+        4,
+        151,
+        48,
+        253,
+        112,
+        78,
+        238,
+        101
+      ]
+    },
+    {
+      "name": "MarketCreated",
+      "discriminator": [
+        88,
+        184,
+        130,
+        231,
+        226,
+        84,
+        6,
+        58
+      ]
+    },
+    {
+      "name": "MarketSettled",
+      "discriminator": [
+        237,
+        212,
+        22,
+        175,
+        201,
+        117,
+        215,
+        99
+      ]
+    },
+    {
+      "name": "MarketVoided",
+      "discriminator": [
+        217,
+        12,
+        138,
+        39,
+        108,
+        75,
+        89,
+        26
+      ]
+    },
+    {
+      "name": "PositionClaimed",
+      "discriminator": [
+        149,
+        250,
+        141,
+        45,
+        210,
+        198,
+        94,
+        148
+      ]
+    },
+    {
+      "name": "PositionOpened",
+      "discriminator": [
+        237,
+        175,
+        243,
+        230,
+        147,
+        117,
+        101,
+        121
+      ]
+    },
+    {
+      "name": "ProtocolInitialized",
+      "discriminator": [
+        173,
+        122,
+        168,
+        254,
+        9,
+        118,
+        76,
+        132
+      ]
+    },
+    {
+      "name": "SessionKeyDelegated",
+      "discriminator": [
+        219,
+        243,
+        49,
+        133,
+        127,
+        68,
+        8,
+        128
+      ]
+    },
+    {
+      "name": "SessionKeyRevoked",
+      "discriminator": [
+        18,
+        208,
+        143,
+        205,
+        85,
+        72,
+        180,
+        176
+      ]
+    },
+    {
+      "name": "SessionPingEvent",
+      "discriminator": [
+        40,
+        114,
+        78,
+        81,
+        49,
+        170,
+        11,
+        23
+      ]
+    },
+    {
+      "name": "VerificationAttested",
+      "discriminator": [
+        197,
+        206,
+        56,
+        232,
+        123,
+        214,
+        158,
+        94
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "TooManyPrograms",
+      "msg": "Session grant allows at most 4 programs"
+    },
+    {
+      "code": 6001,
+      "name": "GrantRevoked",
+      "msg": "Session grant has been revoked"
+    },
+    {
+      "code": 6002,
+      "name": "GrantExpired",
+      "msg": "Session grant has expired"
+    },
+    {
+      "code": 6003,
+      "name": "OwnerMismatch",
+      "msg": "Grant owner does not match the provided owner account"
+    },
+    {
+      "code": 6004,
+      "name": "SpendCapExceeded",
+      "msg": "Cumulative spend cap exceeded (loss limit, rule 9)"
+    },
+    {
+      "code": 6005,
+      "name": "StakeCapExceeded",
+      "msg": "Per-market stake cap exceeded"
+    },
+    {
+      "code": 6006,
+      "name": "ProgramNotAllowed",
+      "msg": "Market program is not in the session grant's allowlist"
+    },
+    {
+      "code": 6007,
+      "name": "FeeTooHigh",
+      "msg": "Fee cannot exceed 500 bps (5%)"
+    },
+    {
+      "code": 6008,
+      "name": "MarketNotOpen",
+      "msg": "Market is not open"
+    },
+    {
+      "code": 6009,
+      "name": "MarketClosed",
+      "msg": "Market has closed (past closes_at)"
+    },
+    {
+      "code": 6010,
+      "name": "NotSettled",
+      "msg": "Market is not settled or void"
+    },
+    {
+      "code": 6011,
+      "name": "AlreadySettled",
+      "msg": "Market is already settled or void"
+    },
+    {
+      "code": 6012,
+      "name": "GracePeriodNotElapsed",
+      "msg": "Grace period has not elapsed since closes_at"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidSide",
+      "msg": "Invalid side (must be 0=YES or 1=NO)"
+    },
+    {
+      "code": 6014,
+      "name": "AlreadyJoinedOtherSide",
+      "msg": "Already joined the opposite side of this market"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidOutcome",
+      "msg": "Invalid outcome (must be 0=YES or 1=NO)"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidPredicateKind",
+      "msg": "Invalid predicate kind (must be 0-3)"
+    },
+    {
+      "code": 6017,
+      "name": "ClosesInPast",
+      "msg": "closes_at must be in the future"
+    },
+    {
+      "code": 6018,
+      "name": "ZeroAmount",
+      "msg": "Amount must be > 0"
+    },
+    {
+      "code": 6019,
+      "name": "NothingToClaim",
+      "msg": "Nothing to claim (position already claimed)"
+    },
+    {
+      "code": 6020,
+      "name": "NotPositionOwner",
+      "msg": "Claimant is not the position owner"
+    },
+    {
+      "code": 6021,
+      "name": "NotAuthorized",
+      "msg": "Signer is not the protocol authority"
+    },
+    {
+      "code": 6022,
+      "name": "NotCreator",
+      "msg": "Signer is not the market creator"
+    },
+    {
+      "code": 6023,
+      "name": "BondAlreadyClaimed",
+      "msg": "Bond has already been claimed"
+    }
+  ],
+  "types": [
+    {
+      "name": "BondClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "bond",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "kind",
+            "type": "u8"
+          },
+          {
+            "name": "match_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "team",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "param_u64",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "bond_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "bond_claimed",
+            "type": "bool"
+          },
+          {
+            "name": "yes_pool",
+            "type": "u64"
+          },
+          {
+            "name": "no_pool",
+            "type": "u64"
+          },
+          {
+            "name": "closes_at",
+            "type": "i64"
+          },
+          {
+            "name": "settles_at",
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "verifications",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "kind",
+            "type": "u8"
+          },
+          {
+            "name": "closes_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketSettled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "settles_at",
+            "type": "i64"
+          },
+          {
+            "name": "mock",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketVoided",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "voided_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "amount_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "opened_via_session_key",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "via_session_key",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionGrant",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_programs",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "max_stake_per_market",
+            "type": "u64"
+          },
+          {
+            "name": "max_total_stake",
+            "docs": [
+              "Cumulative spend cap = loss limit (rule 9). join_via_session_key",
+              "checks staked_so_far + amount <= max_total_stake."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "staked_so_far",
+            "type": "u64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "revoked",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionKeyDelegated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "max_total_stake",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionKeyRevoked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_pubkey",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionPingEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerificationAttested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "verifier",
+            "type": "pubkey"
+          },
+          {
+            "name": "count",
+            "type": "u32"
+          }
+        ]
+      }
     }
   ]
 }
