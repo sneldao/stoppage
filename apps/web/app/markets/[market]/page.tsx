@@ -17,6 +17,7 @@ import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
+import { ProofPanel } from "@/components/ProofPanel";
 import { formatSol as SOL, LAMPORTS_PER_SOL } from "@/lib/format";
 
 export default function MarketDetailPage() {
@@ -25,7 +26,7 @@ export default function MarketDetailPage() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { state, getSessionSigner } = useSessionKey();
-  const { joinViaWallet, joinViaSessionKey, claim, forceSettle, attestVerification } = useMarketActions();
+  const { joinViaWallet, joinViaSessionKey, claim, forceSettle } = useMarketActions();
   useMyPositions();
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
@@ -314,55 +315,7 @@ export default function MarketDetailPage() {
       )}
 
       {/* ── Verifiable Resolution panel (the proof is the product) ── */}
-      <div className="rounded-xl border border-white/10 p-4 sm:p-6">
-        <h2 className="font-medium">Verifiable Resolution</h2>
-        <p className="mt-1 text-xs text-neutral-500 sm:text-sm">
-          Settlement is backed by a TxLINE Merkle proof — verify it
-          yourself without trusting Stoppage.
-        </p>
-
-        {market.status === "settled" ? (
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-neutral-500">Outcome</span>
-              <span className="font-medium capitalize">{market.outcome}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-500">Settled at</span>
-              <span>{market.settlesAt ? new Date(market.settlesAt).toLocaleString() : "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-500">Verifications</span>
-              <span className="font-medium">{market.verifications}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-500">Proof source</span>
-              <span className="text-xs text-neutral-400">TxLINE on-chain oracle</span>
-            </div>
-            {market.outcome !== "void" && (
-              <button
-                onClick={() => void run("attest", () => attestVerification(new PublicKey(marketAddr)))}
-                disabled={busy !== null}
-                className="mt-2 rounded border border-white/20 px-3 py-1.5 text-xs disabled:opacity-40"
-              >
-                {busy === "attest" ? "Attesting…" : "Attest verification"}
-              </button>
-            )}
-            {market.verifications > 0 && (
-              <p className="pt-2 text-xs text-emerald-400">
-                ✓ {market.verifications} verification{market.verifications > 1 ? "s" : ""} —
-                this market's outcome is independently attested on-chain.
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-neutral-600">
-            {market.status === "void"
-              ? "Market was voided — no proof to verify (full refunds)."
-              : "Market not yet settled. The autonomous agent will settle this market when the match event is confirmed via TxLINE."}
-          </p>
-        )}
-      </div>
+      <ProofPanel market={market} />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
     </main>
