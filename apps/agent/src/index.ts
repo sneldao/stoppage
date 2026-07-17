@@ -75,17 +75,18 @@ async function main() {
 
   // For replay mode, we need the specific fixture
   let source;
+  let replayFixture: Fixture | null = null;
   if (mode === "live") {
     source = createLiveSource(network, creds, fixtureMap);
     console.log("Connected to live TxLINE SSE stream");
   } else {
     // Find the fixture in the map, or create a synthetic one
-    let fixture = fixtureMap.get(fixtureId);
-    if (!fixture) {
+    replayFixture = fixtureMap.get(fixtureId) ?? null;
+    if (!replayFixture) {
       // The semi-final might not be in the current fixtures list (it's past)
       // Create a synthetic fixture from the schedule data
       console.log(`Fixture ${fixtureId} not in current list — using synthetic fixture`);
-      fixture = {
+      replayFixture = {
         FixtureId: fixtureId,
         Sport: "Soccer",
         Country: "International",
@@ -97,9 +98,9 @@ async function main() {
         GameState: 1,
       };
     }
-    const matchId = matchIdFromFixture(fixture);
-    console.log(`Replaying: ${fixture.Participant1} vs ${fixture.Participant2} (${matchId})`);
-    source = createReplaySource(network, creds, fixtureId, fixture, 1000); // 1000x speed
+    const matchId = matchIdFromFixture(replayFixture);
+    console.log(`Replaying: ${replayFixture.Participant1} vs ${replayFixture.Participant2} (${matchId})`);
+    source = createReplaySource(network, creds, fixtureId, replayFixture, 1000); // 1000x speed
   }
   console.log();
 
@@ -110,6 +111,8 @@ async function main() {
     wallet,
     source,
     dryRun,
+    txlineNetwork: network,
+    txlineCreds: creds,
     onEvent: (event) => {
       if (event.type !== "heartbeat") {
         console.log(`  📡 ${event.type}: ${formatEvent(event)}`);
@@ -126,6 +129,15 @@ async function main() {
       }
     },
   });
+
+  // Register the fixture so the agent can fetch validation proofs
+  if (mode === "replay" && replayFixture) {
+    const matchId = matchIdFromFixture(replayFixture);
+    agent.registerFixture(matchId, fixtureId);
+  }
+  for (const f of fixtures) {
+    agent.registerFixture(matchIdFromFixture(f), f.FixtureId);
+  }
 
   // Start the agent
   await agent.start();

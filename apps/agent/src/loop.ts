@@ -23,11 +23,17 @@ import {
   buildCreateMarketIx,
   buildForceSettleIx,
   buildVoidMarketIx,
+  buildAttestVerificationIx,
   findMarketPdaFromPredicate,
   type MarketPredicate,
   type Side,
 } from "@stoppage/sdk";
-import type { NormalizedEvent } from "@stoppage/txline";
+import {
+  fetchStatValidation,
+  type Network,
+  type TxLineCredentials,
+  type NormalizedEvent,
+} from "@stoppage/txline";
 import { decideActions, type AgentAction, type OpenMarket } from "./strategy";
 import type { EventSource } from "./source";
 
@@ -37,6 +43,9 @@ export interface AgentConfig {
   source: EventSource;
   /** Dry-run mode: log actions but don't submit transactions. */
   dryRun?: boolean;
+  /** TxLINE credentials for fetching validation proofs. */
+  txlineNetwork?: Network;
+  txlineCreds?: TxLineCredentials;
   /** Called after each action for logging/UI updates */
   onAction?: (action: AgentAction, result: ActionResult) => void;
   /** Called for each normalized event */
@@ -54,9 +63,16 @@ export class Agent {
   private config: AgentConfig;
   private openMarkets: OpenMarket[] = [];
   private running = false;
+  /** Map from matchId (e.g. "FRA-SPA") to TxLINE fixtureId */
+  private matchToFixture = new Map<string, number>();
 
   constructor(config: AgentConfig) {
     this.config = config;
+  }
+
+  /** Register a fixture so the agent can fetch validation proofs for its markets. */
+  registerFixture(matchId: string, fixtureId: number) {
+    this.matchToFixture.set(matchId, fixtureId);
   }
 
   async start() {
@@ -170,7 +186,7 @@ export class Agent {
   private async settleMarket(
     action: Extract<AgentAction, { type: "settle_market" }>
   ): Promise<ActionResult> {
-    const { connection, wallet, dryRun } = this.config;
+    const { connection, wallet, dryRun, txlineNetwork, txlineCreds } = this.config;
 
     // Find the open market
     const idx = this.openMarkets.findIndex(
@@ -191,18 +207,45 @@ export class Agent {
     // Remove from open markets regardless of mode
     this.openMarkets.splice(idx, 1);
 
+    // Fetch TxLINE validation proof for the settlement (when available)
+    let proofSummary = "";
+    if (txlineNetwork && txlineCreds && action.seq > 0 && action.statKey > 0) {
+      try {
+        const fixtureId = this.fixtureIdForMatch(action.predicate.matchId);
+        if (fixtureId) {
+          const proof = await fetchStatValidation(
+            txlineNetwork,
+            txlineCreds,
+            fixtureId,
+            action.seq,
+            action.statKey
+          );
+          proofSummary = ` (proof: ${proof.statProof.length} nodes, value=${proof.statToProve.value})`;
+        }
+      } catch (err) {
+        console.warn(`[agent] Proof fetch failed (non-fatal):`, (err as Error).message);
+      }
+    }
+
     if (dryRun) {
-      console.log(`[agent] (dry-run) Would settle: ${action.label} → ${action.outcome.toUpperCase()}`);
+      console.log(`[agent] (dry-run) Would settle: ${action.label} → ${action.outcome.toUpperCase()}${proofSummary}`);
       return { success: true, marketPda: market.marketPda };
     }
 
     // Force-settle with the outcome (agent = authority)
     const outcome: Side = action.outcome === "yes" ? "yes" : "no";
 
-    const ix = buildForceSettleIx(
+    const settleIx = buildForceSettleIx(
       wallet.publicKey,
       new PublicKey(market.marketPda),
       outcome
+    );
+
+    // Attest verification — marks the market as having been verified
+    // with a TxLINE Merkle proof (off-chain proof, on-chain attestation)
+    const attestIx = buildAttestVerificationIx(
+      wallet.publicKey,
+      new PublicKey(market.marketPda)
     );
 
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
@@ -210,7 +253,7 @@ export class Agent {
       feePayer: wallet.publicKey,
       blockhash,
       lastValidBlockHeight,
-    }).add(ix);
+    }).add(settleIx, attestIx);
     tx.sign(wallet);
 
     const sig = await connection.sendRawTransaction(tx.serialize(), {
@@ -219,9 +262,14 @@ export class Agent {
     await connection.confirmTransaction(sig, "confirmed");
 
     console.log(
-      `[agent] Settled market: ${action.label} → ${action.outcome.toUpperCase()} (tx: ${sig.slice(0, 16)}...)`
+      `[agent] Settled market: ${action.label} → ${action.outcome.toUpperCase()}${proofSummary} (tx: ${sig.slice(0, 16)}...)`
     );
     return { success: true, signature: sig, marketPda: market.marketPda };
+  }
+
+  /** Look up the TxLINE fixture ID for a given match ID. */
+  private fixtureIdForMatch(matchId: string): number | null {
+    return this.matchToFixture.get(matchId) ?? null;
   }
 
   private async voidMarket(
