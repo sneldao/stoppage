@@ -13,6 +13,16 @@ or descoped, it's recorded here and nowhere else.
 
 - Monorepo builds end to end (web app, SDK, both Anchor programs).
 - Program-ID discipline tooling in place and green.
+- **Both programs deployed to devnet.** Market:
+  `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
+  `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`. Upgrade authority:
+  `G33naaudTAyEWFnfLET51aWGNLry5BwUtZt6KwcniFoj`.
+- **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
+  Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`, treasury
+  PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.
+- **One demo market created on devnet**: `next_goal_within` for match
+  `FRA-ESP`, 600s window, status `open`. Market PDA:
+  `8osqxqzwZ2dkiPN5JEvYVKKTd2v8fGiGDLsXffq8QXhG`.
 - **M1 + M2 contract logic is code-complete and the M2 program test
   suite passes against a local validator (13 passing, 1 pending).** The
   market program implements 12 instructions across session-key
@@ -39,9 +49,9 @@ or descoped, it's recorded here and nowhere else.
 - **Bug fixed in this pass**: `apply_join` now rejects joining the
   opposite side of an existing position (previously merged both stakes
   into one position recording only the first side). Covered by a test.
-- Remaining before submission: devnet deploy + `initialize_protocol`
-  bootstrap, M1/M2 acceptance captures on devnet, M3 (TxLINE CPI or
-  mock-oracle fallback), demo video, public remote.
+- Remaining before submission: M1 acceptance capture (delegate → close
+  wallet → ping → no-popup clip), M3 (TxLINE CPI or mock-oracle
+  fallback), demo video, public remote.
 - TxLINE unknowns: `validate_stat` program address, proof/leaf format,
   SSE schema, and devnet availability. Blocks M3 — resolve early (ask in
   TxLINEChat while building M1/M2, not after).
@@ -67,7 +77,7 @@ The differentiator. Built first because the demo lives or dies on it.
       on revoke is a follow-up; on devnet trivial.
 - [x] UI surfaces the loss limit, auto-expiry, and self-exclusion as
       features (responsible design is the differentiator, not a footnote).
-- [ ] Devnet deploy via `scripts/deploy.sh`.
+- [x] Devnet deploy via `scripts/deploy.sh`.
 - [ ] **Acceptance:** on devnet, from the web app: one wallet popup to
       delegate, then a transaction lands signed by the session key with
       the wallet extension closed. Recorded as a screen capture (this
