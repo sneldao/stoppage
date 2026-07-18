@@ -139,20 +139,21 @@ export default function Home() {
           <MatchState fixture={featuredFixture} />
         </div>
 
-        <div className="match-board page-enter page-enter-delay-1">
-          <div className="match-board-top">
-            <span>{featuredFixture?.Country ?? "World Cup"}</span>
-            <span>{featuredFixture ? `Fixture ${featuredFixture.FixtureId}` : "TxLINE stream"}</span>
+        <div className="live-stage page-enter page-enter-delay-1">
+          <div className="match-board">
+            <div className="match-board-top">
+              <span>{featuredFixture?.Country ?? "World Cup"}</span>
+              <span>{featuredFixture ? `Fixture ${featuredFixture.FixtureId}` : "TxLINE stream"}</span>
+            </div>
+            <div className="teams-row">
+              <div><span className="team-mark">H</span><strong>{featuredFixture?.Participant1 ?? "Next home team"}</strong></div>
+              <div className="match-clock">{featuredFixture && (featuredFixture.GameState === 2 || featuredFixture.GameState === 4) ? "LIVE" : "NEXT"}</div>
+              <div><strong>{featuredFixture?.Participant2 ?? "Next away team"}</strong><span className="team-mark">A</span></div>
+            </div>
+            <div className="match-board-foot"><span>Direct feed</span><span>TxLINE signed data</span></div>
           </div>
-          <div className="teams-row">
-            <div><span className="team-mark">H</span><strong>{featuredFixture?.Participant1 ?? "Next home team"}</strong></div>
-            <div className="match-clock">{featuredFixture && (featuredFixture.GameState === 2 || featuredFixture.GameState === 4) ? "LIVE" : "NEXT"}</div>
-            <div><strong>{featuredFixture?.Participant2 ?? "Next away team"}</strong><span className="team-mark">A</span></div>
-          </div>
-          <div className="match-board-foot"><span>Direct feed</span><span>TxLINE signed data</span></div>
+          <FeaturedMarket market={featuredMarket} />
         </div>
-
-        <div className="featured-wrap page-enter page-enter-delay-2"><FeaturedMarket market={featuredMarket} /></div>
       </section>
 
       <section className="signal-strip">
@@ -185,6 +186,19 @@ export default function Home() {
           <div className="trust-row"><span>TxLINE proof gate</span><span>On-chain settlement</span></div>
         </aside>
       </section>
+
+      <footer className="app-footer">
+        <div><Link href="/" className="wordmark">STOPPAGE<span>.</span></Link><span>© 2026</span></div>
+        <p>Built on Solana devnet · Match data from TxLINE</p>
+        <p className="footer-safety">Use only where permitted. Set limits and take breaks.</p>
+      </footer>
+
+      {featuredMarket && (
+        <Link className="mobile-market-dock" href={`/markets/${featuredMarket.id}`}>
+          <span><i /> Live market</span>
+          <strong>Make your call <b>→</b></strong>
+        </Link>
+      )}
     </main>
   );
 }
