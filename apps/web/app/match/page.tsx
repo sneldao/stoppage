@@ -13,6 +13,7 @@ import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
 import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { LiveMatchBar } from "@/components/LiveMatchBar";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -116,6 +117,7 @@ export default function MatchPage() {
           <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? "Live feed" : fixture ? "Fixture feed" : "Fixture mapping pending"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
           <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : "TxLINE connected"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context active"}</span></div>
+          {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} />}
         </section>
 
         <section className="match-ownership" aria-label="Your match position">

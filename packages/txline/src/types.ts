@@ -161,4 +161,15 @@ export type NormalizedEvent =
   | { type: "match_ended"; fixtureId: number; matchId: string; finalScore: { home: number; away: number }; finalStats: Record<string, number>; ts: number; seq: number }
   | { type: "halftime"; fixtureId: number; matchId: string; ts: number; seq: number }
   | { type: "second_half_started"; fixtureId: number; matchId: string; ts: number; seq: number }
+  | { type: "extra_time_started"; fixtureId: number; matchId: string; ts: number; seq: number }
+  | { type: "penalty_shootout_started"; fixtureId: number; matchId: string; ts: number; seq: number }
+  | { type: "match_interrupted"; fixtureId: number; matchId: string; ts: number; seq: number }
+  | { type: "match_resumed"; fixtureId: number; matchId: string; ts: number; seq: number }
+  | { type: "shot_taken"; fixtureId: number; matchId: string; team: string; outcome?: string; player?: string; ts: number; seq: number }
+  | { type: "substitution"; fixtureId: number; matchId: string; team: string; playerOff?: string; playerOn?: string; ts: number; seq: number }
+  | { type: "var_review"; fixtureId: number; matchId: string; decision?: string; ts: number; seq: number }
+  | { type: "free_kick_awarded"; fixtureId: number; matchId: string; team: string; kickType?: string; ts: number; seq: number }
+  | { type: "penalty_awarded"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
+  | { type: "own_goal"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
+  | { type: "raw_action"; fixtureId: number; matchId: string; action: string; team?: string; data?: Record<string, unknown>; ts: number; seq: number }
   | { type: "heartbeat"; ts: number };

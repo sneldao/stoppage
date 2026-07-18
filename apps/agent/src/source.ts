@@ -39,11 +39,8 @@ export function createLiveSource(
   let stopped = false;
   let controller: { stop: () => void } | null = null;
 
-  // Track previous stats + phase state per fixture
   const prevStats = new Map<number, Record<string, number>>();
-  const matchStarted = new Set<number>();
-  const secondHalfStarted = new Set<number>();
-  const halftimeEmitted = new Set<number>();
+  const prevStatusId = new Map<number, number>();
 
   return {
     async start(handler) {
@@ -55,17 +52,11 @@ export function createLiveSource(
           if (!fixture) return;
 
           const prev = prevStats.get(update.FixtureId) ?? null;
-          const started = matchStarted.has(update.FixtureId);
-          const shStarted = secondHalfStarted.has(update.FixtureId);
-          const htEmitted = halftimeEmitted.has(update.FixtureId);
-          const events = normalizeScoreUpdate(update, fixture, prev, started, shStarted, htEmitted);
-          for (const evt of events) {
-            if (evt.type === "match_started") matchStarted.add(update.FixtureId);
-            if (evt.type === "second_half_started") secondHalfStarted.add(update.FixtureId);
-            if (evt.type === "halftime") halftimeEmitted.add(update.FixtureId);
-            handler(evt);
-          }
+          const prevSid = prevStatusId.get(update.FixtureId) ?? 0;
+          const events = normalizeScoreUpdate(update, fixture, prev, prevSid);
+          for (const evt of events) handler(evt);
           prevStats.set(update.FixtureId, update.Stats ?? {});
+          if (update.StatusId) prevStatusId.set(update.FixtureId, update.StatusId);
         },
         (err) => console.error("[live] SSE error:", err.message)
       );
@@ -98,9 +89,7 @@ export function createReplaySource(
       console.log(`[replay] Got ${scores.length} score updates`);
 
       const prevStats = new Map<number, Record<string, number>>();
-      const matchStarted = new Set<number>();
-      const secondHalfStarted = new Set<number>();
-      const halftimeEmitted = new Set<number>();
+      const prevStatusId = new Map<number, number>();
       let lastTs: number | null = null;
 
       // Process updates sequentially with simulated timing
@@ -113,11 +102,10 @@ export function createReplaySource(
 
         const update = scores[i];
         const prev = prevStats.get(fixtureId) ?? null;
-        const started = matchStarted.has(fixtureId);
-        const shStarted = secondHalfStarted.has(fixtureId);
-        const htEmitted = halftimeEmitted.has(fixtureId);
-        const events = normalizeScoreUpdate(update, fixture, prev, started, shStarted, htEmitted);
+        const prevSid = prevStatusId.get(fixtureId) ?? 0;
+        const events = normalizeScoreUpdate(update, fixture, prev, prevSid);
         prevStats.set(fixtureId, update.Stats ?? {});
+        if (update.StatusId) prevStatusId.set(fixtureId, update.StatusId);
 
         if (i < 5 || i % 100 === 0 || events.length > 0) {
           console.log(`[replay] seq ${i}/${scores.length}: action=${update.Action} statusId=${update.StatusId} → ${events.length} events`);
@@ -131,12 +119,7 @@ export function createReplaySource(
         delay = Math.max(delay, 5); // minimum 5ms
 
         timer = setTimeout(() => {
-          for (const evt of events) {
-            if (evt.type === "match_started") matchStarted.add(fixtureId);
-            if (evt.type === "second_half_started") secondHalfStarted.add(fixtureId);
-            if (evt.type === "halftime") halftimeEmitted.add(fixtureId);
-            handler(evt);
-          }
+          for (const evt of events) handler(evt);
           lastTs = update.Ts;
           i++;
           processNext();

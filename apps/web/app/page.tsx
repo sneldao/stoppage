@@ -13,9 +13,19 @@ import { useStoppageStore } from "@/store";
 import { FirstRunGuide } from "@/components/FirstRunGuide";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ElectricBorder } from "@/components/ElectricBorder";
+import { LiveMatchBar } from "@/components/LiveMatchBar";
 
 function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
+}
+
+function matchIdFromFixture(fixture: Fixture): string {
+  const code = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    const last = parts[parts.length - 1];
+    return last.length >= 3 ? last.slice(0, 3).toUpperCase() : last.toUpperCase();
+  };
+  return `${code(fixture.Participant1)}-${code(fixture.Participant2)}`;
 }
 
 interface LiveMatchSnapshot {
@@ -46,6 +56,7 @@ function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | n
           <span><span className="match-country-flag">{countryFlag(fixture?.Country ?? "")}</span> {fixture?.Country ?? "World Cup"}</span>
           <span>{live && snapshot ? `Corners ${snapshot.stats.corners} · Cards ${snapshot.stats.cards}${snapshot.updatedAt ? ` · ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : live ? "In-play data connected" : fixture ? new Date(fixture.StartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Waiting for fixture"}</span>
         </div>
+        {fixture && <LiveMatchBar matchId={matchIdFromFixture(fixture)} />}
       </section>
     </ElectricBorder>
   );

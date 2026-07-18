@@ -48,23 +48,20 @@ function teamFromStatKey(statKey: number, fixture: Fixture): string {
  * @param update - Raw TxLINE score update
  * @param fixture - The fixture this update belongs to
  * @param prevStats - Previous stats snapshot (for diffing). Null on first update.
- * @param matchStarted - Whether match_started has already been emitted for this fixture.
- * @param secondHalfStarted - Whether second_half_started has already been emitted.
- * @param halftimeEmitted - Whether halftime has already been emitted.
+ * @param prevStatusId - Previous StatusId for phase transition detection.
  */
 export function normalizeScoreUpdate(
   update: ScoreUpdate,
   fixture: Fixture,
   prevStats: Record<string, number> | null,
-  matchStarted = false,
-  secondHalfStarted = false,
-  halftimeEmitted = false
+  prevStatusId = 0
 ): NormalizedEvent[] {
   const events: NormalizedEvent[] = [];
   const matchId = matchIdFromFixture(fixture);
   const action = update.Action ?? "";
   const statusId = update.StatusId ?? 0;
   const stats = update.Stats ?? {};
+  const data = update.Data;
 
   // ── Match finalised ──────────────────────────────────────────────
   if (action === "game_finalised" || statusId === FINAL_STATUS_ID) {
@@ -83,96 +80,92 @@ export function normalizeScoreUpdate(
   }
 
   // ── Game phase transitions (StatusId) ────────────────────────────
-  if (statusId === GamePhase.FirstHalf && !matchStarted) {
-    events.push({
-      type: "match_started",
-      fixtureId: fixture.FixtureId,
-      matchId,
-      homeTeam: fixture.Participant1,
-      awayTeam: fixture.Participant2,
-      ts: update.Ts,
-    });
-  }
-
-  if (statusId === GamePhase.Halftime && !halftimeEmitted) {
-    events.push({
-      type: "halftime",
-      fixtureId: fixture.FixtureId,
-      matchId,
-      ts: update.Ts,
-      seq: update.Seq,
-    });
-  } else if (statusId === GamePhase.SecondHalf && !secondHalfStarted) {
-    events.push({
-      type: "second_half_started",
-      fixtureId: fixture.FixtureId,
-      matchId,
-      ts: update.Ts,
-      seq: update.Seq,
-    });
+  if (prevStatusId !== statusId) {
+    if (statusId === GamePhase.FirstHalf && prevStatusId < GamePhase.FirstHalf) {
+      events.push({
+        type: "match_started",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        homeTeam: fixture.Participant1,
+        awayTeam: fixture.Participant2,
+        ts: update.Ts,
+      });
+    } else if (statusId === GamePhase.Halftime && prevStatusId < GamePhase.Halftime) {
+      events.push({ type: "halftime", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    } else if (statusId === GamePhase.SecondHalf && prevStatusId < GamePhase.SecondHalf) {
+      events.push({ type: "second_half_started", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    } else if (statusId === GamePhase.ExtraTimeFirstHalf && prevStatusId <= GamePhase.ExtraTimeFirstHalf) {
+      events.push({ type: "extra_time_started", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    } else if (statusId === GamePhase.PenaltyShootout && prevStatusId <= GamePhase.PenaltyShootout) {
+      events.push({ type: "penalty_shootout_started", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    } else if (statusId === GamePhase.Interrupted && prevStatusId !== GamePhase.Interrupted) {
+      events.push({ type: "match_interrupted", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    } else if ([GamePhase.FirstHalf, GamePhase.SecondHalf, GamePhase.ExtraTimeFirstHalf, GamePhase.ExtraTimeSecondHalf].includes(statusId) && prevStatusId === GamePhase.Interrupted) {
+      events.push({ type: "match_resumed", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
+    }
   }
 
   // ── Action-based events ──────────────────────────────────────────
-  // Use the Participant field when available, fall back to stat diffs.
+  const team = (p?: number) => p ? teamFromParticipant(p, fixture) : null;
+  const teamArg = update.Participant ? team(update.Participant) : null;
 
   if (action === "goal") {
-    const team = update.Participant
-      ? teamFromParticipant(update.Participant, fixture)
-      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Goals, StatKey.P2Goals], fixture);
-    if (team) {
+    const t = teamArg ?? detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Goals, StatKey.P2Goals], fixture);
+    if (t) {
+      const isOwn = data?.own_goal === true || data?.ownGoal === true || data?.type === "own_goal";
       events.push({
-        type: "goal_scored",
+        type: isOwn ? "own_goal" : "goal_scored",
         fixtureId: fixture.FixtureId,
         matchId,
-        team,
+        team: t,
         ts: update.Ts,
         seq: update.Seq,
       });
     }
   } else if (action === "corner") {
-    const team = update.Participant
-      ? teamFromParticipant(update.Participant, fixture)
-      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Corners, StatKey.P2Corners], fixture);
-    if (team) {
-      events.push({
-        type: "corner_awarded",
-        fixtureId: fixture.FixtureId,
-        matchId,
-        team,
-        ts: update.Ts,
-        seq: update.Seq,
-      });
-    }
+    const t = teamArg ?? detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Corners, StatKey.P2Corners], fixture);
+    if (t) events.push({ type: "corner_awarded", fixtureId: fixture.FixtureId, matchId, team: t, ts: update.Ts, seq: update.Seq });
   } else if (action === "yellow_card") {
-    const team = update.Participant
-      ? teamFromParticipant(update.Participant, fixture)
-      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1YellowCards, StatKey.P2YellowCards], fixture);
-    if (team) {
-      events.push({
-        type: "card_shown",
-        fixtureId: fixture.FixtureId,
-        matchId,
-        team,
-        cardType: "yellow",
-        ts: update.Ts,
-        seq: update.Seq,
-      });
-    }
+    const t = teamArg ?? detectTeamFromStatDiff(prevStats, stats, [StatKey.P1YellowCards, StatKey.P2YellowCards], fixture);
+    if (t) events.push({ type: "card_shown", fixtureId: fixture.FixtureId, matchId, team: t, cardType: "yellow", ts: update.Ts, seq: update.Seq });
   } else if (action === "red_card" || action === "second_yellow_card") {
-    const team = update.Participant
-      ? teamFromParticipant(update.Participant, fixture)
-      : detectTeamFromStatDiff(prevStats, stats, [StatKey.P1RedCards, StatKey.P2RedCards], fixture);
-    if (team) {
-      events.push({
-        type: "card_shown",
-        fixtureId: fixture.FixtureId,
-        matchId,
-        team,
-        cardType: "red",
-        ts: update.Ts,
-        seq: update.Seq,
-      });
-    }
+    const t = teamArg ?? detectTeamFromStatDiff(prevStats, stats, [StatKey.P1RedCards, StatKey.P2RedCards], fixture);
+    if (t) events.push({ type: "card_shown", fixtureId: fixture.FixtureId, matchId, team: t, cardType: "red", ts: update.Ts, seq: update.Seq });
+  } else if (action === "shot") {
+    const t = teamArg ?? null;
+    if (t) events.push({
+      type: "shot_taken", fixtureId: fixture.FixtureId, matchId, team: t,
+      outcome: String(data?.outcome ?? ""),
+      player: String(data?.player ?? ""),
+      ts: update.Ts, seq: update.Seq,
+    });
+  } else if (action === "substitution") {
+    const t = teamArg ?? null;
+    if (t) events.push({
+      type: "substitution", fixtureId: fixture.FixtureId, matchId, team: t,
+      playerOff: String(data?.player_off ?? data?.playerOff ?? ""),
+      playerOn: String(data?.player_on ?? data?.playerOn ?? ""),
+      ts: update.Ts, seq: update.Seq,
+    });
+  } else if (action === "var" || action === "var_review") {
+    events.push({
+      type: "var_review", fixtureId: fixture.FixtureId, matchId,
+      decision: String(data?.decision ?? ""),
+      ts: update.Ts, seq: update.Seq,
+    });
+  } else if (action === "free_kick") {
+    const t = teamArg ?? null;
+    if (t) events.push({
+      type: "free_kick_awarded", fixtureId: fixture.FixtureId, matchId, team: t,
+      kickType: String(data?.type ?? ""),
+      ts: update.Ts, seq: update.Seq,
+    });
+  } else if (action === "penalty") {
+    const t = teamArg ?? null;
+    if (t) events.push({ type: "penalty_awarded", fixtureId: fixture.FixtureId, matchId, team: t, ts: update.Ts, seq: update.Seq });
+  } else if (action && !["game_finalised", "scheduled", "fixture_updated"].includes(action)) {
+    const t = teamArg ?? undefined;
+    events.push({ type: "raw_action", fixtureId: fixture.FixtureId, matchId, action, team: t, data: data ?? undefined, ts: update.Ts, seq: update.Seq });
   }
 
   return events;

@@ -33,6 +33,7 @@ import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
 import { createMatchEventLedger } from "./eventLedger";
 import { startEventHttpServer } from "./httpServer";
+import { LiveStore } from "./liveStore";
 
 async function main() {
   const mode = process.argv[2] ?? "replay";
@@ -110,8 +111,13 @@ async function main() {
 
   // Create the agent
   const ledger = createMatchEventLedger();
-  startEventHttpServer(ledger);
+  const liveStore = new LiveStore();
+  startEventHttpServer(ledger, liveStore);
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+  // Track running scores by matchId
+  const liveScores = new Map<string, { home: number; away: number; homeTeam: string; awayTeam: string }>();
+
   const agent = new Agent({
     connection,
     wallet,
@@ -130,6 +136,18 @@ async function main() {
           fixtureId: event.fixtureId,
           source: "txline",
         });
+
+        if (!liveScores.has(event.matchId) && event.type === "match_started") {
+          liveScores.set(event.matchId, { home: 0, away: 0, homeTeam: event.homeTeam, awayTeam: event.awayTeam });
+        }
+
+        const score = liveScores.get(event.matchId);
+        if (score) {
+          if (event.type === "goal_scored" && event.team === score.homeTeam) score.home++;
+          if (event.type === "goal_scored" && event.team === score.awayTeam) score.away++;
+          if (event.type === "match_ended") { score.home = event.finalScore.home; score.away = event.finalScore.away; }
+          liveStore.updateFromEvent(event, score.homeTeam, score.awayTeam, { home: score.home, away: score.away });
+        }
       }
     },
     onAction: (action: AgentAction, result) => {
