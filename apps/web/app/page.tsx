@@ -14,6 +14,8 @@ import { FirstRunGuide } from "@/components/FirstRunGuide";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
+import { StoppageClock } from "@/components/StoppageClock";
+import { SharpMoves } from "@/components/SharpMoves";
 
 function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
@@ -151,6 +153,9 @@ export default function Home() {
   return (
     <main className="app-shell">
       <section className="command-center">
+        <div className="hero-clock" aria-hidden="true">
+          <StoppageClock size={560} globalPointer />
+        </div>
         <div className="command-copy">
           <p className="eyebrow">Live match</p>
           <h1>Bet the next moment.</h1>
@@ -185,6 +190,7 @@ export default function Home() {
         <div className="onboarding-stack">
           <FirstRunGuide marketHref={featuredMarket ? `/markets/${featuredMarket.id}` : "/markets"} />
           <MatchkeeperStatus updatedAt={liveSnapshot?.updatedAt} marketPhase={featuredMarket?.status} />
+          <SharpMoves />
         </div>
       </section>
 

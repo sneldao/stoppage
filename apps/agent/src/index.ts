@@ -16,6 +16,7 @@
 
 import * as fs from "fs";
 import { Connection, Keypair, clusterApiUrl, PublicKey } from "@solana/web3.js";
+import { getMarket } from "@stoppage/sdk";
 import {
   fetchFixtures,
   fetchHistoricalScores,
@@ -34,6 +35,8 @@ import type { AgentAction } from "./strategy";
 import { createMatchEventLedger } from "./eventLedger";
 import { startEventHttpServer } from "./httpServer";
 import { LiveStore } from "./liveStore";
+import { OddsTracker } from "./oddsTracker";
+import { ReplayManager } from "./replayManager";
 
 async function main() {
   const mode = process.argv[2] ?? "replay";
@@ -112,11 +115,49 @@ async function main() {
   // Create the agent
   const ledger = createMatchEventLedger();
   const liveStore = new LiveStore();
-  startEventHttpServer(ledger, liveStore);
+  const oddsTracker = new OddsTracker();
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
-  // Track running scores by matchId
+  // Track running scores by matchId (shared by the primary agent)
   const liveScores = new Map<string, { home: number; away: number; homeTeam: string; awayTeam: string }>();
+
+  const replayManager = new ReplayManager({
+    connection,
+    wallet,
+    dryRun,
+    network,
+    creds,
+    ledger,
+    liveStore,
+    oddsTracker,
+  });
+
+  startEventHttpServer(ledger, liveStore, {
+    replayManager,
+    oddsTracker,
+    resolveFixture: async (fixtureId) => {
+      const found = fixtureMap.get(fixtureId);
+      if (found) return found;
+      // Re-fetch in case the fixture list has rotated since boot.
+      try {
+        const fresh = await fetchFixtures(network, creds);
+        for (const f of fresh) fixtureMap.set(f.FixtureId, f);
+      } catch { /* network blip — try synthetic below */ }
+      const cached = fixtureMap.get(fixtureId);
+      if (cached) return cached;
+      // Past fixtures (completed matches) aren't in the live snapshot.
+      // Verify the fixture has historical score data, then construct a
+      // synthetic Fixture so the replay can proceed. This mirrors the
+      // CLI replay mode's fallback for the default semi-final fixture.
+      try {
+        const scores = await fetchHistoricalScores(network, creds, fixtureId);
+        if (!scores || scores.length === 0) return null;
+      } catch {
+        return null;
+      }
+      return syntheticFixtureForId(fixtureId);
+    },
+  });
 
   const agent = new Agent({
     connection,
@@ -147,6 +188,19 @@ async function main() {
           if (event.type === "goal_scored" && event.team === score.awayTeam) score.away++;
           if (event.type === "match_ended") { score.home = event.finalScore.home; score.away = event.finalScore.away; }
           liveStore.updateFromEvent(event, score.homeTeam, score.awayTeam, { home: score.home, away: score.away });
+        }
+
+        // Feed the odds tracker with on-chain pool snapshots for markets
+        // tied to this match, so the sharp-movement detector has live data.
+        for (const open of agent.getOpenMarkets()) {
+          if (open.predicate.matchId !== event.matchId || !open.marketPda) continue;
+          void getMarket(connection, new PublicKey(open.marketPda))
+            .then((market) => {
+              if (market.yesPool + market.noPool > 0) {
+                oddsTracker.record(open.marketPda!, open.label, market.yesPool, market.noPool);
+              }
+            })
+            .catch(() => { /* account may not be indexed yet */ });
         }
       }
     },
@@ -214,6 +268,31 @@ function formatEvent(event: NormalizedEvent): string {
     default:
       return "";
   }
+}
+
+/**
+ * Known past World Cup fixtures that may not appear in the live snapshot.
+ * Used as a fallback when resolveFixture can't find the fixture in the
+ * current list but historical score data confirms it exists.
+ */
+const PAST_FIXTURES: Record<number, { p1: string; p2: string; startTime: string }> = {
+  18237038: { p1: "France", p2: "Spain", startTime: "2026-07-14T19:00:00Z" },
+};
+
+function syntheticFixtureForId(fixtureId: number): Fixture | null {
+  const known = PAST_FIXTURES[fixtureId];
+  if (!known) return null;
+  return {
+    FixtureId: fixtureId,
+    Sport: "Soccer",
+    Country: "International",
+    FixtureGroup: "World Cup",
+    StartTime: known.startTime,
+    Participant1: known.p1,
+    Participant2: known.p2,
+    Participant1IsHome: true,
+    GameState: 1,
+  };
 }
 
 main().catch((e) => {

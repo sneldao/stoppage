@@ -175,6 +175,7 @@ class ElectricBorderEngine {
   }
 
   start() {
+    if (this.animationId !== null) return; // already running
     this.lastFrameTime = performance.now();
     this.animationId = requestAnimationFrame((t) => this.draw(t));
   }
@@ -210,6 +211,8 @@ export function ElectricBorder({
   const engineRef = useRef<ElectricBorderEngine | null>(null);
   const resolvedColor = color ?? VARIANT_COLORS[variant] ?? VARIANT_COLORS.lime;
 
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!active || !canvasRef.current) return;
     const engine = new ElectricBorderEngine(canvasRef.current, {
@@ -222,6 +225,26 @@ export function ElectricBorder({
     engineRef.current = engine;
     engine.start();
 
+    // Pause the animation loop when the border is offscreen or the tab is
+    // hidden — the electric effect is the most expensive canvas on the page.
+    let inView = true;
+    let pageVisible = !document.hidden;
+    const apply = () => {
+      if (inView && pageVisible) engine.start();
+      else engine.stop();
+    };
+    const io = new IntersectionObserver((entries) => {
+      inView = entries[0]?.isIntersecting ?? true;
+      apply();
+    }, { rootMargin: "50px" });
+    if (wrapRef.current) io.observe(wrapRef.current);
+    const onVisibility = () => {
+      pageVisible = !document.hidden;
+      apply();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    apply();
+
     const handleResize = () => engine.resize();
     const observer = new ResizeObserver(handleResize);
     if (canvasRef.current.parentElement) {
@@ -230,6 +253,8 @@ export function ElectricBorder({
 
     return () => {
       engine.stop();
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       observer.disconnect();
       engineRef.current = null;
     };
@@ -238,7 +263,7 @@ export function ElectricBorder({
   const variantClass = variant !== "lime" ? ` electric-${variant}` : "";
 
   return (
-    <div className={`electric-wrap${variantClass} ${className}`} style={{ borderRadius }}>
+    <div ref={wrapRef} className={`electric-wrap${variantClass} ${className}`} style={{ borderRadius }}>
       {active && (
         <>
           <canvas ref={canvasRef} className="electric-canvas" />

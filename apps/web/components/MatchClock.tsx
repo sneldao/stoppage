@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import p5 from "p5";
+import { useP5Visibility } from "@/lib/useP5Visibility";
 
 interface MatchClockProps {
   phaseLabel?: string | null;
@@ -33,12 +34,12 @@ function formatMatchTime(phaseLabel: string, elapsed: number): string {
     case "2nd Half": {
       const m = elapsed + 45;
       if (m <= 90) return `${Math.floor(m)}'`;
-      return `90+${Math.ceil(elapsed - 45)}'`;
+      return `90+${Math.ceil(m - 90)}'`;
     }
     case "Extra Time": {
       const m = elapsed + 90;
       if (m <= 105) return `${Math.floor(m)}'`;
-      return `105+${Math.ceil(elapsed + 90 - 105)}'`;
+      return `105+${Math.ceil(m - 105)}'`;
     }
     case "Penalties": return "PEN";
     case "Halftime": return "HT";
@@ -46,6 +47,17 @@ function formatMatchTime(phaseLabel: string, elapsed: number): string {
     default: return `${Math.floor(elapsed)}'`;
   }
 }
+
+function isStoppageTime(phaseLabel: string | null | undefined, elapsed: number): boolean {
+  if (!phaseLabel) return false;
+  if (phaseLabel === "1st Half") return elapsed > 45;
+  if (phaseLabel === "2nd Half") return elapsed > 45;
+  if (phaseLabel === "Extra Time") return elapsed > 15;
+  return false;
+}
+
+const STOPPAGE_COLORS: [string, string] = ["#fbbf24", "#f59e0b"];
+const DEEP_STOPPAGE_COLORS: [string, string] = ["#ef4444", "#dc2626"];
 
 export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, score, size = 140 }: MatchClockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,6 +86,10 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
       p.setup = () => {
         p.createCanvas(size, size);
         p.pixelDensity(2);
+        // Throttle on small screens — the clock only needs ~30fps to read as live.
+        if (typeof window !== "undefined" && window.innerWidth < 800) {
+          p.frameRate(30);
+        }
       };
 
       p.draw = () => {
@@ -84,32 +100,48 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
         const minutes = startedAt ? (Date.now() - startedAt) / 60000 : 0;
 
         const colorKey = label ?? "1st Half";
-        const [main] = PHASE_COLORS[colorKey] ?? ["#3b82f6", "#2563eb"];
         const stopped = label === "Full Time" || label === "Halftime" || label === "Penalties";
+        const stoppage = !stopped && isStoppageTime(label, minutes);
+        const deepStoppage = stoppage && (
+          (label === "1st Half" && minutes > 50) ||
+          (label === "2nd Half" && minutes > 55) ||
+          (label === "Extra Time" && minutes > 20)
+        );
 
-        const phaseProgress = stopped ? 1 : Math.min(minutes / 45, 1.5);
+        const [main] = deepStoppage
+          ? DEEP_STOPPAGE_COLORS
+          : stoppage
+            ? STOPPAGE_COLORS
+            : PHASE_COLORS[colorKey] ?? ["#3b82f6", "#2563eb"];
+
+        const phaseProgress = stopped ? 1 : Math.min(minutes / 45, 1);
+
+        // Stoppage tension: subtle breathing pulse on the whole face
+        const tension = stoppage ? 1 + Math.sin(p.millis() / 300) * 0.012 : 1;
 
         p.push();
         p.translate(cx, cy);
+        p.scale(tension);
         p.rotate(-p.HALF_PI);
 
-      // — outer glow ring —
-      for (let i = 5; i > 0; i--) {
-        const alpha = (0.06 - i * 0.01) * 255;
-        p.noFill();
-        const c = p.color(main);
-        c.setAlpha(alpha);
-        p.stroke(c);
-        p.strokeWeight(2);
-        p.circle(0, 0, outerR * 2 + i * 4);
-      }
+        // — outer glow ring (stronger in stoppage) —
+        const glowLayers = stoppage ? 7 : 5;
+        for (let i = glowLayers; i > 0; i--) {
+          const alpha = ((stoppage ? 0.09 : 0.06) - i * 0.01) * 255;
+          p.noFill();
+          const c = p.color(main);
+          c.setAlpha(Math.max(alpha, 0));
+          p.stroke(c);
+          p.strokeWeight(2);
+          p.circle(0, 0, outerR * 2 + i * 4);
+        }
 
         // — arc track (elapsed) —
         p.noFill();
         p.stroke(p.color(main));
         p.strokeWeight(3);
         p.strokeCap(p.ROUND);
-        const arcEnd = stopped ? p.TWO_PI : p.TWO_PI * Math.min(phaseProgress, 1);
+        const arcEnd = stopped ? p.TWO_PI : p.TWO_PI * phaseProgress;
         p.arc(0, 0, outerR * 2, outerR * 2, 0, arcEnd);
 
         // — remaining track —
@@ -131,14 +163,33 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
           p.rotate(angle);
           p.noFill();
           const tickColor = p.color(255);
-          tickColor.setAlpha(maxAlpha * (1 - Math.abs(phaseProgress - i / 60) * 3));
+          tickColor.setAlpha(Math.max(maxAlpha * (1 - Math.abs(phaseProgress - i / 60) * 3), 12));
           p.stroke(tickColor);
           p.strokeWeight(weight);
           p.line(inner, 0, outer, 0);
           p.pop();
         }
 
-        // — hand —
+        // — minute numerals (5/10/.../60) —
+        p.push();
+        p.rotate(p.HALF_PI); // undo the global -90 for upright text
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textFont("DM Mono");
+        p.textSize(size * 0.062);
+        for (let i = 0; i < 12; i++) {
+          const angle = (p.TWO_PI / 12) * i - p.HALF_PI;
+          const nx = Math.cos(angle) * (innerR - 12);
+          const ny = Math.sin(angle) * (innerR - 12);
+          const minute = (i + 1) * 5;
+          const near = Math.abs(phaseProgress * 60 - (i + 1) * 5) < 3;
+          const numColor = near ? p.color(main) : p.color(255, 90);
+          p.fill(numColor);
+          p.noStroke();
+          p.text(minute, nx, ny + 1);
+        }
+        p.pop();
+
+        // — elapsed hand —
         p.push();
         p.rotate(arcEnd);
         p.noFill();
@@ -150,6 +201,25 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
         p.circle(innerR - 4, 0, 5);
         p.pop();
 
+        // — ticking second hand (stoppage tension) —
+        if (!stopped) {
+          const sec = new Date().getSeconds() + new Date().getMilliseconds() / 1000;
+          const secAngle = (p.TWO_PI / 60) * sec;
+          p.push();
+          p.rotate(secAngle);
+          p.noFill();
+          const secColor = p.color(main);
+          secColor.setAlpha(stoppage ? 220 : 110);
+          p.stroke(secColor);
+          p.strokeWeight(1);
+          p.line(0, 0, innerR - 2, 0);
+          p.line(0, 0, -(innerR * 0.18), 0);
+          p.fill(secColor);
+          p.noStroke();
+          p.circle(innerR - 2, 0, 3);
+          p.pop();
+        }
+
         // — centre dot —
         p.fill(main);
         p.noStroke();
@@ -159,7 +229,7 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
         p.pop();
 
         // — digital display —
-        const timeStr = stopped ? formatMatchTime(colorKey, minutes) : formatMatchTime(colorKey, minutes);
+        const timeStr = formatMatchTime(colorKey, minutes);
         p.fill(255);
         p.noStroke();
         p.textAlign(p.CENTER, p.CENTER);
@@ -179,7 +249,12 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
           p.textSize(10);
           p.text("PEN", cx, cy);
         } else {
-          p.fill(255);
+          if (stoppage) {
+            p.fill(main);
+            p.textSize(15);
+          } else {
+            p.fill(255);
+          }
           p.text(timeStr, cx, cy);
         }
 
@@ -202,6 +277,8 @@ export function MatchClock({ phaseLabel, phaseStartedAt, homeTeam, awayTeam, sco
       p5Ref.current = null;
     };
   }, [size]);
+
+  useP5Visibility(containerRef, p5Ref);
 
   return (
     <div

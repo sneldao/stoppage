@@ -17,6 +17,8 @@ import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
 import { ProofPanel } from "@/components/ProofPanel";
 import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed } from "@/lib/format";
+import { OddsNumber } from "@/components/OddsNumber";
+import { OddsSparkline } from "@/components/OddsSparkline";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 
@@ -153,9 +155,10 @@ export default function MarketDetailPage() {
         <div className="bet-slip-head"><div><p className="eyebrow">Place your bet</p><h2>Choose a side.</h2></div><div className="slip-session"><span className={state.delegated ? "fast-badge active" : "fast-badge"}>{state.delegated ? "Fast on" : "Wallet sign"}</span>{state.delegated && <button type="button" onClick={onRevokeSession} disabled={busy !== null}>{busy === "revoke" ? "Revoking…" : "Revoke"}</button>}</div></div>
         {state.delegated && state.expiresAt && <p className="session-expiry">Session expires {new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Revoke any time.</p>}
         <div className="side-choice">
-          <button type="button" className={`side-option side-yes ${selectedSide === "yes" ? "selected" : ""}`} onClick={() => setSelectedSide("yes")}><span>YES</span><strong>{Math.round(odds.yes * 100)}%</strong><small>{odds.yes > 0 ? `${(1 / odds.yes).toFixed(1)}x projected` : "Opening"}</small></button>
-          <button type="button" className={`side-option side-no ${selectedSide === "no" ? "selected" : ""}`} onClick={() => setSelectedSide("no")}><span>NO</span><strong>{Math.round(odds.no * 100)}%</strong><small>{odds.no > 0 ? `${(1 / odds.no).toFixed(1)}x projected` : "Opening"}</small></button>
+          <button type="button" className={`side-option side-yes ${selectedSide === "yes" ? "selected" : ""}`} onClick={() => setSelectedSide("yes")}><span>YES</span><strong><OddsNumber value={odds.yes} /></strong><small>{odds.yes > 0 ? `${(1 / odds.yes).toFixed(1)}x projected` : "Opening"}</small></button>
+          <button type="button" className={`side-option side-no ${selectedSide === "no" ? "selected" : ""}`} onClick={() => setSelectedSide("no")}><span>NO</span><strong><OddsNumber value={odds.no} /></strong><small>{odds.no > 0 ? `${(1 / odds.no).toFixed(1)}x projected` : "Opening"}</small></button>
         </div>
+        <div className="bet-slip-odds-history"><OddsSparkline marketId={market.id} currentYes={odds.yes} width={200} height={28} /></div>
         <div className="stake-row"><span>Stake</span><div className="stake-options">{stakePresets.map((amount) => <button type="button" className={amountSol === amount ? "selected" : ""} onClick={() => setAmountSol(amount)} key={amount}>{amount}</button>)}<label><input type="number" min="0.001" step="0.01" value={amountSol} onChange={(event) => setAmountSol(event.target.value)} aria-label="Custom stake in SOL" /> SOL</label></div></div>
         <div className="slip-summary"><span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span><strong>{selectedSide && selectedOdds > 0 ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL projected` : "—"}</strong></div>
         <button type="button" className={`place-action ${executionBusy ? "place-action-busy" : ""}`} disabled={busy !== null} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} bet` : "Choose YES or NO"}<span>→</span></button>

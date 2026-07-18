@@ -14,6 +14,9 @@ import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
 import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
+import { ReplayLauncher } from "@/components/ReplayLauncher";
+import { SharpMoves } from "@/components/SharpMoves";
+import { OddsSparkline } from "@/components/OddsSparkline";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -118,7 +121,13 @@ export default function MatchPage() {
           <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : "TxLINE connected"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context active"}</span></div>
           {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} />}
+          <ReplayLauncher
+            fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => b.StartTime.localeCompare(a.StartTime))}
+            onLaunched={() => { /* the SSE feed picks the replay up automatically */ }}
+          />
         </section>
+
+        <SharpMoves />
 
         <section className="match-ownership" aria-label="Your match position">
           <div><p className="eyebrow">Your positions</p><h2>{ownedPositions.length ? `${ownedPositions.length} open ${ownedPositions.length === 1 ? "bet" : "bets"}` : "No bets yet."}</h2></div>
@@ -129,7 +138,7 @@ export default function MatchPage() {
           <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2 id="match-live-reads-title">Markets for this match.</h2></div><span>{matchMarkets.length} active</span></div>
           {matchMarkets.length ? <div className="match-market-list">{matchMarkets.map((market) => {
             const odds = impliedProbability(market);
-            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
+            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><OddsSparkline marketId={market.id} currentYes={odds.yes} /><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
           })}</div> : <div className="match-room-empty">Markets will appear here when the match context supports them.</div>}
         </section>
 

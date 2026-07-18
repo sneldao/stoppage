@@ -281,3 +281,20 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .proof-valid-msg { color: #22c55e; font-size: 12px; margin-top: 12px; }
 .proof-invalid-msg { color: #ff4444; font-size: 12px; margin-top: 12px; }
 .proof-error-msg { color: #94a3b8; font-size: 12px; margin-top: 12px; }
+
+/* === STOPPAGE CLOCK (ambient hero / 404) === */
+.command-center { position: relative; }
+.hero-clock { position: absolute; top: 50%; left: 50%; z-index: 0; width: 560px; height: 560px; opacity: .16; transform: translate(-50%, -50%); pointer-events: none; }
+.command-center > .command-copy, .command-center > .live-stage { position: relative; z-index: 1; }
+.not-found-shell { display: grid; place-items: center; min-height: 70vh; padding: 40px 24px; }
+.not-found-inner { position: relative; display: grid; place-items: center; text-align: center; }
+.not-found-inner .stoppage-clock-404 { opacity: .22; }
+.not-found-content { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; }
+.not-found-content h1 { margin: 0; font: 400 clamp(40px, 6vw, 64px)/.9 "Instrument Serif", Georgia, serif; }
+.not-found-content p { margin: 0; color: var(--muted); font: 500 11px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .08em; }
+.not-found-content a { color: var(--blue); font: 500 11px "DM Mono", monospace; text-transform: uppercase; text-decoration: none; }
+@media (max-width: 800px) { .hero-clock { display: none; } }
+.bet-slip-odds-history { display: flex; justify-content: flex-end; margin-top: 10px; }
+.odds-sparkline { display: inline-grid; place-items: center; }
+.odds-sparkline-empty { display: inline-grid; place-items: center; border: 1px dashed var(--line); }
+.match-market-odds { align-items: center; }
