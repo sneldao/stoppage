@@ -9,7 +9,8 @@
  *   4. Saves credentials to .txline-credentials.json for the agent
  *
  * Prerequisites:
- *   - Funded devnet wallet at ~/.config/solana/id.json
+ *   - Funded devnet wallet at SOLANA_KEYPAIR_PATH, ANCHOR_WALLET, or
+ *     ~/.config/solana/id.json (in that order)
  *   - npm install @solana/spl-token (already a dev dependency)
  *
  * Usage: npx tsx scripts/subscribe-txline.ts
@@ -52,12 +53,21 @@ const SERVICE_LEVEL_ID = 1; // Free World Cup tier
 const DURATION_WEEKS = 4;
 const SELECTED_LEAGUES: number[] = []; // Standard bundle
 
+function configuredWalletPath() {
+  return process.env.SOLANA_KEYPAIR_PATH
+    ?? process.env.ANCHOR_WALLET
+    ?? path.join(process.env.HOME ?? "", ".config", "solana", "id.json");
+}
+
 async function main() {
   const config = TXLINE_CONFIG[NETWORK];
   const connection = new Connection(config.rpcUrl, "confirmed");
 
   // Load wallet
-  const walletPath = process.env.HOME + "/.config/solana/id.json";
+  const walletPath = configuredWalletPath();
+  if (!fs.existsSync(walletPath)) {
+    throw new Error(`Solana keypair not found at ${walletPath}. Set SOLANA_KEYPAIR_PATH or ANCHOR_WALLET.`);
+  }
   const walletKeypair = Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
   );
@@ -188,7 +198,7 @@ async function main() {
   // Step 3: Get guest JWT
   console.log("Step 3: Fetching guest JWT...");
   const jwt = await fetchGuestJwt(NETWORK);
-  console.log("JWT acquired (first 20 chars):", jwt.slice(0, 20) + "...");
+  console.log("Guest JWT acquired.");
   console.log();
 
   // Step 4: Sign activation message + activate
@@ -224,6 +234,8 @@ async function main() {
   };
 
   fs.writeFileSync(credPath, JSON.stringify(credentials, null, 2), { mode: 0o600 });
+  // mode only applies on file creation; enforce it when refreshing credentials.
+  fs.chmodSync(credPath, 0o600);
   console.log("Credentials saved to:", credPath, "(permissions: 600)");
   console.log();
   console.log("=== Subscription complete ===");

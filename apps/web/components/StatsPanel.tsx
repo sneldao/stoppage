@@ -20,9 +20,9 @@ export function StatsPanel() {
   if (history.length === 0) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <h2 className="text-sm font-medium text-neutral-400">Your stats</h2>
+        <h2 className="text-sm font-medium text-neutral-400">My form</h2>
         <p className="mt-2 text-xs text-neutral-600">
-          No settled bets yet. Place a bet and come back after settlement to see your stats.
+          No settled positions on this device yet. Form is personal; public proof lives on the protocol board.
         </p>
       </div>
     );
@@ -39,14 +39,14 @@ export function StatsPanel() {
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <h2 className="text-sm font-medium text-neutral-400">Your stats</h2>
+      <h2 className="text-sm font-medium text-neutral-400">My form</h2>
       <div className="mt-3 grid grid-cols-3 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-xs text-neutral-600">Bets</p>
           <p className="font-medium">{stats.totalBets}</p>
         </div>
         <div>
-          <p className="text-xs text-neutral-600">W / L</p>
+          <p className="text-xs text-neutral-600">Form</p>
           <p className="font-medium">
             <span className="text-emerald-400">{stats.wins}</span>
             {" / "}

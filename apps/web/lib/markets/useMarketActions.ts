@@ -16,7 +16,7 @@ import {
   buildClaimIx,
   buildCreateMarketIx,
   buildAttestVerificationIx,
-  signWithSessionKey,
+  signAndConfirmWithSessionKey,
   findPositionPda,
   getMarket,
   type Side,
@@ -29,6 +29,13 @@ export interface JoinParams {
   market: PublicKey;
   side: Side;
   amountLamports: number;
+}
+
+export interface ActionResult {
+  signature: string;
+  submittedAt: number;
+  confirmedAt: number;
+  signingMs?: number;
 }
 
 export interface CreateMarketArgs {
@@ -49,9 +56,17 @@ export function useMarketActions() {
         blockhash,
         lastValidBlockHeight,
       }).add(ix);
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
-      return sig;
+      const signingStartedAt = performance.now();
+      const signature = await sendTransaction(tx, connection);
+      const submittedAt = Date.now();
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+      return {
+        signature,
+        submittedAt,
+        confirmedAt: Date.now(),
+        // Wallet interaction is included because the adapter owns signing.
+        signingMs: performance.now() - signingStartedAt,
+      } satisfies ActionResult;
     },
     [connection, publicKey, sendTransaction]
   );
@@ -83,7 +98,7 @@ export function useMarketActions() {
         side,
         amountLamports
       );
-      return signWithSessionKey(connection, sessionKeypair, [ix]);
+      return signAndConfirmWithSessionKey(connection, sessionKeypair, [ix]);
     },
     [connection]
   );
@@ -93,7 +108,7 @@ export function useMarketActions() {
     async (market: PublicKey) => {
       if (!publicKey) throw new Error("Wallet not connected");
       const ix = buildClaimIx(publicKey, market);
-      const sig = await sendWalletTx(ix);
+      const result = await sendWalletTx(ix);
 
       // Record the settled position in history (for stats/leaderboard)
       try {
@@ -122,7 +137,7 @@ export function useMarketActions() {
         // Non-fatal — history just won't be recorded
       }
 
-      return sig;
+      return result;
     },
     [connection, publicKey, sendWalletTx]
   );

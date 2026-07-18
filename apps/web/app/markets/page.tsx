@@ -15,6 +15,8 @@ import { PositionHistory } from "@/components/PositionHistory";
 import { MatchCalendar } from "@/components/MatchCalendar";
 import { formatSol as SOL } from "@/lib/format";
 import { PREDICATE_LABEL } from "@stoppage/sdk";
+import { useSessionKey } from "@/lib/session-key/useSessionKey";
+import { ProofBoard } from "@/components/ProofBoard";
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {
@@ -88,6 +90,7 @@ function MarketRow({ market }: { market: Market }) {
 
 export default function MarketsPage() {
   const { markets, refresh } = useMarkets();
+  const { state } = useSessionKey();
   useMyPositions();
   useHeliusMonitor();
 
@@ -107,7 +110,7 @@ export default function MarketsPage() {
     <main className="app-shell">
       <header className="app-nav">
         <Link href="/" className="wordmark">STOPPAGE<span>.</span></Link>
-        <div className="nav-center"><span className="live-dot" /> World Cup markets</div>
+        <div className="nav-session" title={state.expiresAt ? `Session expires ${new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : undefined}><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Fast setup"}</div>
         <Link className="explorer-back" href="/">Match desk <span>←</span></Link>
       </header>
       <div className="market-explorer">
@@ -123,6 +126,11 @@ export default function MarketsPage() {
         >
           Refresh
         </button>
+      </div>
+
+      <div className="explorer-context">
+        <StatsPanel />
+        <ProofBoard markets={sorted} />
       </div>
 
       {sorted.length === 0 ? (
@@ -141,9 +149,8 @@ export default function MarketsPage() {
         </div>
       )}
 
-      {/* ── Retention: stats, history, calendar ── */}
+      {/* Calendar is personal planning, separate from public proof state. */}
       <div className="explorer-sidecars">
-        <StatsPanel />
         <MatchCalendar />
       </div>
       <PositionHistory />

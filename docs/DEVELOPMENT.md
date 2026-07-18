@@ -32,6 +32,18 @@ keys), blocks forbidden files (`.env`, `.txline-credentials.json`), and
 runs `check:ids` when program-related files are touched. Bypass with
 `git commit --no-verify` only for false positives.
 
+### Local environment
+
+`apps/web/.env.local` is the Next.js local runtime file. It is gitignored
+and should stay mode `600` because it may contain `SHYFT_API_KEY`,
+`TXLINE_JWT`, and `TXLINE_API_TOKEN`. The repo-root `.env.local` is also
+gitignored and can be used as a local backup for command-line scripts or
+manual recovery if server secrets are wiped. Never stage either file.
+
+`SHYFT_API_KEY` is server-side only; do not expose it as `NEXT_PUBLIC_*`.
+The public board route tries Shyft first and falls back to the public
+devnet RPC when the free Shyft plan rejects indexed `getProgramAccounts`.
+
 ### Agent commands
 
 ```bash
@@ -85,7 +97,8 @@ Current devnet deployment:
 
 `TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
 runtime. The legacy `.txline-credentials.json` file remains supported for
-local development only.
+local development only, but local ignored env files are the better backup
+because they match production deployment semantics.
 
 ## Program tests
 

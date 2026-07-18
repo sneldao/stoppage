@@ -39,11 +39,15 @@ export function loadCredentials(
   const environmentCredentials = loadEnvironmentCredentials();
   if (environmentCredentials) return environmentCredentials;
 
-  const cwd = baseDir ?? process.cwd();
-  const paths = [
-    join(cwd, ".txline-credentials.json"),
-    join(cwd, "..", "..", ".txline-credentials.json"),
-  ];
+  const paths = baseDir
+    ? [
+        join(baseDir, ".txline-credentials.json"),
+        join(baseDir, "..", "..", ".txline-credentials.json"),
+      ]
+    : [
+        join(/* turbopackIgnore: true */ process.cwd(), ".txline-credentials.json"),
+        join(/* turbopackIgnore: true */ process.cwd(), "..", "..", ".txline-credentials.json"),
+      ];
 
   for (const p of paths) {
     try {

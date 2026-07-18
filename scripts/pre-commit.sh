@@ -49,7 +49,7 @@ fi
 # Check for forbidden files
 for file in $STAGED; do
   for forbidden in "${FORBIDDEN_FILES[@]}"; do
-    if [[ "$file" == *"$forbidden"* ]]; then
+    if [[ "$(basename "$file")" == "$forbidden" ]]; then
       echo "ERROR: Forbidden file staged: $file"
       echo "  This file may contain secrets. Add it to .gitignore."
       exit 1

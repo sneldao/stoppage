@@ -197,3 +197,34 @@ export async function signWithSessionKey(
     skipPreflight: false,
   });
 }
+
+export interface SessionTransactionResult {
+  signature: string;
+  signingMs: number;
+  submittedAt: number;
+  confirmedAt: number;
+}
+
+/**
+ * Session-key transaction with measurable stages for the live execution UI.
+ * The timestamps are captured at the client boundary, not inferred.
+ */
+export async function signAndConfirmWithSessionKey(
+  connection: Connection,
+  sessionKeypair: Keypair,
+  instructions: TransactionInstruction[]
+): Promise<SessionTransactionResult> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const tx = new Transaction({
+    feePayer: sessionKeypair.publicKey,
+    blockhash,
+    lastValidBlockHeight,
+  }).add(...instructions);
+  const signingStartedAt = performance.now();
+  tx.sign(sessionKeypair);
+  const signingMs = performance.now() - signingStartedAt;
+  const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false });
+  const submittedAt = Date.now();
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  return { signature, signingMs, submittedAt, confirmedAt: Date.now() };
+}

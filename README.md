@@ -76,7 +76,7 @@ stream and call it done. The bets we're making on differentiation:
 
 ```bash
 npm install
-cp apps/web/.env.local.example apps/web/.env.local   # add Helius API key
+cp apps/web/.env.local.example apps/web/.env.local   # add Helius, Shyft, TxLINE credentials
 npm run dev                                          # web app on :3000
 npm run anchor:build                                 # build both programs
 ```
@@ -99,9 +99,11 @@ stoppage/
 │   └── web/                     Next.js app (UI + Actions/Blinks routes)
 │       ├── app/
 │       │   ├── api/actions/[market]/   Solana Actions (Blinks) endpoint
-│       │   └── api/fixtures/           TxLINE fixtures proxy (server-side)
+│       │   ├── api/board/              Public proof-backed leaderboard
+│       │   └── api/fixtures/           TxLINE fixtures + score proxies
 │       ├── components/                 WalletProvider, ShareBar, StatsPanel,
-│       │                               PositionHistory, MatchCalendar, ReferralInit
+│       │                               ProofBoard, PositionHistory, MatchCalendar,
+│       │                               ReferralInit
 │       ├── lib/
 │       │   ├── wallet/                 Wallet adapters (web + Solana Mobile)
 │       │   ├── session-key/            useSessionKey hook (local keypair lifecycle)

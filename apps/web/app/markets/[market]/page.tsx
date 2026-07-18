@@ -1,18 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import {
-  getMarket,
-  impliedProbability,
-  PREDICATE_LABEL,
-  type Market,
-  type Side,
-} from "@stoppage/sdk";
+import { getMarket, impliedProbability, PREDICATE_LABEL, type Market, type Side } from "@stoppage/sdk";
 import { useMarketActions } from "@/lib/markets/useMarketActions";
+import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
@@ -20,67 +15,78 @@ import { ShareBar } from "@/components/ShareBar";
 import { ProofPanel } from "@/components/ProofPanel";
 import { formatSol as SOL, LAMPORTS_PER_SOL } from "@/lib/format";
 
+const stakePresets = ["0.01", "0.05", "0.10"];
+
+interface ExecutionReceipt extends ActionResult {
+  viaSession: boolean;
+}
+
+function marketQuestion(market: Market) {
+  const params = market.predicate.params;
+  const value = params.windowSeconds ?? params.threshold ?? "";
+  return `${PREDICATE_LABEL[market.predicate.kind] ?? market.predicate.kind} ${value}${params.team ? ` for ${params.team}` : ""}`;
+}
+
 export default function MarketDetailPage() {
   const params = useParams<{ market: string }>();
+  const searchParams = useSearchParams();
   const marketAddr = params.market;
   const { connection } = useConnection();
   const { publicKey } = useWallet();
-  const { state, getSessionSigner } = useSessionKey();
+  const { state, getSessionSigner, revoke } = useSessionKey();
   const { joinViaWallet, joinViaSessionKey, claim } = useMarketActions();
   useMyPositions();
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
-  const myPosition = useStoppageStore((s) =>
-    publicKey ? s.positions[`${marketAddr}:${publicKey.toBase58()}`] : undefined
-  );
-
+  const myPosition = useStoppageStore((s) => publicKey ? s.positions[`${marketAddr}:${publicKey.toBase58()}`] : undefined);
   const [liveMarket, setLiveMarket] = useState<Market | null>(storeMarket ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [amountSol, setAmountSol] = useState("0.05");
+  const initialSide = searchParams.get("side");
+  const [selectedSide, setSelectedSide] = useState<Side | null>(initialSide === "yes" || initialSide === "no" ? initialSide : null);
+  const [submittedWithSession, setSubmittedWithSession] = useState(false);
+  const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
 
-  // Fetch the market on mount / when connection is ready, if not in store.
   useEffect(() => {
     if (storeMarket) {
       setLiveMarket(storeMarket);
       return;
     }
     let cancelled = false;
-    void (async () => {
-      try {
-        const m = await getMarket(connection, new PublicKey(marketAddr));
-        if (!cancelled) setLiveMarket(m);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void getMarket(connection, new PublicKey(marketAddr))
+      .then((market) => { if (!cancelled) setLiveMarket(market); })
+      .catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; };
   }, [connection, marketAddr, storeMarket]);
+
+  useEffect(() => {
+    if (initialSide === "yes" || initialSide === "no") setSelectedSide(initialSide);
+  }, [initialSide]);
 
   const market = liveMarket ?? storeMarket ?? null;
   const odds = market ? impliedProbability(market) : { yes: 0.5, no: 0.5 };
   const amountLamports = Math.round(parseFloat(amountSol || "0") * LAMPORTS_PER_SOL);
 
-  const run = async (label: string, fn: () => Promise<string>) => {
+  const run = async (label: string, fn: () => Promise<ActionResult>, viaSession = false) => {
     setBusy(label);
     setError(null);
     try {
-      await fn();
-      // Re-fetch the market + position after any state-changing action.
-      try {
-        const m = await getMarket(connection, new PublicKey(marketAddr));
-        setLiveMarket(m);
-      } catch {}
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const result = await fn();
+      setReceipt({ ...result, viaSession });
+      try { setLiveMarket(await getMarket(connection, new PublicKey(marketAddr))); } catch {}
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(null);
     }
   };
 
-  const onJoin = (side: Side) => {
+  const onJoin = () => {
+    if (!selectedSide) {
+      setError("Choose YES or NO first");
+      return;
+    }
     if (!publicKey) {
       setError("Connect your wallet first");
       return;
@@ -90,202 +96,66 @@ export default function MarketDetailPage() {
       return;
     }
     const signer = getSessionSigner();
+    const usesSession = Boolean(signer && state.delegated);
+    setSubmittedWithSession(usesSession);
+    setReceipt(null);
     if (signer && state.delegated) {
-      // No-popup path — the differentiator.
-      void run(`join-${side}-session`, () =>
-        joinViaSessionKey(signer, publicKey, {
-          market: new PublicKey(marketAddr),
-          side,
-          amountLamports,
-        })
-      );
-    } else {
-      void run(`join-${side}-wallet`, () =>
-        joinViaWallet({
-          market: new PublicKey(marketAddr),
-          side,
-          amountLamports,
-        })
-      );
+      void run(`join-${selectedSide}-session`, () => joinViaSessionKey(signer, publicKey, { market: new PublicKey(marketAddr), side: selectedSide, amountLamports }), true);
+      return;
     }
+    void run(`join-${selectedSide}-wallet`, () => joinViaWallet({ market: new PublicKey(marketAddr), side: selectedSide, amountLamports }));
   };
 
-  const onClaim = () => {
-    void run("claim", () => claim(new PublicKey(marketAddr)));
+  const onRevokeSession = () => {
+    setBusy("revoke");
+    setError(null);
+    void revoke()
+      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => setBusy(null));
   };
 
   if (!market) {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-4 p-8">
-        <p className="text-neutral-400">Loading market…</p>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <Link href="/markets" className="text-sm text-neutral-500 hover:text-neutral-300">
-          ← back to markets
-        </Link>
-      </main>
-    );
+    return <main className="market-shell market-loading"><p>Loading market instrument…</p>{error && <p className="market-error">{error}</p>}<Link href="/markets">Back to market tape</Link></main>;
   }
 
   const canJoin = market.status === "open";
-  const canClaim =
-    (market.status === "settled" || market.status === "void") &&
-    myPosition &&
-    myPosition.amountLamports > 0;
-  const isWinner =
-    market.status === "settled" &&
-    myPosition &&
-    myPosition.side === market.outcome;
+  const canClaim = (market.status === "settled" || market.status === "void") && myPosition && myPosition.amountLamports > 0;
+  const isWinner = market.status === "settled" && myPosition && myPosition.side === market.outcome;
+  const executionBusy = busy?.startsWith("join");
+  const selectedOdds = selectedSide ? odds[selectedSide] : 0;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-4 sm:p-8">
-      <Link href="/markets" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← markets
-      </Link>
+    <main className="market-shell">
+      <header className="market-nav"><Link href="/markets">← Market tape</Link><span><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Wallet sign"}</span><span className="market-feed"><i className="live-dot" /> TxLINE connected</span></header>
+      <section className="market-hero">
+        <div className="market-hero-meta"><span>Live · Match {market.predicate.matchId}</span><span>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
+        <h1>{marketQuestion(market)}</h1>
+        <div className="market-context"><span>{SOL(market.yesPool + market.noPool)} pool</span><span>Fee {market.feeBps / 100}%</span><span className="status-pill active">{market.status.replace("_", " ")}</span></div>
+      </section>
 
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-6">
-        <h1 className="text-lg font-bold sm:text-xl">
-          {PREDICATE_LABEL[market.predicate.kind] ?? market.predicate.kind}{" "}
-          {market.predicate.params.windowSeconds ?? market.predicate.params.threshold ?? ""}
-          {market.predicate.params.team ? ` · ${market.predicate.params.team}` : ""}
-        </h1>
-        <p className="mt-1 text-xs text-neutral-500 sm:text-sm">
-          match {market.predicate.matchId} · closes {new Date(market.closesAt).toLocaleString()}
-        </p>
-
-        {/* ── Visual odds bar ── */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-neutral-500">
-            <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
-            <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
-          </div>
-          <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-neutral-800">
-            <div
-              className="bg-emerald-500 transition-all duration-500"
-              style={{ width: `${odds.yes * 100}%` }}
-            />
-            <div
-              className="bg-red-500 transition-all duration-500"
-              style={{ width: `${odds.no * 100}%` }}
-            />
-          </div>
+      {canJoin && <section className="bet-slip" aria-label="Bet slip">
+        <div className="bet-slip-head"><div><p className="eyebrow">Make your call</p><h2>Choose a side.</h2></div><div className="slip-session"><span className={state.delegated ? "fast-badge active" : "fast-badge"}>{state.delegated ? "Fast on" : "Wallet sign"}</span>{state.delegated && <button type="button" onClick={onRevokeSession} disabled={busy !== null}>{busy === "revoke" ? "Revoking…" : "Revoke"}</button>}</div></div>
+        {state.delegated && state.expiresAt && <p className="session-expiry">Session expires {new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Revoke any time.</p>}
+        <div className="side-choice">
+          <button type="button" className={`side-option side-yes ${selectedSide === "yes" ? "selected" : ""}`} onClick={() => setSelectedSide("yes")}><span>YES</span><strong>{Math.round(odds.yes * 100)}%</strong><small>{odds.yes > 0 ? `${(1 / odds.yes).toFixed(1)}x projected` : "Opening"}</small></button>
+          <button type="button" className={`side-option side-no ${selectedSide === "no" ? "selected" : ""}`} onClick={() => setSelectedSide("no")}><span>NO</span><strong>{Math.round(odds.no * 100)}%</strong><small>{odds.no > 0 ? `${(1 / odds.no).toFixed(1)}x projected` : "Opening"}</small></button>
         </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2 text-sm sm:gap-3">
-          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
-            <p className="text-xs text-neutral-500">YES pool</p>
-            <p className="text-emerald-400">{SOL(market.yesPool)}</p>
-          </div>
-          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
-            <p className="text-xs text-neutral-500">NO pool</p>
-            <p className="text-red-400">{SOL(market.noPool)}</p>
-          </div>
-          <div className="rounded-lg border border-white/10 p-2 sm:p-3">
-            <p className="text-xs text-neutral-500">Status</p>
-            <p className="capitalize">{market.status.replace("_", " ")}</p>
-            <p className="text-xs text-neutral-600">fee {market.feeBps / 100}%</p>
-          </div>
+        <div className="stake-row"><span>Stake</span><div className="stake-options">{stakePresets.map((amount) => <button type="button" className={amountSol === amount ? "selected" : ""} onClick={() => setAmountSol(amount)} key={amount}>{amount}</button>)}<label><input type="number" min="0.001" step="0.01" value={amountSol} onChange={(event) => setAmountSol(event.target.value)} aria-label="Custom stake in SOL" /> SOL</label></div></div>
+        <div className="slip-summary"><span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span><strong>{selectedSide && selectedOdds > 0 ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL projected` : "—"}</strong></div>
+        <button type="button" className="place-action" disabled={busy !== null} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} position` : "Choose YES or NO"}<span>→</span></button>
+        <div className="execution-receipt">
+          <span className={receipt?.viaSession ? "execution-ready" : "execution-pending"}><i /> {receipt ? receipt.viaSession ? `Signed locally · ${Math.round(receipt.signingMs ?? 0)}ms` : `Wallet approval + sign · ${Math.round(receipt.signingMs ?? 0)}ms` : state.delegated ? "Signed locally · no popup" : "Wallet approval required"}</span>
+          <span>{executionBusy ? "Submitting to Solana" : receipt ? `Confirmed · ${receipt.confirmedAt - receipt.submittedAt}ms` : "Timing appears after submission"}</span>
+          <span>{receipt ? "Proof path awaiting resolution" : "TxLINE proof at resolution"}</span>
         </div>
-      </div>
+      </section>}
 
-      {/* ── Share bar (viral: tweet, Blink URL, referral) ── */}
-      {canJoin && (
-        <ShareBar
-          market={market}
-          pageUrl={
-            typeof window !== "undefined"
-              ? `${window.location.origin}/markets/${marketAddr}`
-              : `/markets/${marketAddr}`
-          }
-        />
-      )}
+      {canJoin && <ShareBar market={market} pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`} />}
 
-      {/* ── Join panel ── */}
-      {canJoin && (
-        <div className="rounded-xl border border-white/10 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Place a bet</h2>
-            <div className="flex items-center gap-2 text-sm">
-              <input
-                type="number"
-                min="0.001"
-                step="0.01"
-                value={amountSol}
-                onChange={(e) => setAmountSol(e.target.value)}
-                className="w-24 rounded border border-white/20 bg-transparent px-2 py-1 text-right"
-              />
-              <span className="text-neutral-500">SOL</span>
-            </div>
-          </div>
+      {myPosition && <section className="position-panel"><div><p className="eyebrow">Your position</p><h2>{myPosition.side.toUpperCase()} · {SOL(myPosition.amountLamports)}</h2></div><span className={myPosition.openedViaSessionKey ? "fast-badge active" : "fast-badge"}>{myPosition.openedViaSessionKey ? "Local sign" : "Wallet sign"}</span>{market.status === "settled" && <p className={isWinner ? "position-win" : "position-loss"}>{isWinner ? "Position won. Claim your payout." : "This position did not resolve in your favour."}</p>}{market.status === "void" && <p className="position-loss">Market voided. Claim a full refund.</p>}{canClaim && <button type="button" className="claim-action" disabled={busy !== null} onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>{busy === "claim" ? "Claiming…" : "Claim payout"}</button>}</section>}
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onJoin("yes")}
-              disabled={busy !== null}
-              className="rounded-lg bg-emerald-500/90 px-4 py-3 font-medium text-black disabled:opacity-40"
-            >
-              {busy === "join-yes-session" ? "Signing with session key…"
-                : busy === "join-yes-wallet" ? "Sign in wallet…"
-                : "Back YES"}
-            </button>
-            <button
-              onClick={() => onJoin("no")}
-              disabled={busy !== null}
-              className="rounded-lg bg-red-500/90 px-4 py-3 font-medium text-black disabled:opacity-40"
-            >
-              {busy === "join-no-session" ? "Signing with session key…"
-                : busy === "join-no-wallet" ? "Sign in wallet…"
-                : "Back NO"}
-            </button>
-          </div>
-
-          <p className="mt-3 text-xs text-neutral-500">
-            {state.delegated
-              ? "Session key active — bets sign with no wallet popup (the differentiator). Close your wallet extension and try it."
-              : "No session key delegated — each bet pops the wallet. Delegate from the home page for no-popup betting."}
-          </p>
-        </div>
-      )}
-
-      {/* ── My position ── */}
-      {myPosition && (
-        <div className="rounded-xl border border-white/10 p-6">
-          <h2 className="font-medium">Your position</h2>
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <span className={myPosition.side === "yes" ? "text-emerald-400" : "text-red-400"}>
-              {myPosition.side.toUpperCase()} · {SOL(myPosition.amountLamports)}
-            </span>
-            {myPosition.openedViaSessionKey && (
-              <span className="rounded border border-emerald-500/30 px-1.5 py-0.5 text-xs text-emerald-400">
-                via session key
-              </span>
-            )}
-          </div>
-
-          {market.status === "settled" && (
-            <p className={`mt-3 text-sm ${isWinner ? "text-emerald-400" : "text-neutral-500"}`}>
-              {isWinner ? "You won — claim your payout." : "You lost — nothing to claim."}
-            </p>
-          )}
-          {market.status === "void" && (
-            <p className="mt-3 text-sm text-amber-400">Market voided — claim a full refund.</p>
-          )}
-
-          {canClaim && (
-            <button
-              onClick={onClaim}
-              disabled={busy !== null}
-              className="mt-4 rounded-lg bg-white px-4 py-2 font-medium text-black disabled:opacity-40"
-            >
-              {busy === "claim" ? "Claiming…" : "Claim"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Verifiable Resolution panel (the proof is the product) ── */}
       <ProofPanel market={market} />
-
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="market-error">{error}</p>}
     </main>
   );
 }

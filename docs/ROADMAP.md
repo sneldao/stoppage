@@ -41,16 +41,28 @@ or descoped, it's recorded here and nowhere else.
   program's `resolve_market` instruction performs real on-chain CPI
   into TxLINE `validate_stat`, reads the boolean return, and emits a
   proof-carrying `MarketResolved` event.
-- **M4 UI is built**: market list (`/markets`), market detail with
-  session-key join + wallet join + claim + attest +
-  Verifiable Resolution panel (ProofPanel with local verification
-  button). HeliusMonitor hook wires live updates into the store.
-  Blinks GET/POST return real market metadata and a real unsigned join
-  transaction.
+- **M4 UI is built and redesigned around the live match instrument**:
+  home now puts a live TxLINE-backed match snapshot and actionable market
+  above the mobile fold; market detail is a continuous match -> stake ->
+  receipt flow with session-key timing feedback; market list separates
+  local "My form" from the public board. HeliusMonitor hook wires live
+  updates into the store. Blinks GET/POST return real market metadata and
+  a real unsigned join transaction.
 - **@stoppage/txline package complete**: TxLINE API client with auth,
   SSE streaming, historical scores, fixture list, validation proofs,
-  and event normalizer. Devnet subscription active (tx sig
-  `4NHhnAJs678g3vSuf4RgYmXikXrHZ9dMAtfL1AuEtrusGRuTxzwkxbPzVfSej3mR75dadgoTscEars7K4QYhJmPJ`).
+  and event normalizer. Devnet free-tier subscription refreshed and
+  activated with the deployer wallet. Current subscription tx:
+  `5spVf6ZmpArg2qwWfLkQGhhxQffUqBpUMtjXjryKpM728gGtRYMUxpm67vjYUKpW14cAE8N1p4KUC9msjArdgwKX`.
+  Credentials are stored only in ignored local env/credential files.
+- **TxLINE data is now visible in the product surface**: `/api/fixtures`
+  powers the home match board, `/api/fixtures/[fixture]/score` exposes
+  score/corner/card snapshots, and the local dev server verified both
+  endpoints against activated devnet TxLINE credentials.
+- **Public proof board route added**: `/api/board` derives a public
+  leaderboard from settled/void on-chain positions and market accounts,
+  using `SHYFT_API_KEY` server-side when available with public devnet RPC
+  fallback. The current devnet board is empty until resolved positions
+  exist.
 - **Autonomous agent (apps/agent) complete**: connects to TxLINE (live
   SSE or historical replay), normalizes events, creates/settles markets
   on-chain. Fetches TxLINE Merkle proofs before settlement, builds
@@ -71,12 +83,14 @@ or descoped, it's recorded here and nowhere else.
 - **Viral mechanics complete**: ShareBar component (tweet generation,
   Blink URL copy, direct link copy), referral tracking via URL params
   + localStorage, tweet generation with market odds + pool size.
-- **Retention features complete**: StatsPanel (W/L record, PnL, streaks),
-  PositionHistory (last 10 settled bets), MatchCalendar (upcoming
-  fixtures from TxLINE), history slice with localStorage persistence.
-- **User delight features complete**: visual odds bar (proportional
-  YES/NO bar with transitions), LIVE pulse indicator on open markets,
-  mobile-responsive layouts, polished proof panel.
+- **Retention features complete**: StatsPanel now clearly represents local
+  device history as "My form" (W/L record, PnL, streaks), PositionHistory
+  (last 10 settled bets), MatchCalendar (upcoming fixtures from TxLINE),
+  public ProofBoard, and history slice with localStorage persistence.
+- **User delight features complete**: bounded event-driven signal-grid
+  animation, visual odds bar (proportional YES/NO bar with transitions),
+  LIVE pulse indicator on open markets, mobile-responsive layouts,
+  polished proof panel.
 - **DRY audit complete**: PREDICATE_LABEL consolidated to SDK, SOL
   formatter consolidated to lib/format.ts, loadCredentials consolidated
   to packages/txline/src/credentials.ts.
@@ -91,7 +105,8 @@ or descoped, it's recorded here and nowhere else.
     made literal in the contract.
   - `void_market` (permissionless after grace period) + `attest_verification`
     (permissionless validation counter) — judge-visible.
-- Remaining before submission: record the M1 acceptance capture (delegate ->
+- Remaining before submission: create/resolve enough devnet activity to
+  populate the public board, record the M1 acceptance capture (delegate ->
   close wallet -> ping -> no-popup clip), record the deployed app + TxLINE
   fixture/API walkthrough, publish the demo video, confirm the public GitHub
   repository visibility, add the missing public Blink icon asset, and complete
@@ -198,6 +213,12 @@ during M1/M2.
       `verifyProofLocally` from the SDK. Integrated into the market detail
       page.
 - [x] HeliusMonitor wired: settlement/join events update the store live.
+- [x] Product surface redesigned around mobile-first direct action:
+      live match snapshot above the fold, visible session status, direct
+      YES/NO action cells, compact proof language, and measured execution
+      receipt for session-key bets.
+- [x] Score snapshot route added for fixture-level live scoreboard stats
+      using TxLINE score data.
 - **Acceptance:** a judge can open a settled market and verify the proof
   themselves without reading code.
 
@@ -209,9 +230,13 @@ during M1/M2.
 - [x] Viral mechanics: ShareBar (tweet generation, Blink URL copy, link
       copy), referral tracking via URL params + localStorage.
 - [x] Retention: StatsPanel (W/L, PnL, streaks), PositionHistory,
-      MatchCalendar (TxLINE fixtures), history slice with localStorage.
+      MatchCalendar (TxLINE fixtures), ProofBoard, history slice with
+      localStorage.
 - [x] Mobile-width pass; responsive layouts on all pages.
 - [x] Visual odds bar, LIVE pulse indicator, polished proof panel.
+- [x] Server-side `SHYFT_API_KEY` wired locally and verified against Shyft
+      devnet RPC health; free-plan indexed account scans fall back to
+      public devnet RPC.
 
 ### M6 — Submission (complete by: July 19, 2026 23:59 UTC)
 - [ ] Demo video: cold open on the no-popup bet (M1 clip), then settle →
