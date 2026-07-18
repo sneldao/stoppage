@@ -67,7 +67,7 @@ an embedded HTTP server so the web app never needs shared filesystem access.
 ### Current devnet deployment
 
 - Public URL: `https://stoppage.sportwarren.com` (Vercel)
-- Agent API: `http://144.202.117.160:3001` (VPS, internal — Vercel serverless
+- Agent API: `http://144.202.117.160:8765` (VPS, internal — Vercel serverless
   functions reach it over the public internet)
 - Agent service: PM2 process `stoppage-agent`
 
@@ -79,7 +79,7 @@ an embedded HTTP server so the web app never needs shared filesystem access.
    - `NEXT_PUBLIC_HELIUS_RPC_URL` — Helius RPC endpoint
    - `TXLINE_NETWORK`, `TXLINE_JWT`, `TXLINE_API_TOKEN` — server-only TxLINE
      credentials for the `/api/fixtures` proxy
-   - `AGENT_API_URL` — `http://144.202.117.160:3001`
+   - `AGENT_API_URL` — `http://144.202.117.160:8765`
 3. DNS: update the GoDaddy `A` record for `stoppage` to point to Vercel's edge
    network (follow Vercel's provided DNS target after adding the domain).
 
@@ -98,8 +98,8 @@ an embedded HTTP server so the web app never needs shared filesystem access.
    pm2 save
    ```
 
-   The agent starts an internal HTTP server on port 3001 serving `GET /events`
-   and `GET /health`. Port 3001 should allow inbound from Vercel's IP range.
+   The agent starts an internal HTTP server on port 8765 serving `GET /events`
+   and `GET /health`. Port 8765 should allow inbound from Vercel's IP range.
 
 4. Verify with `pm2 logs stoppage-agent` and check `GET /health`.
 

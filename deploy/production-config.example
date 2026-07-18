@@ -11,4 +11,4 @@ TXLINE_API_TOKEN=replace-me
 SHYFT_API_KEY=replace-me
 
 # Agent HTTP API — the Matchkeeper PM2 process on the VPS.
-AGENT_API_URL=http://144.202.117.160:3001
+AGENT_API_URL=http://144.202.117.160:8765

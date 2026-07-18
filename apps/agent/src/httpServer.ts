@@ -1,7 +1,7 @@
 import http from "node:http";
 import type { MatchEventLedger } from "./eventLedger";
 
-const DEFAULT_PORT = 3001;
+const DEFAULT_PORT = 8765;
 
 export function startEventHttpServer(ledger: MatchEventLedger) {
   const port = Number(process.env.AGENT_HTTP_PORT) || DEFAULT_PORT;
