@@ -66,11 +66,13 @@ or descoped, it's recorded here and nowhere else.
   leaderboard from settled/void on-chain positions and market accounts,
   using `SHYFT_API_KEY` server-side when available with public devnet RPC
   fallback. Devnet demo market
-  `ABwKxVtpjUDSchiXQca3dieEurXaXaVN5ZsiiYwDHFLj` now populates the board:
+  `ABwKxVtpjUDSchiXQca3dieEurXaXaVN5ZsiiYwDHFLj` anchors the board:
   YES/NO positions created, settled from TxLINE proof tx
   `3mgA3vpM5oXZTQb9KDuXkqYujTocx7dpuJg7SgPEcBgVZF7DVqwFcxg8e3FFZ3BoagzDzHT67d3GhhnWzEGzXybD`,
   and winning claim tx
   `3vwzwCH7XsSRKtKs9P65SpxzD27Ha7ZRPKH696YYu6yoo8DFfGprapYmCDrWd9ndRyncmYc9mUHfsgmLbab4nkYx`.
+  Additional seeded devnet proof markets bring the deployed board to
+  5 players, 3 verified markets, and 3 attestations.
 - **Autonomous agent (apps/agent) complete**: connects to TxLINE (live
   SSE or historical replay), normalizes events, creates/settles markets
   on-chain. Fetches TxLINE Merkle proofs before settlement, builds
@@ -247,7 +249,7 @@ during M1/M2.
 ### M6 — Submission (complete by: July 19, 2026 23:59 UTC)
 - [ ] Demo video: cold open on the no-popup bet (M1 clip), then settle →
       proof verification → claim. Under 3 minutes.
-- [ ] Submission writeup: architecture, what's verifiable and how, honest
+- [x] Submission writeup: architecture, what's verifiable and how, honest
       limitations section.
 - [ ] README quickstart re-tested on a clean clone.
 - [x] Judge-accessible deployed web app:

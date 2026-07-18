@@ -84,6 +84,9 @@ npm run anchor:build                                 # build both programs
 Full toolchain notes (rustup vs Homebrew cargo, lockfile pins, deploy
 pipeline): [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md).
 
+Submission-facing links, proof transactions, TxLINE endpoint usage, and
+compliance framing live in [docs/SUBMISSION.md](./docs/SUBMISSION.md).
+
 ## Repo layout
 
 ```
@@ -128,7 +131,8 @@ stoppage/
 └── docs/
     ├── ARCHITECTURE.md          Design: core flow, session-key delegation
     ├── DEVELOPMENT.md           Toolchain, commands, ID discipline
-    └── ROADMAP.md               Milestones, status ledger, icebox, risks
+    ├── ROADMAP.md               Milestones, status ledger, icebox, risks
+    └── SUBMISSION.md            Judge-facing summary, proof txs, limitations
 ```
 
 ## Status

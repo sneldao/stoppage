@@ -8,6 +8,12 @@
  * - TxLINE devnet proof: fixture 17952170, seq 941, statKey 1002
  *
  * Usage: npx tsx scripts/create-proof-board-demo.ts
+ *
+ * Optional env:
+ * - DEMO_MARKET_ADDRESS: resume settlement for an existing market
+ * - DEMO_OPPONENT_NAME: choose secrets/demo-opponent-<name>-keypair.json
+ * - DEMO_THRESHOLD: predicate threshold; 0 resolves YES, large values resolve NO
+ * - DEMO_STAKE_LAMPORTS: stake per side
  */
 
 import * as fs from "fs";
@@ -46,8 +52,8 @@ import {
 const DEMO_FIXTURE_ID = 17952170;
 const DEMO_SEQ = 941;
 const DEMO_STAT_KEY = 1002;
-const THRESHOLD = 0;
-const STAKE_LAMPORTS = 5_000_000; // 0.005 SOL per side
+const THRESHOLD = Number(process.env.DEMO_THRESHOLD ?? 0);
+const STAKE_LAMPORTS = Number(process.env.DEMO_STAKE_LAMPORTS ?? 5_000_000); // default 0.005 SOL per side
 const OPPONENT_MIN_LAMPORTS = 30_000_000;
 
 function configuredWalletPath() {
@@ -62,8 +68,18 @@ function readKeypair(filePath: string): Keypair {
   );
 }
 
+function demoOpponentName() {
+  return (process.env.DEMO_OPPONENT_NAME ?? "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 32);
+}
+
 function loadOrCreateOpponent(): Keypair {
-  const filePath = path.join(process.cwd(), "secrets", "demo-opponent-keypair.json");
+  const name = demoOpponentName();
+  const fileName = name
+    ? `demo-opponent-${name}-keypair.json`
+    : "demo-opponent-keypair.json";
+  const filePath = path.join(process.cwd(), "secrets", fileName);
   fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
   if (fs.existsSync(filePath)) return readKeypair(filePath);
 
@@ -117,7 +133,12 @@ async function main() {
   );
 
   const existingMarketAddress = process.env.DEMO_MARKET_ADDRESS;
-  const suffix = Math.floor(Date.now() / 1000).toString(36).toUpperCase();
+  const randomSuffix = Keypair.generate().publicKey.toBase58().slice(0, 5).toUpperCase();
+  const suffix = [
+    Math.floor(Date.now() / 1000).toString(36).toUpperCase(),
+    demoOpponentName().slice(0, 6).toUpperCase(),
+    randomSuffix,
+  ].filter(Boolean).join("-");
   const predicate: MarketPredicate = {
     kind: "total_goals_over",
     matchId: `DEMO-${suffix}`,
@@ -171,9 +192,8 @@ async function main() {
   const epochDay = epochDayFromTimestamp(proof.summary.updateStats.minTimestamp);
   const [dailyScoresRoots] = deriveDailyScoresRootsPda(txlineProgramId, epochDay);
 
-  if (proof.statToProve.value <= THRESHOLD) {
-    throw new Error(`Expected proof stat value > ${THRESHOLD}; got ${proof.statToProve.value}`);
-  }
+  const outcome = proof.statToProve.value > THRESHOLD ? "yes" : "no";
+  const winner = outcome === "yes" ? payer : opponent;
 
   const txlineIxData = buildValidateStatData({
     ts: proof.summary.updateStats.minTimestamp,
@@ -212,10 +232,10 @@ async function main() {
         dailyScoresRoots,
         `Demo proof fixture ${DEMO_FIXTURE_ID} seq ${DEMO_SEQ} stat ${DEMO_STAT_KEY}`,
         eventStatRoot,
-        0,
+        outcome === "yes" ? 0 : 1,
         txlineIxData
       ),
-      buildSettleFromProofIx(payer.publicKey, market, "yes"),
+      buildSettleFromProofIx(payer.publicKey, market, outcome),
       buildAttestVerificationIx(payer.publicKey, market)
     ),
     [payer]
@@ -224,14 +244,15 @@ async function main() {
 
   const claimSig = await sendAndConfirm(
     connection,
-    new Transaction().add(buildClaimIx(payer.publicKey, market)),
-    [payer]
+    new Transaction().add(buildClaimIx(winner.publicKey, market)),
+    [winner]
   );
   console.log("winnerClaimTx", claimSig);
 
   const settled = await getMarket(connection, market);
   console.log("status", settled.status);
   console.log("outcome", settled.outcome);
+  console.log("winner", winner.publicKey.toBase58());
   console.log("verifications", settled.verifications);
   console.log("explorer", `https://explorer.solana.com/address/${market.toBase58()}?cluster=devnet`);
 }
