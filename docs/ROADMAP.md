@@ -17,10 +17,14 @@ or descoped, it's recorded here and nowhere else.
   `G33naaudTAyEWFnfLET51aWGNLry5BwUtZt6KwcniFoj`.
 - **Settlement proof-receipt upgrade confirmed on devnet.** Deployment tx:
   `39yH8bz6SJbTTqGMfshKqeeYFUFMJYBRdJkpJXjwEr5LFamsf6GmsLNrp2DW6AMDBRrPuSMwSxQFupqS8bARSYjd`.
+  Latest redeploy to match the current SDK/IDL landed in slot `477127963`
+  with tx `MX6Mtwtp7aANQHhEE6DpBdX4wyaJXAJMoraKSKfuqKtsTyHaDNVywzfJeyiomBsDrWcQoCv67kSZeBeMu1x1ohB`.
 - **Matching market upgrade confirmed on devnet.** The devnet program account
   reports a later deployment slot (`477002674`) than the settlement program
   (`477000686`), under the expected upgrade authority, with the extended
   program-data account required by `settle_from_proof`.
+  Latest redeploy landed in slot `477128144` with tx
+  `RZpxvUuiy1UHSVzzdNTF3acxbDHmDrBS9g67FNaVB5T2pbe8pxeFibCAF9pYURkMHZ7J3WkzpzKG2hRpXkYfjFt`.
 - **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
   Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`, treasury
   PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.
@@ -61,8 +65,12 @@ or descoped, it's recorded here and nowhere else.
 - **Public proof board route added**: `/api/board` derives a public
   leaderboard from settled/void on-chain positions and market accounts,
   using `SHYFT_API_KEY` server-side when available with public devnet RPC
-  fallback. The current devnet board is empty until resolved positions
-  exist.
+  fallback. Devnet demo market
+  `ABwKxVtpjUDSchiXQca3dieEurXaXaVN5ZsiiYwDHFLj` now populates the board:
+  YES/NO positions created, settled from TxLINE proof tx
+  `3mgA3vpM5oXZTQb9KDuXkqYujTocx7dpuJg7SgPEcBgVZF7DVqwFcxg8e3FFZ3BoagzDzHT67d3GhhnWzEGzXybD`,
+  and winning claim tx
+  `3vwzwCH7XsSRKtKs9P65SpxzD27Ha7ZRPKH696YYu6yoo8DFfGprapYmCDrWd9ndRyncmYc9mUHfsgmLbab4nkYx`.
 - **Autonomous agent (apps/agent) complete**: connects to TxLINE (live
   SSE or historical replay), normalizes events, creates/settles markets
   on-chain. Fetches TxLINE Merkle proofs before settlement, builds
@@ -105,8 +113,7 @@ or descoped, it's recorded here and nowhere else.
     made literal in the contract.
   - `void_market` (permissionless after grace period) + `attest_verification`
     (permissionless validation counter) — judge-visible.
-- Remaining before submission: create/resolve enough devnet activity to
-  populate the public board, record the M1 acceptance capture (delegate ->
+- Remaining before submission: record the M1 acceptance capture (delegate ->
   close wallet -> ping -> no-popup clip), record the deployed app + TxLINE
   fixture/API walkthrough, publish the demo video, confirm the public GitHub
   repository visibility, and complete the submission writeup/feedback.

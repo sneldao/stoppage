@@ -17,6 +17,13 @@ interface BoardEntry {
   proofMarketIds: string[];
 }
 
+interface PositionRecord {
+  marketId: string;
+  owner: string;
+  side: "yes" | "no";
+  amountLamports: number;
+}
+
 function shyftDevnetUrl() {
   const key = process.env.SHYFT_API_KEY;
   return key ? `https://devnet-rpc.shyft.to/?api_key=${encodeURIComponent(key)}` : null;
@@ -35,7 +42,8 @@ async function readBoard(rpcUrl: string) {
     try { markets.set(pubkey.toBase58(), parseMarket(account.data, pubkey.toBase58())); } catch {}
   }
 
-  const entries = new Map<string, BoardEntry>();
+  const positions: PositionRecord[] = [];
+  const sideCounts = new Map<string, { yes: number; no: number }>();
   for (const { account } of positionAccounts) {
     const data = account.data;
     let offset = 8;
@@ -46,12 +54,27 @@ async function readBoard(rpcUrl: string) {
     const side = data.readUInt8(offset) === 0 ? "yes" : "no";
     offset += 1;
     const amountLamports = Number(readU64LE(data, offset));
+    positions.push({ marketId, owner, side, amountLamports });
+    const counts = sideCounts.get(marketId) ?? { yes: 0, no: 0 };
+    counts[side]++;
+    sideCounts.set(marketId, counts);
+  }
+
+  const entries = new Map<string, BoardEntry>();
+  for (const { marketId, owner, side, amountLamports } of positions) {
     const market = markets.get(marketId);
     if (!market || (market.status !== "settled" && market.status !== "void")) continue;
+    const sidePool = side === "yes" ? market.yesPool : market.noPool;
+    const sideCount = Math.max(sideCounts.get(marketId)?.[side] ?? 1, 1);
+    const countedLamports = amountLamports > 0
+      ? amountLamports
+      : market.status === "settled" && side === market.outcome
+        ? Math.floor(sidePool / sideCount)
+        : 0;
 
     const entry = entries.get(owner) ?? { owner, marketsPlayed: 0, resolved: 0, correct: 0, accuracy: 0, volumeLamports: 0, proofMarketIds: [] };
     entry.marketsPlayed++;
-    entry.volumeLamports += amountLamports;
+    entry.volumeLamports += countedLamports;
     if (market.status === "settled") {
       entry.resolved++;
       if (side === market.outcome) entry.correct++;
