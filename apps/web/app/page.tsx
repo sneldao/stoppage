@@ -16,6 +16,7 @@ import { ElectricBorder } from "@/components/ElectricBorder";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
 import { StoppageClock } from "@/components/StoppageClock";
 import { SharpMoves } from "@/components/SharpMoves";
+import { MatchPulse } from "@/components/MatchPulse";
 
 function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
@@ -36,8 +37,15 @@ interface LiveMatchSnapshot {
   stats: { corners: number; cards: number };
 }
 
+function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
+  if (!snapshot?.updatedAt) return false;
+  const timestamp = snapshot.updatedAt < 1_000_000_000_000 ? snapshot.updatedAt * 1_000 : snapshot.updatedAt;
+  return Date.now() - timestamp <= 45_000;
+}
+
 function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | null; snapshot: LiveMatchSnapshot | null; signalVersion: number }) {
   const live = isLive(fixture);
+  const fresh = snapshotIsFresh(snapshot);
   return (
     <ElectricBorder variant="blue" speed={1.5} displacement={30} active={live}>
       <section className="match-board" aria-label="Current match">
@@ -47,7 +55,7 @@ function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | n
         {signalVersion > 0 && <div className="signal-ripple" key={signalVersion} aria-hidden="true"><i /><i /><i /></div>}
         <div className="match-board-top">
           <span className={live ? "match-live" : "match-next"}><i /> {live ? "Live" : "Next fixture"}</span>
-          <span>TxLINE feed</span>
+          <span>{live ? fresh ? "Feed current" : "Feed delayed" : "TxLINE feed"}</span>
         </div>
         <div className="scoreline">
           <strong>{fixture?.Participant1 ?? "Home"}</strong>
@@ -56,7 +64,7 @@ function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | n
         </div>
         <div className="match-board-foot">
           <span><span className="match-country-flag">{countryFlag(fixture?.Country ?? "")}</span> {fixture?.Country ?? "World Cup"}</span>
-          <span>{live && snapshot ? `Corners ${snapshot.stats.corners} · Cards ${snapshot.stats.cards}${snapshot.updatedAt ? ` · ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : live ? "In-play data connected" : fixture ? new Date(fixture.StartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Waiting for fixture"}</span>
+          <span>{live && snapshot ? `Corners ${snapshot.stats.corners} · Cards ${snapshot.stats.cards}${snapshot.updatedAt ? ` · ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : live ? "Live data delayed" : fixture ? new Date(fixture.StartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Waiting for fixture"}</span>
         </div>
         {fixture && <LiveMatchBar matchId={matchIdFromFixture(fixture)} />}
       </section>
@@ -153,6 +161,7 @@ export default function Home() {
   return (
     <main className="app-shell">
       <section className="command-center">
+        <MatchPulse live={isLive(featuredFixture)} signalVersion={signalVersion} />
         <div className="hero-clock" aria-hidden="true">
           <StoppageClock size={560} globalPointer />
         </div>

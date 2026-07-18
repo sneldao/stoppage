@@ -19,11 +19,20 @@ import { ProofPanel } from "@/components/ProofPanel";
 import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed } from "@/lib/format";
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
+import { MarketMatchContext } from "@/components/MarketMatchContext";
+import { CallCard } from "@/components/CallCard";
+import { ResolutionCard } from "@/components/ResolutionCard";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 
 interface ExecutionReceipt extends ActionResult {
   viaSession: boolean;
+}
+
+interface LockedCall {
+  side: Side;
+  amountSol: string;
+  probability: number;
 }
 
 export default function MarketDetailPage() {
@@ -48,6 +57,7 @@ export default function MarketDetailPage() {
   const [selectedSide, setSelectedSide] = useState<Side | null>(initialSide === "yes" || initialSide === "no" ? initialSide : null);
   const [submittedWithSession, setSubmittedWithSession] = useState(false);
   const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
+  const [lockedCall, setLockedCall] = useState<LockedCall | null>(null);
 
   useEffect(() => {
     if (storeMarket) {
@@ -77,6 +87,11 @@ export default function MarketDetailPage() {
       setReceipt({ ...result, viaSession });
       if (result.signingMs !== undefined) setLastSigningMs(result.signingMs);
       if (label.startsWith("join-") && market && selectedSide) {
+        setLockedCall({
+          side: selectedSide,
+          amountSol,
+          probability: Math.round(selectedOdds * 100),
+        });
         recordActivity({
           id: `position-${result.signature}`,
           occurredAt: result.confirmedAt,
@@ -113,6 +128,7 @@ export default function MarketDetailPage() {
     const usesSession = Boolean(signer && state.delegated);
     setSubmittedWithSession(usesSession);
     setReceipt(null);
+    setLockedCall(null);
     if (signer && state.delegated) {
       void run(`join-${selectedSide}-session`, () => joinViaSessionKey(signer, publicKey, { market: new PublicKey(marketAddr), side: selectedSide, amountLamports }), true);
       return;
@@ -147,9 +163,8 @@ export default function MarketDetailPage() {
         <div className="market-context"><span>{SOL(market.yesPool + market.noPool)} pool</span><span>{market.feeBps / 100}% fee · no house · peer-funded</span><span className="status-pill active">{market.status.replace("_", " ")}</span></div>
       </section>
 
+      <MarketMatchContext matchId={market.predicate.matchId} />
       <MarketWindow closesAt={market.closesAt} status={market.status} />
-      <MatchkeeperStatus marketPhase={market.status} compact />
-      <ProofPath status={market.status} />
 
       {canJoin && <section className="bet-slip" aria-label="Bet slip">
         <div className="bet-slip-head"><div><p className="eyebrow">Place your bet</p><h2>Choose a side.</h2></div><div className="slip-session"><span className={state.delegated ? "fast-badge active" : "fast-badge"}>{state.delegated ? "Fast on" : "Wallet sign"}</span>{state.delegated && <button type="button" onClick={onRevokeSession} disabled={busy !== null}>{busy === "revoke" ? "Revoking…" : "Revoke"}</button>}</div></div>
@@ -160,8 +175,9 @@ export default function MarketDetailPage() {
         </div>
         <div className="bet-slip-odds-history"><OddsSparkline marketId={market.id} currentYes={odds.yes} width={200} height={28} /></div>
         <div className="stake-row"><span>Stake</span><div className="stake-options">{stakePresets.map((amount) => <button type="button" className={amountSol === amount ? "selected" : ""} onClick={() => setAmountSol(amount)} key={amount}>{amount}</button>)}<label><input type="number" min="0.001" step="0.01" value={amountSol} onChange={(event) => setAmountSol(event.target.value)} aria-label="Custom stake in SOL" /> SOL</label></div></div>
-        <div className="slip-summary"><span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span><strong>{selectedSide && selectedOdds > 0 ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL projected` : "—"}</strong></div>
-        <button type="button" className={`place-action ${executionBusy ? "place-action-busy" : ""}`} disabled={busy !== null} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} bet` : "Choose YES or NO"}<span>→</span></button>
+        <div className="slip-summary"><span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span><strong>{selectedSide && selectedOdds > 0 ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL estimated return` : "—"}</strong></div>
+        <p className="stake-risk">At risk: {amountSol || "0"} SOL. You can lose your full stake. Estimated returns can move until your position confirms.</p>
+        <button type="button" className={`place-action ${executionBusy ? "place-action-busy" : ""}`} disabled={busy !== null || !selectedSide} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} bet` : "Choose YES or NO"}<span>→</span></button>
         {receipt?.viaSession ? (
           <div className="execution-hero">
             <div className="execution-hero-speed">
@@ -183,11 +199,32 @@ export default function MarketDetailPage() {
         )}
       </section>}
 
-      {canJoin && <ShareBar market={market} pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`} />}
+      {canJoin && !receipt && <ShareBar market={market} pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`} />}
+
+      {receipt && lockedCall && <CallCard
+        market={market}
+        side={lockedCall.side}
+        amountSol={lockedCall.amountSol}
+        probability={lockedCall.probability}
+        signingMs={receipt.signingMs}
+        pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`}
+      />}
+
+      <details className="market-trust-details">
+        <summary>How this market settles</summary>
+        <div><MatchkeeperStatus marketPhase={market.status} compact /><ProofPath status={market.status} /></div>
+      </details>
 
       {myPosition && <section className="position-panel"><div><p className="eyebrow">Your bet</p><h2>{myPosition.side.toUpperCase()} · {SOL(myPosition.amountLamports)}</h2></div><span className={myPosition.openedViaSessionKey ? "fast-badge active" : "fast-badge"}>{myPosition.openedViaSessionKey ? "Local sign" : "Wallet sign"}</span>{market.status === "settled" && <p className={isWinner ? "position-win" : "position-loss"}>{isWinner ? "You won! Claim your payout." : "This bet did not resolve in your favour."}</p>}{market.status === "void" && <p className="position-loss">Market voided. Claim a full refund.</p>}<Link className="position-match-link" href="/match">Back to match <span>→</span></Link>{canClaim && <button type="button" className="claim-action" disabled={busy !== null} onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>{busy === "claim" ? "Claiming…" : "Claim payout"}</button>}</section>}
 
-      <ProofPanel market={market} />
+      {market.status === "settled" && myPosition && <ResolutionCard
+        market={market}
+        position={myPosition}
+        isWinner={Boolean(isWinner)}
+        pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`}
+      />}
+
+      <div id="proof"><ProofPanel market={market} /></div>
       {error && <p className="market-error">{error}</p>}
     </main>
   );

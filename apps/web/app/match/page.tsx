@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market, type MatchEvent } from "@stoppage/sdk";
@@ -17,6 +18,7 @@ import { LiveMatchBar } from "@/components/LiveMatchBar";
 import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { SharpMoves } from "@/components/SharpMoves";
 import { OddsSparkline } from "@/components/OddsSparkline";
+import { MatchSignal } from "@/components/MatchSignal";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -26,11 +28,18 @@ interface LiveMatchSnapshot {
   stats: { corners: number; cards: number };
 }
 
+function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
+  if (!snapshot?.updatedAt) return false;
+  const timestamp = snapshot.updatedAt < 1_000_000_000_000 ? snapshot.updatedAt * 1_000 : snapshot.updatedAt;
+  return Date.now() - timestamp <= 45_000;
+}
+
 function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
 }
 
 export default function MatchPage() {
+  const searchParams = useSearchParams();
   const { markets } = useMarkets();
   useHeliusMonitor();
   useMyPositions();
@@ -41,7 +50,10 @@ export default function MatchPage() {
   const [snapshot, setSnapshot] = useState<LiveMatchSnapshot | null>(null);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const orderedMarkets = useMemo(() => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)), [markets]);
-  const selectedMatchId = orderedMarkets[0] ? String(orderedMarkets[0].predicate.matchId) : null;
+  const requestedMatchId = searchParams.get("match");
+  const selectedMatchId = requestedMatchId && orderedMarkets.some((market) => String(market.predicate.matchId) === requestedMatchId)
+    ? requestedMatchId
+    : orderedMarkets[0] ? String(orderedMarkets[0].predicate.matchId) : null;
   const fixture = useMemo(() => {
     if (selectedMatchId) return fixtures.find((item) => item.matchId === selectedMatchId) ?? null;
     return fixtures.find((item) => isLive(item)) ?? fixtures[0] ?? null;
@@ -108,6 +120,7 @@ export default function MatchPage() {
   }, [activity, events, selectedMatchId]);
 
   const live = isLive(fixture);
+  const fresh = snapshotIsFresh(snapshot);
   return (
     <main className="app-shell">
       <div className="match-room">
@@ -117,9 +130,9 @@ export default function MatchPage() {
         </header>
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
-          <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? "Live feed" : fixture ? "Fixture feed" : "Fixture mapping pending"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
+          <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Fixture feed" : "Fixture mapping pending"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
           <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
-          <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : "TxLINE connected"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context active"}</span></div>
+          <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Fixture context"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context pending"}</span></div>
           {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} />}
           <ReplayLauncher
             fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => b.StartTime.localeCompare(a.StartTime))}
@@ -127,6 +140,7 @@ export default function MatchPage() {
           />
         </section>
 
+        <MatchSignal markets={matchMarkets} />
         <SharpMoves />
 
         <section className="match-ownership" aria-label="Your match position">

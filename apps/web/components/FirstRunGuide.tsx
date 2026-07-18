@@ -41,7 +41,7 @@ export function FirstRunGuide({ marketHref = "/markets" }: FirstRunGuideProps) {
 
       <div className="session-envelope" aria-label="Fast Session limits">
         <span>Per position <strong>0.05 SOL</strong></span>
-        <span>Session fund <strong>0.10 SOL</strong></span>
+        <span>Session loss limit <strong>0.10 SOL</strong></span>
         <span>Expiry <strong>{state.expiresAt ? new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "6 hours"}</strong></span>
       </div>
 
@@ -50,7 +50,7 @@ export function FirstRunGuide({ marketHref = "/markets" }: FirstRunGuideProps) {
           <span>01</span><div><strong>Connect your wallet</strong><small>{publicKey ? "Wallet connected" : "This identifies your position."}</small></div>
         </li>
         <li className={state.delegated ? "complete" : publicKey ? "current" : ""}>
-          <span>02</span><div><strong>Enable Fast Session</strong><small>{state.delegated ? "Skip the popups." : "One approval. Pause it anytime."}</small></div>
+          <span>02</span><div><strong>Enable Fast Session</strong><small>{state.delegated ? "No popup within your chosen limit." : "One approval. 0.10 SOL maximum stake. Pause it anytime."}</small></div>
         </li>
         <li className={state.delegated ? "current" : ""}>
           <span>03</span><div><strong>Place your first bet</strong><small>Choose YES or NO on a live market.</small></div>

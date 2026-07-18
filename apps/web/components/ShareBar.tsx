@@ -41,7 +41,7 @@ export function ShareBar({ market, pageUrl }: ShareBarProps) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const blinkUrl = `${origin}/api/actions/${market.id}`;
 
-  const tweetText = buildMarketTweet(market, fullUrl, refTag);
+  const tweetText = buildMarketTweet(market, pageUrl, refTag);
   const tweetIntent = buildTweetIntent(tweetText);
 
   const copy = async (text: string, label: string) => {

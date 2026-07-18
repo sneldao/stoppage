@@ -35,7 +35,7 @@ export function buildMarketTweet(
   return [
     `⚽ ${label}`,
     `YES ${yesPct}% · NO ${noPct}% · ${poolSol} SOL pool`,
-    `Bet in-play on @stoppage — no wallet popup, instant settlement.`,
+    `Live call with proof-backed settlement on @stoppage.`,
     fullUrl,
   ].join("\n");
 }
@@ -73,13 +73,29 @@ export function buildBetSlipTweet(
   const fullUrl = ref ? `${url}?ref=${ref}` : url;
 
   const speedLine = signingMs !== undefined
-    ? `Signed in ${Math.round(signingMs)}ms. No popup.`
-    : "No popup. Just the bet.";
+    ? `Position signed in ${Math.round(signingMs)}ms.`
+    : "Position confirmed on Solana.";
 
   return [
-    `⚽ I bet ${side.toUpperCase()} on: ${label}`,
-    `${amountSol} SOL → ${projected} projected`,
-    speedLine,
+    `⚽ My call: ${side.toUpperCase()} — ${label}`,
+    `${amountSol} SOL at risk · ${projected} estimated return`,
+    signingMs !== undefined ? speedLine : "Position confirmed on Solana.",
     fullUrl,
+  ].join("\n");
+}
+
+/** Build a shareable result only for a completed, proof-backed call. */
+export function buildResolutionTweet(
+  market: Market,
+  side: "yes" | "no",
+  isWinner: boolean,
+  url: string
+): string {
+  const label = formatMarketQuestion(market.predicate);
+  return [
+    `⚽ ${isWinner ? "Called it" : "Result recorded"}: ${label}`,
+    `My call ${side.toUpperCase()} · outcome ${market.outcome.toUpperCase()}`,
+    "Proof-backed settlement on Stoppage.",
+    url,
   ].join("\n");
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { impliedProbability } from "@stoppage/sdk";
 import type { Market } from "@stoppage/sdk";
+import type { Fixture } from "@stoppage/txline";
 import { buildMarketTweet, buildTweetIntent } from "@/lib/share/tweet";
 import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
@@ -25,6 +26,7 @@ const tapeFilters = [
 ] as const;
 
 type TapeFilter = (typeof tapeFilters)[number]["id"];
+type FixtureWithMatchId = Fixture & { matchId: string };
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {
@@ -100,6 +102,16 @@ export default function MarketsPage() {
   useMyPositions();
   useHeliusMonitor();
   const [filter, setFilter] = useState<TapeFilter>("all");
+  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/fixtures")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Fixture feed unavailable")))
+      .then((data: { fixtures?: FixtureWithMatchId[] }) => { if (!cancelled) setFixtures(data.fixtures ?? []); })
+      .catch(() => { if (!cancelled) setFixtures([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   const sorted = useMemo(() => {
     const order: Record<Market["status"], number> = {
@@ -108,9 +120,10 @@ export default function MarketsPage() {
       settled: 2,
       void: 3,
     };
-    return Object.values(markets).sort(
-      (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9)
-    );
+    return Object.values(markets).sort((a, b) => {
+      const statusOrder = (order[a.status] ?? 9) - (order[b.status] ?? 9);
+      return statusOrder || a.closesAt.localeCompare(b.closesAt);
+    });
   }, [markets]);
 
   const visible = useMemo(
@@ -144,13 +157,8 @@ export default function MarketsPage() {
         </button>
       </div>
 
-      <div className="explorer-context">
-        <StatsPanel />
-        <ProofBoard markets={sorted} />
-      </div>
-
       <div className="tape-controls" aria-label="Market state filters">
-        <div><p className="eyebrow">Filter by match</p><span>{visible.length} visible</span></div>
+        <div><p className="eyebrow">Filter markets</p><span>{visible.length} visible</span></div>
         <div className="tape-filter-list">{tapeFilters.map((item) => <button type="button" key={item.id} className={filter === item.id ? "active" : ""} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
       </div>
 
@@ -163,14 +171,21 @@ export default function MarketsPage() {
         </div>
       ) : (
         <div className="explorer-list">
-          {byMatch.map(([matchId, matchMarkets]) => (
-            <section className="tape-match-group" key={matchId} aria-label={`Match ${matchId} markets`}>
-              <div className="tape-match-heading"><span>Match {matchId}</span><small>{matchMarkets.length} {matchMarkets.length === 1 ? "read" : "reads"}</small></div>
+          {byMatch.map(([matchId, matchMarkets]) => {
+            const fixture = fixtures.find((item) => item.matchId === matchId);
+            const label = fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : `Match ${matchId}`;
+            return <section className="tape-match-group" key={matchId} aria-label={`${label} markets`}>
+              <div className="tape-match-heading"><span>{label}</span><small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small></div>
               {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}
-            </section>
-          ))}
+            </section>;
+          })}
         </div>
       )}
+
+      <div className="explorer-context">
+        <StatsPanel />
+        <ProofBoard markets={sorted} />
+      </div>
 
       {/* Calendar is personal planning, separate from public proof state. */}
       <div className="explorer-sidecars">

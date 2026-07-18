@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { Market } from "@stoppage/sdk";
-import { buildSettlementProof, verifyProofLocally } from "@stoppage/sdk";
 
 interface ProofPanelProps {
   market: Market;
@@ -25,8 +24,8 @@ interface ProofResponse {
 type VerifyState =
   | { kind: "idle" }
   | { kind: "fetching" }
-  | { kind: "verifying"; data: ProofResponse }
-  | { kind: "valid"; data: ProofResponse }
+  | { kind: "checking"; data: ProofResponse }
+  | { kind: "receipt-checked"; data: ProofResponse }
   | { kind: "invalid"; data: ProofResponse; reason: string }
   | { kind: "error"; message: string };
 
@@ -95,53 +94,14 @@ export function ProofPanel({ market }: ProofPanelProps) {
         return;
       }
 
-      setVerify({ kind: "verifying", data });
+      setVerify({ kind: "checking", data });
 
-      // Build a SettlementProof from the on-chain event. The full Merkle
-      // path nodes (statProof, subTreeProof, mainTreeProof) are not
-      // stored on-chain — they were consumed by the on-chain CPI. We
-      // verify what's checkable from chain data: the anchored root
-      // shape, the outcome consistency, and the proof hash.
-      const proof = buildSettlementProof({
-        marketId: market.id,
-        matchId: market.predicate.matchId,
-        fixtureId: 0, // not in event; would come from TxLINE
-        seq: 0, // not in event; would come from TxLINE
-        timestamp: data.timestamp ?? 0,
-        statKey: 0, // not in event
-        statValue: 0, // not in event
-        outcome: (data.outcome as "yes" | "no" | "void"),
-        statement: data.statement,
-        eventStatRoot: data.merkleRoot,
-        subTreeRoot: data.merkleRoot,
-        anchoredRoot: data.merkleRoot,
-        statProof: [],
-        subTreeProof: [],
-        mainTreeProof: [],
-      });
-
-      // Without the proof path nodes, verifyProofLocally can't walk the
-      // Merkle path. We instead do the on-chain-consistency check that
-      // IS verifiable from event data: the outcome matches the market's
-      // settled outcome, the merkle root is a valid 32-byte hex, and the
-      // event was emitted by the settlement program.
+      // The settlement event stores the receipt, not the complete Merkle
+      // branch. Check only what the browser can prove from that receipt.
       const outcomeMatches = data.outcome === market.outcome;
       const merkleRootValid = /^[0-9a-f]{64}$/i.test(data.merkleRoot);
-      const isValid = outcomeMatches && merkleRootValid;
-
-      // Try the full verify anyway — it'll fail without path nodes, but
-      // we report the layered structure to the user.
-      let fullVerifyOk = false;
-      try {
-        fullVerifyOk = verifyProofLocally(proof);
-      } catch {
-        fullVerifyOk = false;
-      }
-
-      if (isValid && (fullVerifyOk || true)) {
-        // Event data is consistent. Full Merkle path isn't on-chain, so
-        // we mark this as "event verified" rather than overclaiming.
-        setVerify({ kind: "valid", data });
+      if (outcomeMatches && merkleRootValid) {
+        setVerify({ kind: "receipt-checked", data });
       } else if (!outcomeMatches) {
         setVerify({
           kind: "invalid",
@@ -167,15 +127,14 @@ export function ProofPanel({ market }: ProofPanelProps) {
     <section className="proof-panel">
       <div className="proof-panel-head">
         <div>
-          <p className="eyebrow">TxLINE verified</p>
-          <h2>Proof secured.</h2>
+          <p className="eyebrow">On-chain settlement</p>
+          <h2>Settlement recorded.</h2>
         </div>
-        <span className="proof-status verified">Verified</span>
+        <span className="proof-status verified">Receipt available</span>
       </div>
       <p>
-        Settlement is backed by a TxLINE Merkle proof, verified on-chain
-        via <code>validate_stat</code> CPI.
-        Verify it yourself without trusting Stoppage.
+        The program settled this market only after TxLINE proof validation on-chain.
+        This view checks the settlement receipt against the recorded outcome.
       </p>
 
       <div className="proof-details">
@@ -197,7 +156,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
 
       <div className="proof-action">
         <button onClick={onVerify} disabled={verify.kind === "fetching"}>
-          {verify.kind === "fetching" ? "Fetching…" : "Verify proof locally"}
+          {verify.kind === "fetching" ? "Fetching…" : "Check settlement receipt"}
         </button>
 
         {verify.kind === "fetching" && (
@@ -207,45 +166,35 @@ export function ProofPanel({ market }: ProofPanelProps) {
           </p>
         )}
 
-        {verify.kind === "verifying" && (
+        {verify.kind === "checking" && (
           <p className="proof-verifying">
             <span className="proof-verifying-spinner" />
-            Checking anchored root, outcome, and proof hash…
+            Checking the recorded outcome and anchored root…
           </p>
         )}
 
-        {verify.kind === "valid" && (
+        {verify.kind === "receipt-checked" && (
           <>
             <div className="proof-layers">
               <div className="proof-layer proof-layer-valid">
                 <span className="proof-layer-icon">✓</span>
                 <div>
-                  <div className="proof-layer-label">Stat proof</div>
+                  <div className="proof-layer-label">Settlement receipt</div>
                   <div className="proof-layer-desc">
-                    Leaf hash → event stat root
+                    Recorded outcome matches this market
                   </div>
                 </div>
-                <span className="proof-layer-status">Valid</span>
+                <span className="proof-layer-status">Checked</span>
               </div>
-              <div className="proof-layer proof-layer-valid">
-                <span className="proof-layer-icon">✓</span>
+              <div className="proof-layer proof-layer-pending">
+                <span className="proof-layer-icon">i</span>
                 <div>
-                  <div className="proof-layer-label">Subtree proof</div>
+                  <div className="proof-layer-label">Full Merkle branch</div>
                   <div className="proof-layer-desc">
-                    Fixture subtree → main tree node
+                    Not retained in this browser receipt
                   </div>
                 </div>
-                <span className="proof-layer-status">Valid</span>
-              </div>
-              <div className="proof-layer proof-layer-valid">
-                <span className="proof-layer-icon">✓</span>
-                <div>
-                  <div className="proof-layer-label">Main tree proof</div>
-                  <div className="proof-layer-desc">
-                    Main tree node → daily anchored root
-                  </div>
-                </div>
-                <span className="proof-layer-status">Valid</span>
+                <span className="proof-layer-status">Unavailable</span>
               </div>
             </div>
             <div className="proof-stat-detail">
@@ -260,8 +209,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
               {verify.data.merkleRoot}
             </p>
             <p className="proof-valid-msg">
-              ✓ On-chain MarketResolved event is consistent with the market&apos;s settled outcome.
-              The full Merkle path was verified on-chain via TxLINE&apos;s validate_stat CPI.
+              The recorded settlement receipt matches this market&apos;s outcome and contains a valid anchored root. Inspect the settlement transaction for the on-chain validation.
             </p>
           </>
         )}
@@ -289,7 +237,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
         )}
       </div>
 
-      {verify.kind === "valid" && verify.data.explorerUrl && (
+      {verify.kind === "receipt-checked" && verify.data.explorerUrl && (
         <a
           className="proof-explorer-link"
           href={verify.data.explorerUrl}
