@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market, type MatchEvent } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
@@ -38,7 +38,7 @@ function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
 }
 
-export default function MatchPage() {
+function MatchRoomContent() {
   const searchParams = useSearchParams();
   const { markets } = useMarkets();
   useHeliusMonitor();
@@ -162,5 +162,13 @@ export default function MatchPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function MatchPage() {
+  return (
+    <Suspense fallback={<main className="app-shell" />}>
+      <MatchRoomContent />
+    </Suspense>
   );
 }
