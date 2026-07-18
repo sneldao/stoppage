@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
   reactStrictMode: true,
   transpilePackages: ["@stoppage/sdk", "@stoppage/txline"],
   // Next 16 builds with Turbopack by default; an empty turbopack config

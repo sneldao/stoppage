@@ -32,6 +32,7 @@ import {
 import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
 import { createMatchEventLedger } from "./eventLedger";
+import { startEventHttpServer } from "./httpServer";
 
 async function main() {
   const mode = process.argv[2] ?? "replay";
@@ -109,6 +110,7 @@ async function main() {
 
   // Create the agent
   const ledger = createMatchEventLedger();
+  startEventHttpServer(ledger);
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
   const agent = new Agent({
     connection,

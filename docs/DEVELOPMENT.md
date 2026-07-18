@@ -57,35 +57,38 @@ npx tsx apps/agent/src/index.ts live --live-tx
 npx tsx scripts/subscribe-txline.ts
 ```
 
-## VPS deployment (nuncio-vultr)
+## Deployment
 
-The VPS uses the shared Coolify-managed Traefik network. The web app is a
-Docker container on that network; it publishes no host port. The autonomous
-agent is a PM2 process with no HTTP listener. This keeps the public surface to
-the HTTPS web app while letting Traefik manage TLS.
+The frontend (`apps/web`) is hosted on **Vercel** — `git push` to `main`
+automatically triggers a deploy. The autonomous agent (`apps/agent`) runs as a
+PM2 process on the VPS (`nuncio-vultr`). The agent now serves match events via
+an embedded HTTP server so the web app never needs shared filesystem access.
 
-Current devnet deployment:
+### Current devnet deployment
 
-- Public URL: `https://stoppage.sportwarren.com`
-- DNS: GoDaddy `A` record, host `stoppage`, value `144.202.117.160`
-- Web service: Docker Compose service `stoppage-web`
+- Public URL: `https://stoppage.sportwarren.com` (Vercel)
+- Agent API: `http://144.202.117.160:3001` (VPS, internal — Vercel serverless
+  functions reach it over the public internet)
 - Agent service: PM2 process `stoppage-agent`
 
-1. Clone the public repo to `/home/linuxuser/stoppage` and run `npm ci`.
-2. Copy `deploy/production-config.example` to `.env.production`, replace the
-   values, and choose a DNS name whose A/AAAA record already points to the VPS.
-3. Copy `deploy/agent-config.example` to `.env.agent`, set mode `600`, and place
+### Web app (Vercel)
+
+1. Push to `main` — Vercel auto-deploys from the GitHub integration.
+2. Set the following env vars in the Vercel dashboard (or `.env.production`):
+   - `NEXT_PUBLIC_APP_URL` — public domain
+   - `NEXT_PUBLIC_HELIUS_RPC_URL` — Helius RPC endpoint
+   - `TXLINE_NETWORK`, `TXLINE_JWT`, `TXLINE_API_TOKEN` — server-only TxLINE
+     credentials for the `/api/fixtures` proxy
+   - `AGENT_API_URL` — `http://144.202.117.160:3001`
+3. DNS: update the GoDaddy `A` record for `stoppage` to point to Vercel's edge
+   network (follow Vercel's provided DNS target after adding the domain).
+
+### Agent (VPS)
+
+1. Clone the repo to `/home/linuxuser/stoppage` and run `npm ci`.
+2. Copy `deploy/agent-config.example` to `.env.agent`, set mode `600`, and place
    a funded devnet-only agent keypair at the configured `SOLANA_KEYPAIR_PATH`.
-   Create `/home/linuxuser/stoppage/.runtime` with mode `755`; Matchkeeper owns
-   the append-only `match-events.ndjson` ledger there and the web container
-   mounts that directory read-only.
-4. Build and start the web app:
-
-   ```bash
-   docker compose --env-file .env.production -f deploy/docker-compose.vps.yml up -d --build
-   ```
-
-5. Start the keeper and persist PM2 state:
+3. Start the agent:
 
    ```bash
    set -a
@@ -95,8 +98,10 @@ Current devnet deployment:
    pm2 save
    ```
 
-6. Verify the public page, `pm2 logs stoppage-agent`, and a proof-gated
-   settlement transaction before recording the demo.
+   The agent starts an internal HTTP server on port 3001 serving `GET /events`
+   and `GET /health`. Port 3001 should allow inbound from Vercel's IP range.
+
+4. Verify with `pm2 logs stoppage-agent` and check `GET /health`.
 
 `TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
 runtime. The legacy `.txline-credentials.json` file remains supported for
