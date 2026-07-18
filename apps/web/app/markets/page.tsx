@@ -28,10 +28,10 @@ type TapeFilter = (typeof tapeFilters)[number]["id"];
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {
-    open: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
-    awaiting_settlement: "text-amber-400 border-amber-500/30 bg-amber-500/5",
-    settled: "text-neutral-400 border-neutral-500/30 bg-neutral-500/5",
-    void: "text-red-400 border-red-500/30 bg-red-500/5",
+    open: "status-open",
+    awaiting_settlement: "status-settling",
+    settled: "status-settled",
+    void: "status-void",
   };
   return map[status] ?? map.open;
 }
@@ -86,7 +86,6 @@ function MarketRow({ market }: { market: Market }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => recordShare()}
-            className="text-xs text-neutral-500 transition hover:text-neutral-300"
           >
             Share on X →
           </a>
@@ -133,9 +132,9 @@ export default function MarketsPage() {
       <div className="market-explorer">
       <div className="explorer-heading">
         <div>
-          <p className="eyebrow">Market tape</p>
-          <h1>Every read in play.</h1>
-          <p>Peer-funded match positions with outcomes locked to the TxLINE proof path.</p>
+          <p className="eyebrow">Markets</p>
+          <h1>Every bet in play.</h1>
+          <p>Peer-funded positions with outcomes locked to the TxLINE proof path.</p>
         </div>
         <button
           onClick={() => void refresh()}
@@ -151,14 +150,14 @@ export default function MarketsPage() {
       </div>
 
       <div className="tape-controls" aria-label="Market state filters">
-        <div><p className="eyebrow">Read by match</p><span>{visible.length} visible</span></div>
+        <div><p className="eyebrow">Filter by match</p><span>{visible.length} visible</span></div>
         <div className="tape-filter-list">{tapeFilters.map((item) => <button type="button" key={item.id} className={filter === item.id ? "active" : ""} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
       </div>
 
       {visible.length === 0 ? (
         <div className="explorer-empty">
           <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
-          <p className="mt-1 text-xs">
+          <p className="explorer-empty-hint">
             {sorted.length === 0 ? "Markets appear here when Matchkeeper publishes an eligible read." : "Try another market state to return to the full tape."}
           </p>
         </div>

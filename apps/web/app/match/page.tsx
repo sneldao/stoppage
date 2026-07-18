@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { impliedProbability, PREDICATE_LABEL, type Market, type MatchEvent } from "@stoppage/sdk";
+import { impliedProbability, type Market, type MatchEvent } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
@@ -12,7 +12,7 @@ import { useStoppageStore } from "@/store";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
-import { formatSol as SOL } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -24,12 +24,6 @@ interface LiveMatchSnapshot {
 
 function isLive(fixture: Fixture | null) {
   return fixture?.GameState === 2 || fixture?.GameState === 4;
-}
-
-function question(market: Market) {
-  const value = market.predicate.params.windowSeconds ?? market.predicate.params.threshold ?? "";
-  const team = market.predicate.params.team ? ` for ${market.predicate.params.team}` : "";
-  return `${PREDICATE_LABEL[market.predicate.kind] ?? market.predicate.kind} ${value}${team}`;
 }
 
 export default function MatchPage() {
@@ -114,8 +108,8 @@ export default function MatchPage() {
     <main className="app-shell">
       <div className="match-room">
         <header className="match-room-header">
-          <div><p className="eyebrow">Match control room</p><h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match context"}</h1></div>
-          <Link href="/markets" className="explorer-back">Market tape <span>→</span></Link>
+          <div><p className="eyebrow">Match</p><h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1></div>
+          <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>
         </header>
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
@@ -125,16 +119,16 @@ export default function MatchPage() {
         </section>
 
         <section className="match-ownership" aria-label="Your match position">
-          <div><p className="eyebrow">Your match context</p><h2>{ownedPositions.length ? `${ownedPositions.length} open ${ownedPositions.length === 1 ? "read" : "reads"}` : "No open read yet."}</h2></div>
-          {ownedPositions.length ? <div className="ownership-list">{ownedPositions.map((position) => <Link href={`/markets/${position.marketId}`} key={position.marketId}><strong>{position.side.toUpperCase()} · {SOL(position.amountLamports)}</strong><span>{position.openedViaSessionKey ? "Fast Session" : "Wallet signed"} →</span></Link>)}</div> : <Link className="ownership-action" href={matchMarkets[0] ? `/markets/${matchMarkets[0].id}` : "/markets"}>Choose a live read <span>→</span></Link>}
+          <div><p className="eyebrow">Your positions</p><h2>{ownedPositions.length ? `${ownedPositions.length} open ${ownedPositions.length === 1 ? "bet" : "bets"}` : "No bets yet."}</h2></div>
+          {ownedPositions.length ? <div className="ownership-list">{ownedPositions.map((position) => <Link href={`/markets/${position.marketId}`} key={position.marketId}><strong>{position.side.toUpperCase()} · {SOL(position.amountLamports)}</strong><span>{position.openedViaSessionKey ? "Fast Session" : "Wallet signed"} →</span></Link>)}</div> : <Link className="ownership-action" href={matchMarkets[0] ? `/markets/${matchMarkets[0].id}` : "/markets"}>Place a bet <span>→</span></Link>}
         </section>
 
         <section className="match-live-reads" aria-labelledby="match-live-reads-title">
-          <div className="section-heading"><div><p className="eyebrow">Live reads</p><h2 id="match-live-reads-title">Markets inside this match.</h2></div><span>{matchMarkets.length} active context</span></div>
+          <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2 id="match-live-reads-title">Markets for this match.</h2></div><span>{matchMarkets.length} active</span></div>
           {matchMarkets.length ? <div className="match-market-list">{matchMarkets.map((market) => {
             const odds = impliedProbability(market);
-            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}</span><strong>{question(market)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
-          })}</div> : <div className="match-room-empty">Matchkeeper will publish eligible reads here when the verified match context supports one.</div>}
+            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
+          })}</div> : <div className="match-room-empty">Markets will appear here when the match context supports them.</div>}
         </section>
 
         <div className="match-proof-grid">

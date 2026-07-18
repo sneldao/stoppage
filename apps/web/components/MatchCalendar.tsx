@@ -33,18 +33,18 @@ export function MatchCalendar() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <h2 className="text-sm font-medium text-neutral-400">Upcoming matches</h2>
-        <p className="mt-2 text-xs text-neutral-600">Loading fixtures…</p>
+      <div className="match-calendar">
+        <h2>Upcoming matches</h2>
+        <p className="cal-meta">Loading fixtures…</p>
       </div>
     );
   }
 
   if (error || fixtures.length === 0) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <h2 className="text-sm font-medium text-neutral-400">Upcoming matches</h2>
-        <p className="mt-2 text-xs text-neutral-600">
+      <div className="match-calendar">
+        <h2>Upcoming matches</h2>
+        <p className="cal-meta">
           {error ? `Failed to load: ${error}` : "No upcoming fixtures."}
         </p>
       </div>
@@ -52,35 +52,32 @@ export function MatchCalendar() {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <h2 className="text-sm font-medium text-neutral-400">Upcoming matches</h2>
-      <div className="mt-3 space-y-2">
+    <div className="match-calendar">
+      <h2>Upcoming matches</h2>
+      <div>
         {fixtures.slice(0, 8).map((f) => {
           const startTime = new Date(f.StartTime);
           const isLive = f.GameState === 2;
           const isPast = startTime < new Date();
 
           return (
-            <div
-              key={f.FixtureId}
-              className="flex items-center justify-between rounded-lg border border-white/5 px-3 py-2 text-xs"
-            >
+            <div key={f.FixtureId} className="cal-fixture">
               <div className="min-w-0">
-                <p className="truncate font-medium">
+                <p className="cal-teams">
                   {f.Participant1} vs {f.Participant2}
                 </p>
-                <p className="text-neutral-600">
+                <p className="cal-meta">
                   {f.Country} · {startTime.toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}
                 </p>
               </div>
               {isLive ? (
-                <span className="shrink-0 rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-400">
+                <span className="cal-live shrink-0">
                   LIVE
                 </span>
               ) : isPast ? (
-                <span className="shrink-0 text-neutral-700">FT</span>
+                <span className="cal-past shrink-0">FT</span>
               ) : (
-                <span className="shrink-0 text-neutral-600">upcoming</span>
+                <span className="cal-upcoming shrink-0">upcoming</span>
               )}
             </div>
           );

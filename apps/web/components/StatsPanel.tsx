@@ -19,17 +19,17 @@ export function StatsPanel() {
 
   if (history.length === 0) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <h2 className="text-sm font-medium text-neutral-400">My form</h2>
-        <p className="mt-2 text-xs text-neutral-600">
+      <div className="stats-panel">
+        <h2>My form</h2>
+        <p className="stats-volume">
           No settled positions on this device yet. Form is personal; public proof lives on the protocol board.
         </p>
       </div>
     );
   }
 
-  const pnlColor = stats.totalPnlLamports > 0 ? "text-emerald-400"
-    : stats.totalPnlLamports < 0 ? "text-red-400" : "text-neutral-400";
+  const pnlColor = stats.totalPnlLamports > 0 ? "stats-pnl-pos"
+    : stats.totalPnlLamports < 0 ? "stats-pnl-neg" : "";
 
   const streakLabel = stats.currentStreak > 0
     ? `${stats.currentStreak}W streak`
@@ -38,33 +38,33 @@ export function StatsPanel() {
     : "—";
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <h2 className="text-sm font-medium text-neutral-400">My form</h2>
-      <div className="mt-3 grid grid-cols-3 gap-3 text-sm sm:grid-cols-4">
+    <div className="stats-panel">
+      <h2>My form</h2>
+      <div className="stats-grid">
         <div>
-          <p className="text-xs text-neutral-600">Bets</p>
-          <p className="font-medium">{stats.totalBets}</p>
+          <p className="stats-label">Bets</p>
+          <p className="stats-value">{stats.totalBets}</p>
         </div>
         <div>
-          <p className="text-xs text-neutral-600">Form</p>
-          <p className="font-medium">
-            <span className="text-emerald-400">{stats.wins}</span>
+          <p className="stats-label">Form</p>
+          <p className="stats-value">
+            <span className="stats-win">{stats.wins}</span>
             {" / "}
-            <span className="text-red-400">{stats.losses}</span>
+            <span className="stats-loss">{stats.losses}</span>
           </p>
         </div>
         <div>
-          <p className="text-xs text-neutral-600">PnL</p>
-          <p className={`font-medium ${pnlColor}`}>
+          <p className="stats-label">PnL</p>
+          <p className={`stats-value ${pnlColor}`}>
             {stats.totalPnlLamports >= 0 ? "+" : ""}{SOL(stats.totalPnlLamports)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-neutral-600">Streak</p>
-          <p className="font-medium">{streakLabel}</p>
+          <p className="stats-label">Streak</p>
+          <p className="stats-value">{streakLabel}</p>
         </div>
       </div>
-      <div className="mt-2 text-xs text-neutral-600">
+      <div className="stats-volume">
         Volume: {SOL(stats.totalVolumeLamports)}
         {stats.voids > 0 && ` · ${stats.voids} voided`}
         {publicKey && ` · ${publicKey.toBase58().slice(0, 8)}…`}

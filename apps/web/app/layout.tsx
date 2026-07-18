@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://stoppage.sportwarren.com"),
   applicationName: "Stoppage",
   title: {
-    default: "Stoppage — markets that live inside the match",
+    default: "Stoppage — bet the next moment",
     template: "%s — Stoppage",
   },
   description:
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     type: "website",
     url: "https://stoppage.sportwarren.com",
     siteName: "Stoppage",
-    title: "Stoppage — markets that live inside the match",
+    title: "Stoppage — bet the next moment",
     description:
       "Session-key betting, TxLINE Merkle proofs, and proof-gated Solana settlement for in-play sports micro-markets.",
     images: [
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stoppage — markets that live inside the match",
+    title: "Stoppage — bet the next moment",
     description:
       "Session-key betting, TxLINE proofs, and verifiable Solana settlement for in-play sports micro-markets.",
     images: ["/og-image.png"],

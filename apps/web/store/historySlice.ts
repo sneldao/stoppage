@@ -19,6 +19,8 @@ export interface SettledPosition {
   payoutLamports: number;
   settledAt: number;
   label: string;
+  /** Signing speed in ms — used for the speed hero display. */
+  signingMs?: number;
 }
 
 export interface HistorySlice {
@@ -26,6 +28,9 @@ export interface HistorySlice {
   addSettledPosition: (pos: SettledPosition) => void;
   clearHistory: () => void;
   initHistory: () => void;
+  /** Most recent signing speed (ms) — used by the execution strip speed stat. */
+  lastSigningMs: number | null;
+  setLastSigningMs: (ms: number) => void;
 }
 
 function loadHistory(): SettledPosition[] {
@@ -52,6 +57,7 @@ export const createHistorySlice: StateCreator<
   HistorySlice
 > = (set) => ({
   history: [],
+  lastSigningMs: null,
   addSettledPosition: (pos) =>
     set((state) => {
       // Avoid duplicates — same market + owner
@@ -62,6 +68,7 @@ export const createHistorySlice: StateCreator<
       saveHistory(history);
       return { history };
     }),
+  setLastSigningMs: (ms) => set({ lastSigningMs: ms }),
   clearHistory: () => {
     saveHistory([]);
     set({ history: [] });

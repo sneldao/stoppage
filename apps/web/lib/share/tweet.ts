@@ -7,6 +7,7 @@
 
 import type { Market } from "@stoppage/sdk";
 import { impliedProbability, PREDICATE_LABEL } from "@stoppage/sdk";
+import { formatMarketQuestion } from "@/lib/format";
 
 /**
  * Build a tweet-friendly string for a market.
@@ -44,4 +45,41 @@ export function buildMarketTweet(
  */
 export function buildTweetIntent(text: string): string {
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Build a tweet for sharing a placed bet (not just the market).
+ * Includes the session-key speed stat as the viral hook.
+ *
+ * @param market - The on-chain market
+ * @param side - Which side was bet
+ * @param amountSol - Stake amount in SOL
+ * @param signingMs - Signing speed in milliseconds (optional — only for session-key bets)
+ * @param url - The share URL
+ * @param ref - Optional referral tag
+ */
+export function buildBetSlipTweet(
+  market: Market,
+  side: "yes" | "no",
+  amountSol: string,
+  signingMs: number | undefined,
+  url: string,
+  ref?: string
+): string {
+  const odds = impliedProbability(market);
+  const label = formatMarketQuestion(market.predicate);
+  const sideOdds = side === "yes" ? odds.yes : odds.no;
+  const projected = sideOdds > 0 ? `${(parseFloat(amountSol) / sideOdds).toFixed(2)} SOL` : "—";
+  const fullUrl = ref ? `${url}?ref=${ref}` : url;
+
+  const speedLine = signingMs !== undefined
+    ? `Signed in ${Math.round(signingMs)}ms. No popup.`
+    : "No popup. Just the bet.";
+
+  return [
+    `⚽ I bet ${side.toUpperCase()} on: ${label}`,
+    `${amountSol} SOL → ${projected} projected`,
+    speedLine,
+    fullUrl,
+  ].join("\n");
 }

@@ -11,9 +11,9 @@ const WalletMultiButton = dynamic(
 );
 
 const routes = [
-  { href: "/", label: "Match desk" },
-  { href: "/match", label: "Match room" },
-  { href: "/markets", label: "Market tape" },
+  { href: "/", label: "Live" },
+  { href: "/match", label: "Match" },
+  { href: "/markets", label: "Markets" },
 ];
 
 export function InstrumentNav() {

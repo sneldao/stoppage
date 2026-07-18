@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import type { Market } from "@stoppage/sdk";
+import { impliedProbability, type Market } from "@stoppage/sdk";
 import { buildMarketTweet, buildTweetIntent } from "@/lib/share/tweet";
+import { formatMarketQuestion } from "@/lib/format";
 import { useStoppageStore } from "@/store";
 
 interface ShareBarProps {
@@ -13,16 +14,21 @@ interface ShareBarProps {
 }
 
 /**
- * Share bar — X/Twitter share, copy Blink URL, copy direct link.
+ * Share bar — X/Twitter share, copy Blink URL, copy direct link,
+ * and a visual preview of how the Blink renders in X/wallet clients.
  *
  * Generates a tweet with market odds + pool size, appends the user's
  * wallet as a referral tag, and tracks the share in the referral slice.
+ * The Blink preview is a pure client-side mockup using data already
+ * available as props — no API call needed because the GET response
+ * format is known from app/api/actions/[market]/route.ts.
  */
 export function ShareBar({ market, pageUrl }: ShareBarProps) {
   const { publicKey } = useWallet();
   const recordShare = useStoppageStore((s) => s.recordShare);
   const referrer = useStoppageStore((s) => s.referrer);
   const [copied, setCopied] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // The ref tag is the user's wallet (if connected), or the person who
   // referred them (so the chain continues). This is attribution, not
@@ -49,29 +55,60 @@ export function ShareBar({ market, pageUrl }: ShareBarProps) {
     }
   };
 
+  const odds = impliedProbability(market);
+  const yesPct = Math.round(odds.yes * 100);
+  const noPct = Math.round(odds.no * 100);
+  const poolSol = ((market.yesPool + market.noPool) / 1e9).toFixed(2);
+  const title = formatMarketQuestion(market.predicate);
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <a
-        href={tweetIntent}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => recordShare()}
-        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-neutral-300 transition hover:bg-white/[0.08] hover:text-white"
-      >
-        Share on X
-      </a>
-      <button
-        onClick={() => copy(blinkUrl, "blink")}
-        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-neutral-300 transition hover:bg-white/[0.08] hover:text-white"
-      >
-        {copied === "blink" ? "Copied!" : "Copy Blink URL"}
-      </button>
-      <button
-        onClick={() => copy(fullUrl, "link")}
-        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-neutral-300 transition hover:bg-white/[0.08] hover:text-white"
-      >
-        {copied === "link" ? "Copied!" : "Copy link"}
-      </button>
+    <div className="share-bar-wrap">
+      <div className="share-bar">
+        <a
+          href={tweetIntent}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => recordShare()}
+        >
+          Share on X
+        </a>
+        <button onClick={() => copy(blinkUrl, "blink")}>
+          {copied === "blink" ? "Copied!" : "Copy Blink URL"}
+        </button>
+        <button onClick={() => copy(fullUrl, "link")}>
+          {copied === "link" ? "Copied!" : "Copy link"}
+        </button>
+        <button
+          onClick={() => setShowPreview((v) => !v)}
+          aria-expanded={showPreview}
+          className={showPreview ? "active" : ""}
+        >
+          {showPreview ? "Hide preview" : "Preview Blink"}
+        </button>
+      </div>
+
+      {showPreview && (
+        <div className="blink-preview" aria-label="Blink preview">
+          <p className="blink-preview-label">How this market looks in X / wallet clients</p>
+          <div className="blink-preview-head">
+            <div className="blink-preview-icon">⚽</div>
+            <div>
+              <p className="blink-preview-title">{title}</p>
+              <p className="blink-preview-desc">
+                YES {yesPct}% · NO {noPct}% · {poolSol} SOL pool
+              </p>
+            </div>
+          </div>
+          <div className="blink-preview-actions">
+            <span>Back YES · 0.05 SOL</span>
+            <span>Back NO · 0.05 SOL</span>
+          </div>
+          <p className="blink-preview-hint">
+            Tapping an action opens the bet slip. One-tap join on compatible
+            wallets; others open the market page.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

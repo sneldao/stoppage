@@ -17,9 +17,9 @@ export function PositionHistory() {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <h2 className="text-sm font-medium text-neutral-400">Bet history</h2>
-      <div className="mt-3 space-y-2">
+    <div className="position-history">
+      <h2>Bet history</h2>
+      <div>
         {history.slice(0, 10).map((pos, i) => {
           const isWin = pos.outcome !== "void" && pos.side === pos.outcome;
           const pnl = pos.outcome === "void"
@@ -27,23 +27,23 @@ export function PositionHistory() {
             : isWin
             ? pos.payoutLamports - pos.amountLamports
             : -pos.amountLamports;
-          const pnlColor = pnl > 0 ? "text-emerald-400"
-            : pnl < 0 ? "text-red-400" : "text-neutral-400";
+          const pnlClass = pnl > 0 ? "ph-pnl-pos"
+            : pnl < 0 ? "ph-pnl-neg" : "";
 
           return (
             <div
               key={`${pos.marketId}-${pos.owner}-${i}`}
-              className="flex items-center justify-between rounded-lg border border-white/5 px-3 py-2 text-xs"
+              className="ph-entry"
             >
               <div className="min-w-0">
-                <p className="truncate font-medium">{pos.label}</p>
-                <p className="text-neutral-600">
+                <p className="ph-label">{pos.label}</p>
+                <p className="ph-meta">
                   {pos.side.toUpperCase()} · {pos.outcome.toUpperCase()}
                   {" · "}
                   {new Date(pos.settledAt).toLocaleDateString()}
                 </p>
               </div>
-              <span className={`shrink-0 font-medium ${pnlColor}`}>
+              <span className={`shrink-0 ${pnlClass}`}>
                 {pnl >= 0 ? "+" : ""}{SOL(pnl)}
               </span>
             </div>
