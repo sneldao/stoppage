@@ -109,8 +109,7 @@ or descoped, it's recorded here and nowhere else.
   populate the public board, record the M1 acceptance capture (delegate ->
   close wallet -> ping -> no-popup clip), record the deployed app + TxLINE
   fixture/API walkthrough, publish the demo video, confirm the public GitHub
-  repository visibility, add the missing public Blink icon asset, and complete
-  the submission writeup/feedback.
+  repository visibility, and complete the submission writeup/feedback.
 
 ## Milestones
 
@@ -247,10 +246,10 @@ during M1/M2.
 - [x] Judge-accessible deployed web app:
       `https://stoppage.sportwarren.com`.
 - [x] Push repo to remote GitHub (`sneldao/stoppage`).
-- [ ] Confirm GitHub repository visibility is public from an incognito/non-owner
+- [x] Confirm GitHub repository visibility is public from an incognito/non-owner
       session.
-- [ ] Add public app icon for Blinks (`/icon-512x512.png`) before recording
-      the share flow.
+- [x] Public app icon for Blinks is present and referenced
+      (`/icon-512x512.png`, 512x512 PNG).
 
 ## Icebox (explicitly not now)
 

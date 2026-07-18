@@ -7,3 +7,6 @@ STOPPAGE_DOMAIN=stoppage.example.com
 TXLINE_NETWORK=devnet
 TXLINE_JWT=replace-me
 TXLINE_API_TOKEN=replace-me
+
+# Optional server-only RPC key for public board scans.
+SHYFT_API_KEY=replace-me
