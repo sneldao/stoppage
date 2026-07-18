@@ -1,118 +1,190 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { impliedProbability, PREDICATE_LABEL, type Market } from "@stoppage/sdk";
+import type { Fixture } from "@stoppage/txline";
+import { useMarkets } from "@/lib/markets/useMarkets";
+import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { formatSol as SOL } from "@/lib/format";
 
-// SSR-safe wallet button — Phantom injects its icon on the client only,
-// which causes a hydration mismatch if rendered during SSR.
 const WalletMultiButton = dynamic(
   () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
-  { ssr: false, loading: () => <div className="h-10 w-40" /> }
+  { ssr: false, loading: () => <div className="h-10 w-32" /> }
 );
 
-export default function Home() {
-  const { state, delegate, ping, revoke, isSessionValid } = useSessionKey();
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pingSig, setPingSig] = useState<string | null>(null);
+function marketQuestion(market: Market) {
+  const predicate = market.predicate;
+  const param = predicate.params.windowSeconds ?? predicate.params.threshold ?? "";
+  const team = predicate.params.team ? ` for ${predicate.params.team}` : "";
+  return `${PREDICATE_LABEL[predicate.kind] ?? predicate.kind} ${param}${team}`;
+}
 
-  const run = async (label: string, fn: () => Promise<string>) => {
-    setBusy(label);
-    setError(null);
+function MatchState({ fixture }: { fixture: Fixture | null }) {
+  if (!fixture) {
+    return (
+      <div className="match-state match-state-empty">
+        <span className="live-dot" />
+        <span>Waiting for TxLINE fixture feed</span>
+      </div>
+    );
+  }
+
+  const live = fixture.GameState === 2 || fixture.GameState === 4;
+  const start = new Date(fixture.StartTime);
+  return (
+    <div className="match-state">
+      <span className={live ? "live-dot" : "schedule-dot"} />
+      <span>{live ? "Live on TxLINE" : start.toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+      <span className="match-state-divider" />
+      <span>{live ? "in-play feed connected" : start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+    </div>
+  );
+}
+
+function FeaturedMarket({ market }: { market: Market | null }) {
+  if (!market) {
+    return (
+      <div className="featured-market featured-market-empty">
+        <p className="eyebrow">Market engine</p>
+        <h2>Markets open as the match moves.</h2>
+        <p>The autonomous agent is connected to the TxLINE score stream and will publish match-triggered markets here.</p>
+        <Link className="quiet-link" href="/markets">See market status</Link>
+      </div>
+    );
+  }
+
+  const odds = impliedProbability(market);
+  const pool = market.yesPool + market.noPool;
+  return (
+    <article className="featured-market">
+      <div className="market-kicker">
+        <span className="live-label"><span /> Live market</span>
+        <span>{SOL(pool)} pool</span>
+      </div>
+      <h2>{marketQuestion(market)}</h2>
+      <p className="market-meta">Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · TxLINE-backed settlement</p>
+      <div className="odds-track" aria-label={`Yes ${Math.round(odds.yes * 100)} percent, no ${Math.round(odds.no * 100)} percent`}>
+        <div className="odds-yes" style={{ width: `${odds.yes * 100}%` }} />
+      </div>
+      <div className="odds-labels">
+        <span>YES <strong>{Math.round(odds.yes * 100)}%</strong></span>
+        <span>NO <strong>{Math.round(odds.no * 100)}%</strong></span>
+      </div>
+      <Link className="primary-action" href={`/markets/${market.id}`}>Open market <span aria-hidden="true">→</span></Link>
+    </article>
+  );
+}
+
+export default function Home() {
+  const { markets } = useMarkets();
+  useHeliusMonitor();
+  const { publicKey } = useWallet();
+  const { state, delegate, revoke } = useSessionKey();
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [busy, setBusy] = useState<"delegate" | "revoke" | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/fixtures")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Fixture feed unavailable"))))
+      .then((data) => { if (!cancelled) setFixtures(data.fixtures ?? []); })
+      .catch(() => { if (!cancelled) setFixtures([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const featuredMarket = useMemo(
+    () => Object.values(markets).find((market) => market.status === "open") ?? null,
+    [markets]
+  );
+  const featuredFixture = useMemo(
+    () => fixtures.find((fixture) => fixture.GameState === 2 || fixture.GameState === 4) ?? fixtures[0] ?? null,
+    [fixtures]
+  );
+  const otherMarkets = useMemo(
+    () => Object.values(markets).filter((market) => market.id !== featuredMarket?.id).slice(0, 3),
+    [markets, featuredMarket]
+  );
+
+  const runSession = async (action: "delegate" | "revoke") => {
+    setBusy(action);
+    setSessionError(null);
     try {
-      const sig = await fn();
-      if (label === "ping") setPingSig(sig);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      await (action === "delegate" ? delegate() : revoke());
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : "Session action failed");
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 p-4 sm:p-8">
-      <h1 className="text-4xl font-bold tracking-tight">Stoppage</h1>
-      <p className="max-w-md text-center text-neutral-400">
-        Markets that live inside the match, not around it. In-play
-        micro-markets with one-tap session-key betting and verifiable
-        settlement.
-      </p>
+    <main className="app-shell">
+      <header className="app-nav">
+        <Link href="/" className="wordmark" aria-label="Stoppage home">STOPPAGE<span>.</span></Link>
+        <div className="nav-center"><span className="live-dot" /> World Cup markets</div>
+        <div className="nav-wallet"><WalletMultiButton /></div>
+      </header>
 
-      <WalletMultiButton />
+      <section className="command-center">
+        <div className="pitch-atmosphere" aria-hidden="true"><span className="pitch-circle" /><span className="pitch-line" /></div>
+        <div className="command-copy page-enter">
+          <p className="eyebrow">The match is the market</p>
+          <h1>Make your read<br />before the next moment.</h1>
+          <p className="lede">Fast, small markets created from the match as it happens. Every resolution is anchored to TxLINE data on Solana.</p>
+          <MatchState fixture={featuredFixture} />
+        </div>
 
-      <Link
-        href="/markets"
-        className="rounded-lg border border-white/20 px-4 py-2 text-center text-sm hover:bg-white/5"
-      >
-        Browse markets →
-      </Link>
+        <div className="match-board page-enter page-enter-delay-1">
+          <div className="match-board-top">
+            <span>{featuredFixture?.Country ?? "World Cup"}</span>
+            <span>{featuredFixture ? `Fixture ${featuredFixture.FixtureId}` : "TxLINE stream"}</span>
+          </div>
+          <div className="teams-row">
+            <div><span className="team-mark">H</span><strong>{featuredFixture?.Participant1 ?? "Next home team"}</strong></div>
+            <div className="match-clock">{featuredFixture && (featuredFixture.GameState === 2 || featuredFixture.GameState === 4) ? "LIVE" : "NEXT"}</div>
+            <div><strong>{featuredFixture?.Participant2 ?? "Next away team"}</strong><span className="team-mark">A</span></div>
+          </div>
+          <div className="match-board-foot"><span>Direct feed</span><span>TxLINE signed data</span></div>
+        </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-3">
-        <button
-          onClick={() => run("delegate", delegate)}
-          disabled={busy !== null}
-          className="rounded-lg bg-white px-4 py-2 font-medium text-black disabled:opacity-40"
-        >
-          {busy === "delegate" ? "Delegating…" : "Delegate session key (one popup)"}
-        </button>
+        <div className="featured-wrap page-enter page-enter-delay-2"><FeaturedMarket market={featuredMarket} /></div>
+      </section>
 
-        <button
-          onClick={() => run("ping", ping)}
-          disabled={busy !== null || !isSessionValid()}
-          className="rounded-lg border border-white/20 px-4 py-2 font-medium disabled:opacity-40"
-        >
-          {busy === "ping" ? "Pinging…" : "Ping with session key (no popup)"}
-        </button>
+      <section className="signal-strip">
+        <span><i /> Data stream online</span>
+        <span>Markets settle against verifiable score proofs</span>
+        <span>Devnet · Solana</span>
+      </section>
 
-        <button
-          onClick={() => run("revoke", revoke)}
-          disabled={busy !== null || !state.keypair}
-          className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-400 disabled:opacity-40"
-        >
-          {busy === "revoke" ? "Revoking…" : "Revoke — stop betting for this match"}
-        </button>
-      </div>
-
-      <div className="w-full max-w-sm text-sm">
-        {state.delegated && (
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-            <p className="text-emerald-400">
-              Session key delegated. The ping button sends a tx signed by
-              the session key alone — close your wallet extension and try
-              it.
-            </p>
-            <div className="mt-2 text-xs text-neutral-500">
-              <p>Funded: {SOL(100_000_000)} — the session key can only spend this</p>
-              <p>Suggested limit: {SOL(100_000_000)} cumulative (opt-out available)</p>
-              <p>Per-market cap: {SOL(50_000_000)}</p>
-              <p>Session expires: auto at match end</p>
+      <section className="lower-grid">
+        <div className="market-rail">
+          <div className="section-heading"><div><p className="eyebrow">In play</p><h2>More live reads</h2></div><Link href="/markets">All markets <span>→</span></Link></div>
+          {otherMarkets.length > 0 ? (
+            <div className="market-list">
+              {otherMarkets.map((market) => {
+                const odds = impliedProbability(market);
+                return <Link className="market-signal" href={`/markets/${market.id}`} key={market.id}><div><span className="market-signal-kind">{PREDICATE_LABEL[market.predicate.kind] ?? market.predicate.kind}</span><strong>{marketQuestion(market)}</strong></div><div className="market-signal-odds"><b>{Math.round(odds.yes * 100)}%</b><span>YES</span></div></Link>;
+              })}
             </div>
-          </div>
-        )}
-        {pingSig && (
-          <p className="mt-2 break-all text-neutral-500">
-            Ping landed: <code className="text-neutral-300">{pingSig}</code>
-          </p>
-        )}
-        {error && <p className="mt-2 text-red-400">{error}</p>}
-        {!state.delegated && !error && (
-          <div className="text-neutral-600">
-            <p>
-              M1 flow: delegate once, then ping with the wallet closed.
-              Market list and betting land in M2.
-            </p>
-            <p className="mt-2 text-xs">
-              You set the boundaries: fund the session key with what
-              you're willing to spend, optionally set a self-imposed cap,
-              and one-tap self-exclude anytime. Your choice, your
-              consequences.
-            </p>
-          </div>
-        )}
-      </div>
+          ) : <div className="empty-rail">The agent publishes new reads as the feed changes. Keep this tab open during a match.</div>}
+        </div>
+
+        <aside className="session-panel">
+          <p className="eyebrow">Fast path</p>
+          <h2>{state.delegated ? "Session key is ready." : "One approval. Then move."}</h2>
+          <p>{state.delegated ? "Your next eligible market action can be signed without another wallet popup." : "Set a bounded session key once, then take eligible market positions without breaking the match."}</p>
+          {publicKey && !state.delegated && <button className="session-action" disabled={busy !== null} onClick={() => void runSession("delegate")}>{busy === "delegate" ? "Preparing session…" : "Enable fast actions"}</button>}
+          {state.delegated && <button className="session-action session-action-live" disabled={busy !== null} onClick={() => void runSession("revoke")}>{busy === "revoke" ? "Stopping session…" : "Session active · manage"}</button>}
+          {!publicKey && <p className="session-note">Connect a wallet to enable the match session.</p>}
+          {sessionError && <p className="session-error">{sessionError}</p>}
+          <div className="trust-row"><span>TxLINE proof gate</span><span>On-chain settlement</span></div>
+        </aside>
+      </section>
     </main>
   );
 }

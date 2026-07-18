@@ -45,38 +45,32 @@ function MarketRow({ market }: { market: Market }) {
   );
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]">
+    <div className="explorer-market">
       <Link href={`/markets/${market.id}`} className="block">
-        <div className="flex items-start justify-between gap-4">
+        <div className="explorer-market-head">
           <div className="min-w-0">
-            <p className="truncate font-medium">
+            <p className="explorer-market-title">
               {PREDICATE_LABEL[pred.kind] ?? pred.kind} {param}{team}
             </p>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="explorer-market-meta">
               match {pred.matchId} · pool {SOL(total)}
             </p>
           </div>
-          <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${statusBadge(market.status)}`}>
+          <span className={`explorer-status ${statusBadge(market.status)}`}>
             {market.status.replace("_", " ")}
           </span>
         </div>
         {market.status === "open" && (
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <span className="text-emerald-400">YES {(odds.yes * 100).toFixed(0)}%</span>
-            <span className="text-neutral-600">|</span>
-            <span className="text-red-400">NO {(odds.no * 100).toFixed(0)}%</span>
-            <span className="ml-auto flex items-center gap-1.5 text-xs text-neutral-600">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              LIVE
-            </span>
+          <div className="explorer-odds">
+            <span>YES <strong>{(odds.yes * 100).toFixed(0)}%</strong></span>
+            <span className="explorer-odds-track"><i style={{ width: `${odds.yes * 100}%` }} /></span>
+            <span>NO <strong>{(odds.no * 100).toFixed(0)}%</strong></span>
+            <span className="explorer-live"><i /> LIVE</span>
           </div>
         )}
       </Link>
       {market.status === "open" && (
-        <div className="mt-2 flex justify-end">
+        <div className="explorer-share">
           <a
             href={tweetIntent}
             target="_blank"
@@ -110,24 +104,29 @@ export default function MarketsPage() {
   }, [markets]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-4 sm:p-8">
-      <div className="flex items-center justify-between">
+    <main className="app-shell">
+      <header className="app-nav">
+        <Link href="/" className="wordmark">STOPPAGE<span>.</span></Link>
+        <div className="nav-center"><span className="live-dot" /> World Cup markets</div>
+        <Link className="explorer-back" href="/">Match desk <span>←</span></Link>
+      </header>
+      <div className="market-explorer">
+      <div className="explorer-heading">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Markets</h1>
-          <p className="text-sm text-neutral-500">
-            In-play micro-markets · peer-funded vaults · verifiable settlement
-          </p>
+          <p className="eyebrow">Market tape</p>
+          <h1>Every read in play.</h1>
+          <p>Peer-funded match positions with outcomes locked to the TxLINE proof path.</p>
         </div>
         <button
           onClick={() => void refresh()}
-          className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/5"
+          className="explorer-refresh"
         >
           Refresh
         </button>
       </div>
 
       {sorted.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-white/10 p-8 text-center text-neutral-500">
+        <div className="explorer-empty">
           <p>No markets yet.</p>
           <p className="mt-1 text-xs">
             Markets appear here once created on-chain. Run the agent
@@ -135,7 +134,7 @@ export default function MarketsPage() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="explorer-list">
           {sorted.map((m) => (
             <MarketRow key={m.id} market={m} />
           ))}
@@ -143,15 +142,13 @@ export default function MarketsPage() {
       )}
 
       {/* ── Retention: stats, history, calendar ── */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="explorer-sidecars">
         <StatsPanel />
         <MatchCalendar />
       </div>
       <PositionHistory />
 
-      <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← back to session-key demo
-      </Link>
+      </div>
     </main>
   );
 }
