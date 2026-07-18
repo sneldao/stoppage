@@ -15,7 +15,6 @@ import { PositionHistory } from "@/components/PositionHistory";
 import { MatchCalendar } from "@/components/MatchCalendar";
 import { formatSol as SOL } from "@/lib/format";
 import { PREDICATE_LABEL } from "@stoppage/sdk";
-import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { ProofBoard } from "@/components/ProofBoard";
 
 function statusBadge(status: Market["status"]) {
@@ -90,7 +89,6 @@ function MarketRow({ market }: { market: Market }) {
 
 export default function MarketsPage() {
   const { markets, refresh } = useMarkets();
-  const { state } = useSessionKey();
   useMyPositions();
   useHeliusMonitor();
 
@@ -108,11 +106,6 @@ export default function MarketsPage() {
 
   return (
     <main className="app-shell">
-      <header className="app-nav">
-        <Link href="/" className="wordmark">STOPPAGE<span>.</span></Link>
-        <div className="nav-session" title={state.expiresAt ? `Session expires ${new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : undefined}><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Fast setup"}</div>
-        <Link className="explorer-back" href="/">Match desk <span>←</span></Link>
-      </header>
       <div className="market-explorer">
       <div className="explorer-heading">
         <div>

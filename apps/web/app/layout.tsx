@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { WalletContextProvider } from "@/components/WalletProvider";
 import { ReferralInit } from "@/components/ReferralInit";
+import { InstrumentNav } from "@/components/InstrumentNav";
+import { RouteFrame } from "@/components/RouteFrame";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -63,7 +65,8 @@ export default function RootLayout({
       <body>
         <WalletContextProvider>
           <ReferralInit />
-          {children}
+          <InstrumentNav />
+          <RouteFrame>{children}</RouteFrame>
         </WalletContextProvider>
       </body>
     </html>

@@ -20,13 +20,17 @@ vault.
 ## What To Show In The Demo
 
 1. Open the deployed app and show the live match instrument on mobile width.
-2. Connect a devnet wallet and delegate a session key once.
-3. Close or avoid the wallet popup path, then place a small devnet position
+2. Use the persistent top nav to move from the match desk to the market tape,
+   then into a focused market. The route motion is intentionally short and
+   state-preserving so it reads as one live instrument, not a multipage
+   sportsbook.
+3. Connect a devnet wallet and delegate a session key once.
+4. Close or avoid the wallet popup path, then place a small devnet position
    with the session key.
-4. Open a settled market and show the resolution/proof panel.
-5. Show the public board. It is derived from on-chain market and position
+5. Open a settled market and show the resolution/proof panel.
+6. Show the public board. It is derived from on-chain market and position
    accounts, not local browser history.
-6. Open Solana Explorer for the settlement transaction and market account.
+7. Open Solana Explorer for the settlement transaction and market account.
 
 ## TxLINE Usage
 
@@ -54,6 +58,17 @@ Latest public board verification:
 - `playerCount`: 5
 - `verifiedMarketCount`: 3
 - `totalAttestations`: 3
+
+## Interface Progress
+
+- The app shell now uses a single persistent instrument nav across the match
+  desk, market tape, and focused market views.
+- Motion is bounded and semantic: the signal grid animates on live score/stat
+  changes, odds and selected sides transition in place, and route changes use
+  short transform/opacity transitions.
+- The UX continues to frame Stoppage as a devnet protocol and verification
+  demo. It avoids production sportsbook claims and keeps session state,
+  proof status, and TxLINE connectivity visible.
 
 ## Scope And Compliance Framing
 

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, PREDICATE_LABEL, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
@@ -10,11 +9,6 @@ import { useMarkets } from "@/lib/markets/useMarkets";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { formatSol as SOL } from "@/lib/format";
-
-const WalletMultiButton = dynamic(
-  () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
-  { ssr: false, loading: () => <div className="h-10 w-32" /> }
-);
 
 function marketQuestion(market: Market) {
   const predicate = market.predicate;
@@ -33,20 +27,21 @@ interface LiveMatchSnapshot {
   stats: { corners: number; cards: number };
 }
 
-function MatchBoard({ fixture, snapshot }: { fixture: Fixture | null; snapshot: LiveMatchSnapshot | null }) {
+function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | null; snapshot: LiveMatchSnapshot | null; signalVersion: number }) {
   const live = isLive(fixture);
   return (
     <section className="match-board" aria-label="Current match">
       <div className="signal-grid" aria-hidden="true">
         {Array.from({ length: 64 }, (_, index) => <i key={index} />)}
       </div>
+      {signalVersion > 0 && <div className="signal-ripple" key={signalVersion} aria-hidden="true"><i /><i /><i /></div>}
       <div className="match-board-top">
         <span className={live ? "match-live" : "match-next"}><i /> {live ? "Live" : "Next fixture"}</span>
         <span>TxLINE feed</span>
       </div>
       <div className="scoreline">
         <strong>{fixture?.Participant1 ?? "Home"}</strong>
-        <span className="score">{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</span>
+        <span className="score" key={signalVersion}>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</span>
         <strong>{fixture?.Participant2 ?? "Away"}</strong>
       </div>
       <div className="match-board-foot">
@@ -100,6 +95,8 @@ export default function Home() {
   const { state, delegate, revoke } = useSessionKey();
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
+  const [signalVersion, setSignalVersion] = useState(0);
+  const previousSignal = useRef<string | null>(null);
   const [busy, setBusy] = useState<"delegate" | "revoke" | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
@@ -145,14 +142,15 @@ export default function Home() {
     return () => { cancelled = true; window.clearInterval(interval); };
   }, [featuredFixture]);
 
+  useEffect(() => {
+    if (!liveSnapshot) return;
+    const nextSignal = `${liveSnapshot.score.home}:${liveSnapshot.score.away}:${liveSnapshot.stats.corners}:${liveSnapshot.stats.cards}`;
+    if (previousSignal.current && previousSignal.current !== nextSignal) setSignalVersion((version) => version + 1);
+    previousSignal.current = nextSignal;
+  }, [liveSnapshot]);
+
   return (
     <main className="app-shell">
-      <header className="app-nav">
-        <Link href="/" className="wordmark" aria-label="Stoppage home">STOPPAGE<span>.</span></Link>
-        <div className="nav-session"><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Fast setup"}</div>
-        <div className="nav-wallet"><WalletMultiButton /></div>
-      </header>
-
       <section className="command-center">
         <div className="command-copy">
           <p className="eyebrow">Live match instrument</p>
@@ -161,7 +159,7 @@ export default function Home() {
           <Link className="copy-link" href="/markets">Browse the live tape <span>→</span></Link>
         </div>
         <div className="live-stage">
-          <MatchBoard fixture={featuredFixture} snapshot={liveSnapshot} />
+          <MatchBoard fixture={featuredFixture} snapshot={liveSnapshot} signalVersion={signalVersion} />
           <FeaturedMarket market={featuredMarket} />
         </div>
       </section>

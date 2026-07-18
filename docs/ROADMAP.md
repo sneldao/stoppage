@@ -101,6 +101,10 @@ or descoped, it's recorded here and nowhere else.
   animation, visual odds bar (proportional YES/NO bar with transitions),
   LIVE pulse indicator on open markets, mobile-responsive layouts,
   polished proof panel.
+- **Navigation depth pass complete**: persistent instrument nav shared across
+  the match desk, market tape, and focused market views; route transitions
+  use short transform/opacity motion to preserve context without creating a
+  heavy app shell or continuous background animation.
 - **DRY audit complete**: PREDICATE_LABEL consolidated to SDK, SOL
   formatter consolidated to lib/format.ts, loadCredentials consolidated
   to packages/txline/src/credentials.ts.

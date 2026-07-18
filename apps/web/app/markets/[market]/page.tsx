@@ -126,7 +126,7 @@ export default function MarketDetailPage() {
 
   return (
     <main className="market-shell">
-      <header className="market-nav"><Link href="/markets">← Market tape</Link><span><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Wallet sign"}</span><span className="market-feed"><i className="live-dot" /> TxLINE connected</span></header>
+      <header className="market-nav"><Link href="/markets">← Market tape</Link><span>Focused position</span><span className="market-feed"><i className="live-dot" /> TxLINE connected</span></header>
       <section className="market-hero">
         <div className="market-hero-meta"><span>Live · Match {market.predicate.matchId}</span><span>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
         <h1>{marketQuestion(market)}</h1>
@@ -142,8 +142,8 @@ export default function MarketDetailPage() {
         </div>
         <div className="stake-row"><span>Stake</span><div className="stake-options">{stakePresets.map((amount) => <button type="button" className={amountSol === amount ? "selected" : ""} onClick={() => setAmountSol(amount)} key={amount}>{amount}</button>)}<label><input type="number" min="0.001" step="0.01" value={amountSol} onChange={(event) => setAmountSol(event.target.value)} aria-label="Custom stake in SOL" /> SOL</label></div></div>
         <div className="slip-summary"><span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span><strong>{selectedSide && selectedOdds > 0 ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL projected` : "—"}</strong></div>
-        <button type="button" className="place-action" disabled={busy !== null} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} position` : "Choose YES or NO"}<span>→</span></button>
-        <div className="execution-receipt">
+        <button type="button" className={`place-action ${executionBusy ? "place-action-busy" : ""}`} disabled={busy !== null} onClick={onJoin}>{executionBusy ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…") : selectedSide ? `Place ${selectedSide.toUpperCase()} position` : "Choose YES or NO"}<span>→</span></button>
+        <div className={`execution-receipt ${receipt ? "execution-receipt-confirmed" : ""}`}>
           <span className={receipt?.viaSession ? "execution-ready" : "execution-pending"}><i /> {receipt ? receipt.viaSession ? `Signed locally · ${Math.round(receipt.signingMs ?? 0)}ms` : `Wallet approval + sign · ${Math.round(receipt.signingMs ?? 0)}ms` : state.delegated ? "Signed locally · no popup" : "Wallet approval required"}</span>
           <span>{executionBusy ? "Submitting to Solana" : receipt ? `Confirmed · ${receipt.confirmedAt - receipt.submittedAt}ms` : "Timing appears after submission"}</span>
           <span>{receipt ? "Proof path awaiting resolution" : "TxLINE proof at resolution"}</span>
