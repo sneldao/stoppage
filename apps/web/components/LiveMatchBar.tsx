@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MatchClock } from "./MatchClock";
 
 interface LiveEvent {
   id: string;
@@ -10,7 +11,7 @@ interface LiveEvent {
   ts: number;
 }
 
-interface MatchPhaseState {
+export interface MatchPhaseState {
   matchId: string;
   statusId: number;
   phaseLabel: string;
@@ -33,10 +34,10 @@ const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://144.202.117.1
 const PHASE_COLORS: Record<string, string> = {
   "1st Half": "#00ff88",
   "2nd Half": "#00ff88",
-  "Extra Time": "#f1bb48",
-  Penalties: "#f1bb48",
-  Halftime: "#64748b",
-  "Full Time": "#3b82f6",
+  "Extra Time": "#f59e0b",
+  Penalties: "#f59e0b",
+  Halftime: "#3b82f6",
+  "Full Time": "#6366f1",
   Interrupted: "#ff4444",
   Resumed: "#00ff88",
 };
@@ -45,8 +46,11 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
   const [phase, setPhase] = useState<MatchPhaseState | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const esRef = useRef<EventSource | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const prevPhaseRef = useRef<string | null>(null);
+  const [phaseTransition, setPhaseTransition] = useState<string | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -78,6 +82,23 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
   }, [matchId]);
 
   useEffect(() => {
+    if (phase?.phaseLabel && prevPhaseRef.current !== null && prevPhaseRef.current !== phase.phaseLabel) {
+      setPhaseTransition(phase.phaseLabel);
+      const t = setTimeout(() => setPhaseTransition(null), 1500);
+      return () => clearTimeout(t);
+    }
+    prevPhaseRef.current = phase?.phaseLabel ?? null;
+  }, [phase?.phaseLabel]);
+
+  useEffect(() => {
+    if (!phase?.phaseStartedAt) return;
+    const tick = () => setElapsed((Date.now() - phase.phaseStartedAt) / 60000);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [phase?.phaseStartedAt, phase?.phaseLabel]);
+
+  useEffect(() => {
     if (listRef.current && events.length > 0) {
       listRef.current.scrollTop = 0;
     }
@@ -86,20 +107,47 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
   if (!matchId) return null;
 
   const phaseColor = phase ? PHASE_COLORS[phase.phaseLabel] ?? "#64748b" : "#64748b";
+  const stopped = phase?.phaseLabel === "Full Time" || phase?.phaseLabel === "Halftime" || phase?.phaseLabel === "Penalties";
+  const isStoppage = phase && !stopped && elapsed > 45;
 
   return (
-    <section className="live-match-bar" aria-label="Live match feed">
-      <div className="live-bar-header">
-        <span className="live-bar-phase" style={{ color: phaseColor }}>
-          <i style={{ background: phaseColor }} />
-          {phase?.phaseLabel ?? "Waiting"}
-        </span>
-        <span className="live-bar-score">
-          {phase ? `${phase.homeTeam} ${phase.score.home}—${phase.score.away} ${phase.awayTeam}` : ""}
-        </span>
-        <span className={`live-bar-dot ${connected ? "live" : "dead"}`} title={connected ? "Connected" : "Disconnected"}>
-          <i />
-        </span>
+    <section className={`live-match-bar ${phaseTransition ? "phase-transition" : ""}`} aria-label="Live match feed" style={{ "--phase-color": phaseColor } as React.CSSProperties}>
+      <div className="live-bar-main">
+        <MatchClock
+          phaseLabel={phase?.phaseLabel}
+          phaseStartedAt={phase?.phaseStartedAt}
+          homeTeam={phase?.homeTeam}
+          awayTeam={phase?.awayTeam}
+          score={phase?.score ?? null}
+          size={100}
+        />
+        <div className="live-bar-info">
+          <div className="live-bar-top-row">
+            <span className="live-bar-phase" style={{ color: phaseColor }}>
+              <i style={{ background: phaseColor }} />
+              {phase?.phaseLabel ?? "Waiting"}
+            </span>
+            {phase && !stopped && (
+              <span className={`live-bar-clock ${isStoppage ? "stoppage" : ""}`}>
+                {formatElapsed(phase.phaseLabel, elapsed)}
+              </span>
+            )}
+            {phase && stopped && (
+              <span className="live-bar-fulltime-badge">
+                {phase.phaseLabel === "Full Time" ? "FULL TIME" : phase.phaseLabel === "Halftime" ? "HALF TIME" : "PENALTIES"}
+              </span>
+            )}
+          </div>
+          <div className="live-bar-team-score">
+            <span>{phase?.homeTeam ?? "--"}</span>
+            <span className="live-bar-score-num">{phase ? `${phase.score.home}—${phase.score.away}` : "--"}</span>
+            <span>{phase?.awayTeam ?? "--"}</span>
+          </div>
+          <div className="live-bar-meta">
+            <span className={`live-bar-dot ${connected ? "live" : "dead"}`} title={connected ? "Connected" : "Disconnected"} />
+            <span className="live-bar-events-count">{events.length} event{events.length !== 1 ? "s" : ""}</span>
+          </div>
+        </div>
       </div>
       <div className="live-bar-feed" ref={listRef}>
         {events.length === 0 ? (
@@ -119,55 +167,116 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
         .live-match-bar {
           margin-top: 12px;
           border: 1px solid var(--line);
-          border-radius: 4px;
-          background: linear-gradient(170deg, #0f172a, #0c1425);
+          border-radius: 6px;
+          background: linear-gradient(170deg, #0f1a30, #0c1428);
           overflow: hidden;
+          transition: border-color .6s ease, box-shadow .6s ease;
         }
-        .live-bar-header {
+        .live-match-bar.phase-transition {
+          border-color: var(--phase-color, var(--lime));
+          box-shadow: 0 0 24px color-mix(in srgb, var(--phase-color, var(--lime)) 20%, transparent);
+        }
+        .live-bar-main {
           display: flex;
-          align-items: center;
           gap: 12px;
           padding: 10px 14px;
-          border-bottom: 1px solid var(--line);
-          font: 500 10px "DM Mono", monospace;
-          letter-spacing: .05em;
-          text-transform: uppercase;
+          align-items: center;
+        }
+        .live-bar-info {
+          flex: 1;
+          min-width: 0;
+          display: grid;
+          gap: 4px;
+        }
+        .live-bar-top-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
         .live-bar-phase {
           display: inline-flex;
           align-items: center;
           gap: 6px;
+          font: 500 10px "DM Mono", monospace;
+          letter-spacing: .06em;
+          text-transform: uppercase;
         }
         .live-bar-phase i {
           width: 6px;
           height: 6px;
           border-radius: 50%;
         }
-        .live-bar-score {
-          margin-left: auto;
+        .live-bar-clock {
+          font: 500 18px "DM Mono", monospace;
           color: var(--ink);
           font-variant-numeric: tabular-nums;
         }
-        .live-bar-dot i {
-          display: block;
-          width: 6px;
-          height: 6px;
+        .live-bar-clock.stoppage {
+          color: var(--phase-color, #f59e0b);
+          animation: stoppage-pulse 1s ease-in-out infinite;
+        }
+        @keyframes stoppage-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: .6; }
+        }
+        .live-bar-fulltime-badge {
+          font: 700 11px "DM Mono", monospace;
+          letter-spacing: .12em;
+          color: var(--phase-color, var(--blue));
+          animation: fulltime-appear .6s ease-out both;
+        }
+        @keyframes fulltime-appear {
+          from { opacity: 0; transform: scale(.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .live-bar-team-score {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font: 500 11px "DM Mono", monospace;
+          color: var(--muted);
+        }
+        .live-bar-team-score span:first-child,
+        .live-bar-team-score span:last-child {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .live-bar-score-num {
+          flex-shrink: 0;
+          color: var(--ink);
+          font-size: 13px;
+          font-variant-numeric: tabular-nums;
+        }
+        .live-bar-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 2px;
+        }
+        .live-bar-dot {
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
           background: #ff4444;
           transition: background .3s ease;
+          flex-shrink: 0;
         }
-        .live-bar-dot.live i {
+        .live-bar-dot.live {
           background: #00ff88;
           box-shadow: 0 0 6px rgba(0,255,136,.6);
-          animation: pulse-dot 2s ease-in-out infinite;
         }
-        @keyframes pulse-dot {
-          0%, 100% { opacity: 1; }
-          50% { opacity: .4; }
+        .live-bar-events-count {
+          font: 500 8px "DM Mono", monospace;
+          color: var(--muted-dim);
+          text-transform: uppercase;
+          letter-spacing: .06em;
         }
         .live-bar-feed {
           max-height: 130px;
           overflow-y: auto;
+          border-top: 1px solid var(--line);
           scrollbar-width: thin;
           scrollbar-color: var(--line) transparent;
         }
@@ -208,7 +317,7 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
           color: #94a3b8;
         }
         .live-bar-event--var_review {
-          color: #f1bb48;
+          color: #f59e0b;
         }
         .live-bar-event-label {
           min-width: 0;
@@ -216,12 +325,12 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
         }
         .live-bar-event-time {
           flex-shrink: 0;
-          color: var(--muted);
+          color: var(--muted-dim);
           font-variant-numeric: tabular-nums;
         }
         .live-bar-empty {
           padding: 20px 14px;
-          color: var(--muted);
+          color: var(--muted-dim);
           font: 500 9px "DM Mono", monospace;
           text-align: center;
           text-transform: uppercase;
@@ -230,4 +339,26 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
       `}</style>
     </section>
   );
+}
+
+function formatElapsed(phaseLabel: string, elapsed: number): string {
+  switch (phaseLabel) {
+    case "1st Half": {
+      const m = Math.floor(elapsed);
+      if (m <= 45) return `${m}'`;
+      return `45+${Math.ceil(elapsed - 45)}'`;
+    }
+    case "2nd Half": {
+      const m = elapsed + 45;
+      if (m <= 90) return `${Math.floor(m)}'`;
+      return `90+${Math.ceil(elapsed - 45)}'`;
+    }
+    case "Extra Time": {
+      const m = elapsed + 90;
+      if (m <= 105) return `${Math.floor(m)}'`;
+      return `105+${Math.ceil(elapsed + 90 - 105)}'`;
+    }
+    default:
+      return `${Math.floor(elapsed)}'`;
+  }
 }
