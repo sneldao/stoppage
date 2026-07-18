@@ -6,13 +6,13 @@
  */
 
 import { NextResponse } from "next/server";
-import { fetchFixtures, loadCredentials } from "@stoppage/txline";
+import { fetchFixtures, loadCredentials, matchIdFromFixture } from "@stoppage/txline";
 
 export async function GET() {
   try {
     const { network, creds } = loadCredentials();
     const fixtures = await fetchFixtures(network, creds);
-    return NextResponse.json({ fixtures });
+    return NextResponse.json({ fixtures: fixtures.map((fixture) => ({ ...fixture, matchId: matchIdFromFixture(fixture) })) });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "failed to fetch fixtures" },

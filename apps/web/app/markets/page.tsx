@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
@@ -16,6 +16,15 @@ import { MatchCalendar } from "@/components/MatchCalendar";
 import { formatSol as SOL } from "@/lib/format";
 import { PREDICATE_LABEL } from "@stoppage/sdk";
 import { ProofBoard } from "@/components/ProofBoard";
+
+const tapeFilters = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Live" },
+  { id: "awaiting_settlement", label: "Settling" },
+  { id: "settled", label: "Resolved" },
+] as const;
+
+type TapeFilter = (typeof tapeFilters)[number]["id"];
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {
@@ -91,6 +100,7 @@ export default function MarketsPage() {
   const { markets, refresh } = useMarkets();
   useMyPositions();
   useHeliusMonitor();
+  const [filter, setFilter] = useState<TapeFilter>("all");
 
   const sorted = useMemo(() => {
     const order: Record<Market["status"], number> = {
@@ -103,6 +113,20 @@ export default function MarketsPage() {
       (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9)
     );
   }, [markets]);
+
+  const visible = useMemo(
+    () => filter === "all" ? sorted : sorted.filter((market) => market.status === filter),
+    [filter, sorted]
+  );
+
+  const byMatch = useMemo(() => {
+    const groups = new Map<string, Market[]>();
+    for (const market of visible) {
+      const key = String(market.predicate.matchId);
+      groups.set(key, [...(groups.get(key) ?? []), market]);
+    }
+    return [...groups.entries()];
+  }, [visible]);
 
   return (
     <main className="app-shell">
@@ -126,18 +150,25 @@ export default function MarketsPage() {
         <ProofBoard markets={sorted} />
       </div>
 
-      {sorted.length === 0 ? (
+      <div className="tape-controls" aria-label="Market state filters">
+        <div><p className="eyebrow">Read by match</p><span>{visible.length} visible</span></div>
+        <div className="tape-filter-list">{tapeFilters.map((item) => <button type="button" key={item.id} className={filter === item.id ? "active" : ""} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
+      </div>
+
+      {visible.length === 0 ? (
         <div className="explorer-empty">
-          <p>No markets yet.</p>
+          <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
           <p className="mt-1 text-xs">
-            Markets appear here once created on-chain. Run the agent
-            or create one from the session-key demo.
+            {sorted.length === 0 ? "Markets appear here when Matchkeeper publishes an eligible read." : "Try another market state to return to the full tape."}
           </p>
         </div>
       ) : (
         <div className="explorer-list">
-          {sorted.map((m) => (
-            <MarketRow key={m.id} market={m} />
+          {byMatch.map(([matchId, matchMarkets]) => (
+            <section className="tape-match-group" key={matchId} aria-label={`Match ${matchId} markets`}>
+              <div className="tape-match-heading"><span>Match {matchId}</span><small>{matchMarkets.length} {matchMarkets.length === 1 ? "read" : "reads"}</small></div>
+              {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}
+            </section>
           ))}
         </div>
       )}

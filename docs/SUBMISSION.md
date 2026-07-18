@@ -63,6 +63,37 @@ Latest public board verification:
 
 - The app shell now uses a single persistent instrument nav across the match
   desk, market tape, and focused market views.
+- The match desk now gives a first-time user one explicit three-step path:
+  connect a devnet wallet, approve a bounded Fast Session, then make a first
+  read. The mobile dock mirrors the next incomplete step instead of linking
+  generically to a bet slip.
+- `Matchkeeper` is the visible product name for the constrained autonomous
+  agent. Its live status and current activity are shown on the match desk and
+  focused market views; an expandable explanation makes clear that it watches
+  TxLINE data and submits proof-gated settlement, but cannot choose positions,
+  move funds outside program rules, or change a verified outcome.
+- The focused market now retains its resolution path in view from TxLINE feed
+  through market close, proof validation, and settlement. Its states are
+  derived from the on-chain market status rather than simulated progress.
+- The market tape supports `All`, `Live`, `Settling`, and `Resolved` filters,
+  then groups visible markets by match so the user can read the fixture context
+  before opening a focused position.
+- `/match` is the operational Match control room: it combines the active
+  TxLINE fixture snapshot, a connected wallet's positions in that match,
+  fixture-scoped markets, Matchkeeper's derived state sequence, and the
+  proof-gated resolution path in one route.
+- Market lifecycle is explicit: open windows show a lightweight local
+  countdown, closing/validation/settled/void states are visibly distinct, and
+  every proof panel links directly to its devnet market account in Explorer.
+- Matchkeeper now emits an append-only activity ledger for real TxLINE
+  observations, market creation, proof preparation, settlement, voids, and
+  failures. `/match` reads the web container's read-only view of that ledger
+  and links available market/signature evidence to Explorer.
+- Fixture discovery exposes the canonical agent `matchId`, so `/match` joins
+  markets to their actual TxLINE fixture rather than using a visually plausible
+  fallback. A user's confirmed signed positions persist in their own activity
+  history and appear beside Matchkeeper activity without being misrepresented
+  as keeper actions.
 - Motion is bounded and semantic: the signal grid animates on live score/stat
   changes, odds and selected sides transition in place, and route changes use
   short transform/opacity transitions.

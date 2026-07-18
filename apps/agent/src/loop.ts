@@ -44,6 +44,7 @@ import {
   type NormalizedEvent,
   type StatValidationResponse,
 } from "@stoppage/txline";
+import type { MatchEvent } from "@stoppage/sdk";
 import { decideActions, type AgentAction, type OpenMarket } from "./strategy";
 import type { EventSource } from "./source";
 
@@ -60,6 +61,8 @@ export interface AgentConfig {
   onAction?: (action: AgentAction, result: ActionResult) => void;
   /** Called for each normalized event */
   onEvent?: (event: NormalizedEvent) => void;
+  /** Emits proof-stage facts for the append-only activity ledger. */
+  onMatchEvent?: (event: Omit<MatchEvent, "id">) => void;
 }
 
 export interface ActionResult {
@@ -327,6 +330,15 @@ export class Agent {
 
           resolveIx = resolveMarketIx;
           proofSummary += ` [on-chain CPI via PDA epoch_day=${epochDay}]`;
+          this.config.onMatchEvent?.({
+            occurredAt: Date.now(),
+            kind: "proof_validated",
+            label: `TxLINE proof prepared for ${action.label}`,
+            matchId: action.predicate.matchId,
+            fixtureId,
+            marketId: market.marketPda,
+            source: "matchkeeper",
+          });
         }
       } catch (err) {
         return { success: false, error: `Proof fetch/build failed: ${(err as Error).message}` };

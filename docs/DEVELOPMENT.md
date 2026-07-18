@@ -76,6 +76,9 @@ Current devnet deployment:
    values, and choose a DNS name whose A/AAAA record already points to the VPS.
 3. Copy `deploy/agent-config.example` to `.env.agent`, set mode `600`, and place
    a funded devnet-only agent keypair at the configured `SOLANA_KEYPAIR_PATH`.
+   Create `/home/linuxuser/stoppage/.runtime` with mode `755`; Matchkeeper owns
+   the append-only `match-events.ndjson` ledger there and the web container
+   mounts that directory read-only.
 4. Build and start the web app:
 
    ```bash

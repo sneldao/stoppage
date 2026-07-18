@@ -9,6 +9,8 @@ import { useMarkets } from "@/lib/markets/useMarkets";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { formatSol as SOL } from "@/lib/format";
+import { FirstRunGuide } from "@/components/FirstRunGuide";
+import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 
 function marketQuestion(market: Market) {
   const predicate = market.predicate;
@@ -92,13 +94,11 @@ export default function Home() {
   const { markets } = useMarkets();
   useHeliusMonitor();
   const { publicKey } = useWallet();
-  const { state, delegate, revoke } = useSessionKey();
+  const { state } = useSessionKey();
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
   const [signalVersion, setSignalVersion] = useState(0);
   const previousSignal = useRef<string | null>(null);
-  const [busy, setBusy] = useState<"delegate" | "revoke" | null>(null);
-  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,18 +112,6 @@ export default function Home() {
   const featuredMarket = useMemo(() => Object.values(markets).find((market) => market.status === "open") ?? null, [markets]);
   const featuredFixture = useMemo(() => fixtures.find((fixture) => isLive(fixture)) ?? fixtures[0] ?? null, [fixtures]);
   const otherMarkets = useMemo(() => Object.values(markets).filter((market) => market.id !== featuredMarket?.id).slice(0, 3), [markets, featuredMarket]);
-
-  const runSession = async (action: "delegate" | "revoke") => {
-    setBusy(action);
-    setSessionError(null);
-    try {
-      await (action === "delegate" ? delegate() : revoke());
-    } catch (error) {
-      setSessionError(error instanceof Error ? error.message : "Session action failed");
-    } finally {
-      setBusy(null);
-    }
-  };
 
   useEffect(() => {
     if (!featuredFixture || !isLive(featuredFixture)) {
@@ -183,21 +171,17 @@ export default function Home() {
           ) : <div className="empty-rail">The market tape updates when a verified fixture event creates a new read.</div>}
         </div>
 
-        <aside className="session-panel">
-          <div className="session-panel-head"><p className="eyebrow">Session status</p><span className={state.delegated ? "status-pill active" : "status-pill"}>{state.delegated ? "Fast on" : "Offline"}</span></div>
-          <h2>{state.delegated ? "Ready between moments." : "Set up once. Move quickly."}</h2>
-          <p>{state.delegated ? "Eligible market actions are signed locally. Your wallet stays out of the live decision." : "Create a limited session key for eligible markets. Every action remains bounded and revocable."}</p>
-          {publicKey && !state.delegated && <button className="session-action" disabled={busy !== null} onClick={() => void runSession("delegate")}>{busy === "delegate" ? "Activating session…" : "Enable fast actions"}<span>→</span></button>}
-          {state.delegated && <button className="session-action session-action-live" disabled={busy !== null} onClick={() => void runSession("revoke")}>{busy === "revoke" ? "Pausing session…" : "Pause and revoke"}<span>×</span></button>}
-          {!publicKey && <p className="session-note">Connect a wallet to activate the match session.</p>}
-          {sessionError && <p className="session-error">{sessionError}</p>}
-          <div className="trust-row"><span>Local sign</span><span>TxLINE proof</span><span>On-chain settle</span></div>
-        </aside>
+        <div className="onboarding-stack">
+          <FirstRunGuide marketHref={featuredMarket ? `/markets/${featuredMarket.id}` : "/markets"} />
+          <MatchkeeperStatus updatedAt={liveSnapshot?.updatedAt} marketPhase={featuredMarket?.status} />
+        </div>
       </section>
 
       <footer className="app-footer"><div><Link href="/" className="wordmark">STOPPAGE<span>.</span></Link><span>© 2026</span></div><p>Built on Solana devnet · Match data from TxLINE</p><p className="footer-safety">Use only where permitted. Set limits and take breaks.</p></footer>
 
-      {featuredMarket && <Link className="mobile-market-dock" href={`/markets/${featuredMarket.id}`}><span><i /> {state.delegated ? "Fast on" : "Session setup"}</span><strong>Open bet slip <b>→</b></strong></Link>}
+      {!publicKey && <a className="mobile-market-dock" href="#fast-setup"><span><i /> Step 1 of 3</span><strong>Connect wallet <b>→</b></strong></a>}
+      {publicKey && !state.delegated && <a className="mobile-market-dock" href="#fast-setup"><span><i /> Step 2 of 3</span><strong>Enable Fast Session <b>→</b></strong></a>}
+      {publicKey && state.delegated && featuredMarket && <Link className="mobile-market-dock" href={`/markets/${featuredMarket.id}`}><span><i /> Step 3 of 3</span><strong>Make your first read <b>→</b></strong></Link>}
     </main>
   );
 }

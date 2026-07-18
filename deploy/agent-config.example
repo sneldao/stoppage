@@ -3,3 +3,5 @@ TXLINE_NETWORK=devnet
 TXLINE_JWT=replace-me
 TXLINE_API_TOKEN=replace-me
 SOLANA_KEYPAIR_PATH=/home/linuxuser/stoppage/secrets/agent-devnet.json
+# Append-only Matchkeeper activity ledger. The web container mounts its parent read-only.
+MATCH_EVENTS_PATH=/home/linuxuser/stoppage/.runtime/match-events.ndjson

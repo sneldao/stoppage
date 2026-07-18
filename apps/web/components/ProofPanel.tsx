@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { verifyStatProof, type Market } from "@stoppage/sdk";
+import type { Market } from "@stoppage/sdk";
 
 interface ProofPanelProps {
   market: Market;
@@ -17,6 +17,7 @@ interface ProofPanelProps {
  */
 export function ProofPanel({ market }: ProofPanelProps) {
   const [verifyResult, setVerifyResult] = useState<"idle" | "verifying" | "valid" | "invalid" | "no-proof">("idle");
+  const explorerUrl = `https://explorer.solana.com/address/${market.id}?cluster=devnet`;
 
   if (market.status === "void") {
     return (
@@ -25,6 +26,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
         <p>
           Market was voided — no proof to verify (full refunds).
         </p>
+        <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">Inspect market account <span>↗</span></a>
       </section>
     );
   }
@@ -34,10 +36,10 @@ export function ProofPanel({ market }: ProofPanelProps) {
       <section className="proof-panel">
         <div className="proof-panel-head"><div><p className="eyebrow">TxLINE proof path</p><h2>Resolution is waiting.</h2></div><span className="proof-status">Open</span></div>
         <p>
-          Market not yet settled. The autonomous agent will settle this
-          market when the match event is confirmed via TxLINE, using an
-          on-chain CPI into TxLINE&apos;s validate_stat instruction.
+          Matchkeeper is watching for TxLINE confirmation. It can submit this
+          market&apos;s settlement only after the required proof validates on-chain.
         </p>
+        <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">Inspect market account <span>↗</span></a>
       </section>
     );
   }
@@ -74,7 +76,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
         </button>
         {verifyResult === "no-proof" && (
           <p>
-            Proof data is fetched by the agent at settlement time and
+            Proof data is fetched by Matchkeeper at settlement time and
             emitted in the <code>MarketResolved</code> on-chain event.
             To verify, fetch the event from the transaction logs and
             re-run the Merkle path verification using{" "}
@@ -82,6 +84,8 @@ export function ProofPanel({ market }: ProofPanelProps) {
           </p>
         )}
       </div>
+
+      <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">Inspect verified market account <span>↗</span></a>
 
       {market.verifications > 0 && (
         <p className="proof-confirmation">

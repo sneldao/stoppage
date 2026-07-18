@@ -14,6 +14,9 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env.production
+    volumes:
+      # Matchkeeper writes this ledger on the host; the web process can only read it.
+      - /home/linuxuser/stoppage/.runtime:/app/.runtime:ro
     logging:
       driver: json-file
       options:

@@ -9,6 +9,9 @@ import { getMarket, impliedProbability, PREDICATE_LABEL, type Market, type Side 
 import { useMarketActions } from "@/lib/markets/useMarketActions";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
+import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
+import { ProofPath } from "@/components/ProofPath";
+import { MarketWindow } from "@/components/MarketWindow";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
@@ -38,6 +41,7 @@ export default function MarketDetailPage() {
   useMyPositions();
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
+  const recordActivity = useStoppageStore((s) => s.recordActivity);
   const myPosition = useStoppageStore((s) => publicKey ? s.positions[`${marketAddr}:${publicKey.toBase58()}`] : undefined);
   const [liveMarket, setLiveMarket] = useState<Market | null>(storeMarket ?? null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -74,6 +78,18 @@ export default function MarketDetailPage() {
     try {
       const result = await fn();
       setReceipt({ ...result, viaSession });
+      if (label.startsWith("join-") && market && selectedSide) {
+        recordActivity({
+          id: `position-${result.signature}`,
+          occurredAt: result.confirmedAt,
+          kind: "position_submitted",
+          label: `${selectedSide.toUpperCase()} position · ${SOL(amountLamports)} · ${viaSession ? "Fast Session" : "Wallet signed"}`,
+          matchId: market.predicate.matchId,
+          marketId: market.id,
+          signature: result.signature,
+          source: "wallet",
+        });
+      }
       try { setLiveMarket(await getMarket(connection, new PublicKey(marketAddr))); } catch {}
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -133,6 +149,10 @@ export default function MarketDetailPage() {
         <div className="market-context"><span>{SOL(market.yesPool + market.noPool)} pool</span><span>Fee {market.feeBps / 100}%</span><span className="status-pill active">{market.status.replace("_", " ")}</span></div>
       </section>
 
+      <MarketWindow closesAt={market.closesAt} status={market.status} />
+      <MatchkeeperStatus marketPhase={market.status} compact />
+      <ProofPath status={market.status} />
+
       {canJoin && <section className="bet-slip" aria-label="Bet slip">
         <div className="bet-slip-head"><div><p className="eyebrow">Make your call</p><h2>Choose a side.</h2></div><div className="slip-session"><span className={state.delegated ? "fast-badge active" : "fast-badge"}>{state.delegated ? "Fast on" : "Wallet sign"}</span>{state.delegated && <button type="button" onClick={onRevokeSession} disabled={busy !== null}>{busy === "revoke" ? "Revoking…" : "Revoke"}</button>}</div></div>
         {state.delegated && state.expiresAt && <p className="session-expiry">Session expires {new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Revoke any time.</p>}
@@ -152,7 +172,7 @@ export default function MarketDetailPage() {
 
       {canJoin && <ShareBar market={market} pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`} />}
 
-      {myPosition && <section className="position-panel"><div><p className="eyebrow">Your position</p><h2>{myPosition.side.toUpperCase()} · {SOL(myPosition.amountLamports)}</h2></div><span className={myPosition.openedViaSessionKey ? "fast-badge active" : "fast-badge"}>{myPosition.openedViaSessionKey ? "Local sign" : "Wallet sign"}</span>{market.status === "settled" && <p className={isWinner ? "position-win" : "position-loss"}>{isWinner ? "Position won. Claim your payout." : "This position did not resolve in your favour."}</p>}{market.status === "void" && <p className="position-loss">Market voided. Claim a full refund.</p>}{canClaim && <button type="button" className="claim-action" disabled={busy !== null} onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>{busy === "claim" ? "Claiming…" : "Claim payout"}</button>}</section>}
+      {myPosition && <section className="position-panel"><div><p className="eyebrow">Your position</p><h2>{myPosition.side.toUpperCase()} · {SOL(myPosition.amountLamports)}</h2></div><span className={myPosition.openedViaSessionKey ? "fast-badge active" : "fast-badge"}>{myPosition.openedViaSessionKey ? "Local sign" : "Wallet sign"}</span>{market.status === "settled" && <p className={isWinner ? "position-win" : "position-loss"}>{isWinner ? "Position won. Claim your payout." : "This position did not resolve in your favour."}</p>}{market.status === "void" && <p className="position-loss">Market voided. Claim a full refund.</p>}<Link className="position-match-link" href="/match">Return to match context <span>→</span></Link>{canClaim && <button type="button" className="claim-action" disabled={busy !== null} onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>{busy === "claim" ? "Claiming…" : "Claim payout"}</button>}</section>}
 
       <ProofPanel market={market} />
       {error && <p className="market-error">{error}</p>}

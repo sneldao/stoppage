@@ -103,8 +103,27 @@ or descoped, it's recorded here and nowhere else.
   polished proof panel.
 - **Navigation depth pass complete**: persistent instrument nav shared across
   the match desk, market tape, and focused market views; route transitions
-  use short transform/opacity motion to preserve context without creating a
-  heavy app shell or continuous background animation.
+  are short, state-preserving, and keep the live instrument context intact.
+- **Onboarding and system-actor pass complete**: the match desk now leads
+  first-time users through wallet -> scoped Fast Session -> first market read.
+  Matchkeeper is exposed as the constrained autonomous system actor, with live
+  activity plus explicit proof and authority boundaries in the UI.
+- **Instrument depth pass complete**: the Fast Session envelope is visible
+  before activation, Matchkeeper shows a derived event sequence, focused
+  markets retain their proof path, and the tape is filterable/grouped by match.
+- **Match control room complete**: `/match` brings the live fixture feed,
+  owned positions, fixture-scoped reads, Matchkeeper state, and proof path into
+  one operational view. The match desk remains the fast entry surface.
+- **Operational confidence pass complete**: market windows now show lifecycle
+  state/countdown, proof panels link to the devnet market account, and an open
+  position can return directly to Match context.
+- **Canonical Matchkeeper activity stream complete**: shared `MatchEvent`
+  contract, append-only PM2 keeper ledger, read-only web mount, bounded
+  `/api/match-events`, and Explorer-linked real activity in `/match`.
+- **Canonical match identity + user activity complete**: fixture API emits the
+  same `matchId` used by the agent and market predicates; confirmed local wallet
+  positions persist as signature-backed personal activity, distinct from the
+  public Matchkeeper ledger.
 - **DRY audit complete**: PREDICATE_LABEL consolidated to SDK, SOL
   formatter consolidated to lib/format.ts, loadCredentials consolidated
   to packages/txline/src/credentials.ts.

@@ -10,3 +10,6 @@ TXLINE_API_TOKEN=replace-me
 
 # Optional server-only RPC key for public board scans.
 SHYFT_API_KEY=replace-me
+
+# Read-only path inside the web container. Docker Compose mounts the host ledger here.
+MATCH_EVENTS_PATH=/app/.runtime/match-events.ndjson

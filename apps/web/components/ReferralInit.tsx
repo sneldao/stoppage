@@ -14,9 +14,11 @@ import { useStoppageStore } from "@/store";
 export function ReferralInit() {
   const initReferral = useStoppageStore((s) => s.initReferral);
   const initHistory = useStoppageStore((s) => s.initHistory);
+  const initActivity = useStoppageStore((s) => s.initActivity);
   useEffect(() => {
     initReferral();
     initHistory();
-  }, [initReferral, initHistory]);
+    initActivity();
+  }, [initReferral, initHistory, initActivity]);
   return null;
 }

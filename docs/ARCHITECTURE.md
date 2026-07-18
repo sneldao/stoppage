@@ -32,6 +32,27 @@ Settlement program + market program
 Web app: position updated, proof receipt shown, stats/history updated
 ```
 
+### Matchkeeper event ledger
+
+The PM2 keeper writes an append-only NDJSON ledger of observable facts to
+`.runtime/match-events.ndjson`. Each `MatchEvent` has a canonical match ID,
+timestamp, source, descriptive label, and optional fixture, market, and Solana
+signature identifiers. The ledger records TxLINE observations, market creation,
+proof preparation, settlement/void confirmation, and failed agent actions.
+
+The web container mounts `.runtime` read-only and serves a bounded filtered
+view at `/api/match-events`. It has no write path to the ledger and no ability
+to control the agent. `/match` uses this real activity stream for its
+Matchkeeper timeline, linking signatures and market accounts to Explorer when
+available. The ledger is a deployable devnet observability bridge, not a source
+of settlement truth: canonical market state remains on-chain.
+
+Confirmed user positions are recorded separately in the user's browser activity
+history with their real transaction signature and are merged into that user's
+Match view. This preserves the distinction between public keeper observations
+and a wallet's own signed activity without granting the web runtime write access
+to the keeper ledger.
+
 ### Settlement and proof verification
 
 Settlement is gated by TxLINE's on-chain validation primitive:

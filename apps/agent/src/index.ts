@@ -31,6 +31,7 @@ import {
 } from "./source";
 import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
+import { createMatchEventLedger } from "./eventLedger";
 
 async function main() {
   const mode = process.argv[2] ?? "replay";
@@ -107,6 +108,7 @@ async function main() {
   console.log();
 
   // Create the agent
+  const ledger = createMatchEventLedger();
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
   const agent = new Agent({
     connection,
@@ -118,9 +120,27 @@ async function main() {
     onEvent: (event) => {
       if (event.type !== "heartbeat") {
         console.log(`  📡 ${event.type}: ${formatEvent(event)}`);
+        ledger.append({
+          occurredAt: event.ts,
+          kind: "txline_observed",
+          label: formatEvent(event),
+          matchId: event.matchId,
+          fixtureId: event.fixtureId,
+          source: "txline",
+        });
       }
     },
     onAction: (action: AgentAction, result) => {
+      const kind = !result.success ? "action_failed" : action.type === "create_market" ? "market_created" : action.type === "settle_market" ? "settlement_confirmed" : "market_voided";
+      ledger.append({
+        occurredAt: Date.now(),
+        kind,
+        label: result.success ? action.label : `${action.label} failed: ${result.error ?? "unknown error"}`,
+        matchId: action.predicate.matchId,
+        marketId: result.marketPda,
+        signature: result.signature,
+        source: result.signature ? "solana" : "matchkeeper",
+      });
       if (result.success) {
         console.log(`  ✅ ${action.type}: ${action.label}`);
         if (result.signature) {
@@ -130,6 +150,7 @@ async function main() {
         console.log(`  ❌ ${action.type} failed: ${result.error}`);
       }
     },
+    onMatchEvent: (event) => ledger.append(event),
   });
 
   // Register the fixture so the agent can fetch validation proofs
