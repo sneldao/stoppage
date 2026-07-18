@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Stoppage">
+  <defs>
+    <linearGradient id="bg" x1="60" x2="452" y1="42" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.48" stop-color="#050505"/>
+      <stop offset="1" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="line" x1="110" x2="406" y1="400" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="0.52" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.2 0 0 0 0 0.83 0 0 0 0 0.61 0 0 0 .6 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <path d="M96 145h320M96 256h320M96 367h320M145 96v320M256 96v320M367 96v320" stroke="#ffffff" stroke-opacity=".08" stroke-width="6"/>
+  <circle cx="256" cy="256" r="116" fill="none" stroke="#ffffff" stroke-opacity=".09" stroke-width="7"/>
+  <path d="M111 383c35-17 61-43 79-79 18-35 28-70 48-101 23-36 58-60 107-73" fill="none" stroke="url(#line)" stroke-linecap="round" stroke-width="34" filter="url(#glow)"/>
+  <path d="M111 383c35-17 61-43 79-79 18-35 28-70 48-101 23-36 58-60 107-73" fill="none" stroke="#ecfeff" stroke-linecap="round" stroke-width="10" opacity=".92"/>
+  <circle cx="111" cy="383" r="24" fill="#34d399"/>
+  <circle cx="345" cy="130" r="24" fill="#38bdf8"/>
+  <path d="M172 333h92c34 0 54-16 54-42 0-21-14-33-44-39l-46-9c-55-11-79-37-79-80 0-52 42-86 107-86h90" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="30" opacity=".9"/>
+  <path d="M180 333h86c29 0 46-14 46-35 0-17-12-27-39-32l-46-9c-60-12-90-43-90-94 0-60 48-100 119-100h74" fill="none" stroke="#020617" stroke-linecap="round" stroke-linejoin="round" stroke-width="8" opacity=".55"/>
+</svg>

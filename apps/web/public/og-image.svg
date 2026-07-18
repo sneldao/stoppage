@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Stoppage preview">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1200" y1="0" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset=".52" stop-color="#050505"/>
+      <stop offset="1" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="114" x2="760" y1="512" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset=".5" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.20 0 0 0 0 0.83 0 0 0 0 0.61 0 0 0 .46 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M52 124h1096M52 246h1096M52 368h1096M52 490h1096M168 48v534M314 48v534M460 48v534M606 48v534M752 48v534M898 48v534M1044 48v534" stroke="#ffffff" stroke-opacity=".055" stroke-width="4"/>
+  <circle cx="600" cy="315" r="154" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="6"/>
+
+  <path d="M116 505c78-33 133-85 169-160 37-75 53-151 101-215 55-73 135-105 250-113" fill="none" stroke="url(#signal)" stroke-linecap="round" stroke-width="36" filter="url(#soft)"/>
+  <path d="M116 505c78-33 133-85 169-160 37-75 53-151 101-215 55-73 135-105 250-113" fill="none" stroke="#ecfeff" stroke-linecap="round" stroke-width="10" opacity=".92"/>
+  <circle cx="116" cy="505" r="22" fill="#34d399"/>
+  <circle cx="636" cy="17" r="18" fill="#38bdf8"/>
+
+  <g transform="translate(736 88)">
+    <rect width="348" height="396" rx="28" fill="#0a0a0a" fill-opacity=".72" stroke="#ffffff" stroke-opacity=".16"/>
+    <text x="30" y="58" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">VERIFIABLE RECEIPT</text>
+    <text x="30" y="98" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="18">TxLINE proof anchored on Solana</text>
+    <rect x="30" y="130" width="288" height="74" rx="14" fill="#052e2b" stroke="#34d399" stroke-opacity=".35"/>
+    <text x="52" y="162" fill="#a7f3d0" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">TOTAL GOALS</text>
+    <text x="52" y="190" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">settled from proof</text>
+    <path d="M50 252h248M50 292h206M50 332h232" stroke="#ffffff" stroke-opacity=".24" stroke-width="12" stroke-linecap="round"/>
+    <path d="M50 252h114M50 292h156M50 332h88" stroke="#facc15" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(74 106)">
+    <text x="0" y="0" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="900">Stoppage</text>
+    <text x="4" y="62" fill="#d1d5db" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600">Markets that live inside the match.</text>
+    <text x="4" y="116" fill="#9ca3af" font-family="Inter, Arial, sans-serif" font-size="25">Session-key betting. TxLINE proofs. Solana settlement.</text>
+  </g>
+
+  <g transform="translate(78 518)">
+    <rect width="196" height="46" rx="23" fill="#34d399" fill-opacity=".14" stroke="#34d399" stroke-opacity=".55"/>
+    <circle cx="30" cy="23" r="7" fill="#34d399"/>
+    <text x="50" y="30" fill="#d1fae5" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700">LIVE DEVNET</text>
+  </g>
+</svg>
