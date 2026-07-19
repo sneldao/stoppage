@@ -282,7 +282,8 @@ function MarketFace({
 // ─── LiveInstrument ───────────────────────────────────────────────────────────
 
 const FACE_INTERVAL_MS = 6_000;
-const SIGNAL_DWELL_MS = 4_000;
+const SWAP_DURATION_MS = 460; // must match CSS transition duration
+const SIGNAL_DWELL_MS  = 4_000;
 
 interface LiveInstrumentProps {
   fixture: Fixture | null;
@@ -303,83 +304,89 @@ export function LiveInstrument({
   allFixtures,
   onNewEvent,
 }: LiveInstrumentProps) {
-  const [face, setFace] = useState<0 | 1>(0); // 0 = match, 1 = market
+  // front = index of the currently visible (top) face
+  const [front, setFront] = useState<0 | 1>(0); // 0 = match, 1 = market
+  const [swapping, setSwapping] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [animating, setAnimating] = useState(false);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [lastSettled, setLastSettled] = useState<LastSettled | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Measured height of the front face so the container never collapses
+  const [faceHeight, setFaceHeight] = useState(360);
+  const frontRef = useRef<HTMLDivElement>(null);
   const signalLockRef = useRef(false);
   const prevSignalVersion = useRef(signalVersion);
 
-  // Fetch last settled market for the empty market face
+  // Keep container sized to front face
   useEffect(() => {
-    if (market) return; // only needed when no open market
+    const el = frontRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (el.offsetHeight > 0) setFaceHeight(el.offsetHeight);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [front]); // re-observe when front changes
+
+  // Fetch last settled market for empty market face
+  useEffect(() => {
+    if (market) return;
     void fetch("/api/board")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (!data) return;
-        // board entries reference proofMarketIds — use first to build the preview
-        const first = data.entries?.[0];
-        if (first?.proofMarketIds?.[0]) {
-          setLastSettled({
-            question: "Last resolved market",
-            outcome: "yes",
-            marketId: first.proofMarketIds[0] as string,
-          });
-        }
+        const id = data?.entries?.[0]?.proofMarketIds?.[0];
+        if (id) setLastSettled({ question: "Last resolved market", outcome: "yes", marketId: id as string });
       })
       .catch(() => {});
   }, [market]);
 
-  // Collect events from LiveMatchBar for the ticker
+  // Collect events for the ticker
   const handleNewEvent = useCallback((evt: LiveEvent) => {
     setEvents((prev) => [evt, ...prev].slice(0, 8));
     onNewEvent?.(evt);
   }, [onNewEvent]);
 
-  // On a live signal — snap to match face, lock for SIGNAL_DWELL_MS
+  // Swap function — applies --swapping for the duration of the transition
+  const swapTo = useCallback((next: 0 | 1) => {
+    if (next === front) return;
+    setSwapping(true);
+    setTimeout(() => {
+      setFront(next);
+      setSwapping(false);
+    }, SWAP_DURATION_MS);
+  }, [front]);
+
+  // Live signal → snap to match face, hold for SIGNAL_DWELL_MS
   useEffect(() => {
     if (signalVersion === prevSignalVersion.current) return;
     prevSignalVersion.current = signalVersion;
-    if (timerRef.current) clearTimeout(timerRef.current);
+    clearTimeout((swapTo as any)._signalTimer);
     signalLockRef.current = true;
-    flipTo(0);
-    timerRef.current = setTimeout(() => {
-      signalLockRef.current = false;
-    }, SIGNAL_DWELL_MS);
+    swapTo(0);
+    const t = window.setTimeout(() => { signalLockRef.current = false; }, SIGNAL_DWELL_MS);
+    (swapTo as any)._signalTimer = t;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalVersion]);
 
-  const flipTo = useCallback((next: 0 | 1) => {
-    setAnimating(true);
-    setTimeout(() => {
-      setFace(next);
-      setAnimating(false);
-    }, 280); // half of the CSS transition duration
-  }, []);
-
-  // Auto-rotate
+  // Auto-rotate every 6 s when not paused or signal-locked
   useEffect(() => {
-    if (paused || signalLockRef.current) return;
-    const id = setInterval(() => {
+    if (paused) return;
+    const id = window.setInterval(() => {
       if (!paused && !signalLockRef.current) {
-        setAnimating(true);
-        setTimeout(() => {
-          setFace((f) => (f === 0 ? 1 : 0));
-          setAnimating(false);
-        }, 280);
+        swapTo(front === 0 ? 1 : 0);
       }
     }, FACE_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [paused]);
+    return () => window.clearInterval(id);
+  }, [paused, front, swapTo]);
 
-  // Completed (non-live) fixtures for the match face empty state
   const recentFixtures = allFixtures.filter(
     (f) => f.GameState !== 2 && f.GameState !== 4 && f.FixtureId !== fixture?.FixtureId,
   ).slice(0, 2);
 
   const live = fixture?.GameState === 2 || fixture?.GameState === 4;
+
+  // Determine which face index is front vs back
+  const matchIsFront  = front === 0;
+  const marketIsFront = front === 1;
 
   return (
     <div
@@ -390,18 +397,21 @@ export function LiveInstrument({
       onBlur={() => setPaused(false)}
     >
       <ElectricBorder
-        variant={live ? "blue" : face === 1 && market ? "lime" : "blue"}
+        variant={live ? "blue" : marketIsFront && market ? "lime" : "blue"}
         speed={live ? 1.5 : 1.0}
         displacement={live ? 30 : 20}
-        active={live || (face === 1 && market?.status === "open")}
+        active={live || (marketIsFront && market?.status === "open")}
       >
-        {/* Stacked crossfade faces — active face is position:relative,
-            inactive face is absolute and opacity:0 */}
+        {/* Card deck — fixed height container, both cards absolutely stacked */}
         <div
-          className={`instrument-faces ${animating ? "instrument-faces--animating" : ""}`}
-          aria-live="polite"
+          className={`instrument-faces ${swapping ? "instrument-faces--swapping" : ""}`}
+          style={{ minHeight: faceHeight + 16 }}
         >
-          <div className={`instrument-face instrument-match ${face === 0 ? "instrument-face--active" : ""}`}>
+          {/* Match face */}
+          <div
+            ref={matchIsFront ? frontRef : undefined}
+            className={`instrument-face instrument-match ${matchIsFront ? "instrument-face--front" : "instrument-face--back"}`}
+          >
             <MatchFace
               fixture={fixture}
               snapshot={snapshot}
@@ -411,26 +421,31 @@ export function LiveInstrument({
               onEvents={setEvents}
             />
           </div>
-          <div className={`instrument-face instrument-market ${face === 1 ? "instrument-face--active" : ""}`}>
+
+          {/* Market face */}
+          <div
+            ref={marketIsFront ? frontRef : undefined}
+            className={`instrument-face instrument-market ${marketIsFront ? "instrument-face--front" : "instrument-face--back"}`}
+          >
             <MarketFace market={market} lastSettled={lastSettled} />
           </div>
         </div>
 
-        {/* Always-visible event ticker at the base */}
+        {/* Always-visible event ticker */}
         <EventTicker events={events} />
 
-        {/* Face indicators */}
+        {/* Dot indicators */}
         <div className="instrument-dots" aria-hidden="true">
           <button
             type="button"
-            className={`instrument-dot ${face === 0 ? "instrument-dot--active" : ""}`}
-            onClick={() => { setPaused(true); flipTo(0); }}
+            className={`instrument-dot ${front === 0 ? "instrument-dot--active" : ""}`}
+            onClick={() => { setPaused(true); swapTo(0); }}
             aria-label="Show match"
           />
           <button
             type="button"
-            className={`instrument-dot ${face === 1 ? "instrument-dot--active" : ""}`}
-            onClick={() => { setPaused(true); flipTo(1); }}
+            className={`instrument-dot ${front === 1 ? "instrument-dot--active" : ""}`}
+            onClick={() => { setPaused(true); swapTo(1); }}
             aria-label="Show market"
           />
         </div>

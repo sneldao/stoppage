@@ -1704,55 +1704,70 @@ body { background: var(--paper); }
   min-height: 420px;
 }
 
-/* Stacked crossfade container — both faces sit at the same position,
-   the active one is opacity:1, the inactive one opacity:0.
-   Container height is set to the taller of the two so layout never jumps. */
+/* ── Stacked card deck ───────────────────────────────────────────
+   Both faces live in a fixed-height container.
+   The back card peeks out: rotated slightly, offset down-right,
+   dimmed. When faces swap they physically cross each other.
+   ─────────────────────────────────────────────────────────────── */
+
 .instrument-faces {
   position: relative;
-  /* min-height keeps the container stable while the inactive face is hidden */
-  min-height: 320px;
+  /* Height is driven by the tallest face — set a floor so it never
+     collapses while the active face transitions */
+  min-height: 340px;
 }
 
-/* Each face is absolutely stacked, full width */
+/* Both faces are absolutely stacked */
 .instrument-face {
   position: absolute;
   inset: 0;
   padding: 21px;
-  background: var(--panel);
   overflow: hidden;
-  /* Hidden by default */
-  opacity: 0;
+  will-change: transform, opacity;
+  transition:
+    opacity  460ms cubic-bezier(.4, 0, .2, 1),
+    transform 460ms cubic-bezier(.4, 0, .2, 1),
+    box-shadow 460ms ease;
+}
+
+/* ── Back card: visible behind, askew ── */
+.instrument-face--back {
+  opacity: .55;
+  transform: rotate(1.8deg) translateX(10px) translateY(8px) scale(.97);
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  z-index: 1;
   pointer-events: none;
-  transition: opacity 420ms cubic-bezier(.4, 0, .2, 1),
-              transform 420ms cubic-bezier(.4, 0, .2, 1);
-  transform: translateY(6px);
 }
 
-/* Active face */
-.instrument-face--active {
+/* ── Front card: flat, fully visible ── */
+.instrument-face--front {
   opacity: 1;
+  transform: rotate(0deg) translateX(0) translateY(0) scale(1);
+  box-shadow: 0 2px 16px rgba(0,0,0,.3);
+  z-index: 2;
   pointer-events: auto;
-  transform: translateY(0);
-  /* Relative so the container sizes to it */
-  position: relative;
 }
 
-/* Outgoing face during transition — stays absolute, fades up slightly */
-.instrument-faces--animating .instrument-face:not(.instrument-face--active) {
-  opacity: 0;
-  transform: translateY(-6px);
+/* ── Mid-swap: the cards cross in the air ──
+   Applied for the ~460ms duration of the transition */
+.instrument-faces--swapping .instrument-face--front {
+  transform: rotate(-1deg) translateX(-6px) translateY(-10px) scale(1.01);
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
 }
 
-/* Match face reuses existing match-board internals */
+.instrument-faces--swapping .instrument-face--back {
+  transform: rotate(.5deg) translateX(4px) translateY(4px) scale(.99);
+  opacity: .75;
+}
+
+/* Match face bg */
 .instrument-match {
   background: var(--panel);
 }
 
-/* Market face */
+/* Market face bg */
 .instrument-market {
   background: linear-gradient(160deg, #111d3a, #0d1830);
-  display: flex;
-  flex-direction: column;
 }
 
 .instrument-market--empty {
@@ -1929,12 +1944,12 @@ body { background: var(--paper); }
 .ticker-icon { font-size: 11px; }
 
 /* ================================================================
-   REDUCED MOTION — instant swap, no sliding
+   REDUCED MOTION — instant swap, no animation
    ================================================================ */
 @media (prefers-reduced-motion: reduce) {
   .instrument-face {
     transition: none;
-    transform: none;
+    transform: none !important;
   }
   .event-ticker-track {
     animation: none;
@@ -1945,9 +1960,10 @@ body { background: var(--paper); }
    MOBILE adjustments for LiveInstrument
    ================================================================ */
 @media (max-width: 800px) {
-  .live-instrument { min-height: 340px; }
-  .instrument-face { padding: 17px; }
-  .instrument-market-title { font-size: 26px; }
+  .instrument-faces { min-height: 300px; }
+  .instrument-face  { padding: 17px; }
+  .instrument-face--back { transform: rotate(1.2deg) translateX(7px) translateY(6px) scale(.97); }
+  .instrument-market-title { font-size: 22px; }
   .instrument-dots { padding: 8px 0 10px; }
 }
 
