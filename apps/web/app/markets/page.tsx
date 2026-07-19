@@ -20,6 +20,7 @@ import { ProofBoard } from "@/components/ProofBoard";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { MarketsEmptyState } from "@/components/MarketsEmptyState";
+import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
@@ -154,6 +155,9 @@ export default function MarketsPage() {
     <main className="app-shell">
       <div className="market-explorer">
         <MatchPulse live={false} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
+        <div className="market-hero-grooves" aria-hidden="true">
+          <SpinningGrooves size={420} rings={5} color="var(--lime)" counterRotate speed={0.6} />
+        </div>
         <div className="explorer-heading">
           <div>
             <p className="eyebrow">Markets</p>

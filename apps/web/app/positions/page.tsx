@@ -10,6 +10,7 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchPulse } from "@/components/MatchPulse";
 import { PositionsEmptyState } from "@/components/PositionsEmptyState";
+import { SpinningGrooves } from "@/components/SpinningGrooves";
 
 function positionPayout(market: Market, position: Position): number {
   if (position.side === "yes") {
@@ -113,7 +114,7 @@ export default function PositionsPage() {
         <div className="positions-body">
           <div className="positions-list-col">
             {open.length === 0 ? (
-              <PositionsEmptyState />
+              publicKey ? <PositionsEmptyState /> : <PositionsTeaser />
             ) : (
               <div className="open-positions-grid">
                 {open.map(({ market, position }) => (
@@ -135,4 +136,39 @@ export default function PositionsPage() {
 
 function positionKey(p: Pick<Position, "marketId" | "owner">) {
   return `${p.marketId}:${p.owner}`;
+}
+
+function PositionsTeaser() {
+  return (
+    <section className="positions-tease-hero" aria-label="What to expect">
+      <div className="positions-tease-grooves" aria-hidden="true">
+        <SpinningGrooves size={260} rings={4} color="var(--blue)" counterRotate speed={0.5} />
+      </div>
+      <h3>Your positions live here.</h3>
+      <p>
+        Once you place a bet, this page becomes your personal dashboard: every open call,
+        its live odds, and the potential return — all updating in real time as the match moves.
+      </p>
+      <div className="positions-tease-steps">
+        <div className="positions-tease-step">
+          <span>1</span>
+          <strong>Pick a market</strong>
+          <small>Choose YES or NO on a live in-play outcome.</small>
+        </div>
+        <div className="positions-tease-step">
+          <span>2</span>
+          <strong>Stake with one tap</strong>
+          <small>Session-key betting signs instantly, no popup.</small>
+        </div>
+        <div className="positions-tease-step">
+          <span>3</span>
+          <strong>Watch it play out</strong>
+          <small>Track stake, odds, and potential return until settlement.</small>
+        </div>
+      </div>
+      <Link href="/markets" className="positions-tease-cta">
+        Browse live markets <span>→</span>
+      </Link>
+    </section>
+  );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
@@ -49,6 +49,8 @@ function MatchRoomContent() {
   const feed = useStoppageStore((state) => state.feed);
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
   const [snapshot, setSnapshot] = useState<LiveMatchSnapshot | null>(null);
+  const [autoReplayFixtureId, setAutoReplayFixtureId] = useState<number | null>(null);
+  const [replayActive, setReplayActive] = useState(false);
   const orderedMarkets = useMemo(() => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)), [markets]);
   const requestedMatchId = searchParams.get("match");
   const selectedMatchId = requestedMatchId && orderedMarkets.some((market) => String(market.predicate.matchId) === requestedMatchId)
@@ -108,6 +110,45 @@ function MatchRoomContent() {
 
   const live = isLive(fixture);
   const fresh = snapshotIsFresh(snapshot);
+
+  // Auto-cycle through previous-game replays when no live match is selected.
+  const completedFixtures = useMemo(() => fixtures
+    .filter((f) => { const s = f.GameState as unknown; return s !== 1 && s !== 2 && s !== 4; })
+    .sort((a, b) => {
+      const ta = typeof a.StartTime === "string" ? new Date(a.StartTime).getTime() : (a.StartTime as unknown as number) * 1000;
+      const tb = typeof b.StartTime === "string" ? new Date(b.StartTime).getTime() : (b.StartTime as unknown as number) * 1000;
+      return tb - ta;
+    }), [fixtures]);
+
+  useEffect(() => {
+    if (live || requestedMatchId || completedFixtures.length === 0) return;
+    let idx = 0;
+    const id = window.setInterval(() => {
+      if (replayActive) return;
+      const next = completedFixtures[idx % completedFixtures.length];
+      if (next) setAutoReplayFixtureId(next.FixtureId);
+      idx += 1;
+    }, 25_000);
+    setAutoReplayFixtureId(completedFixtures[0]?.FixtureId ?? null);
+    return () => window.clearInterval(id);
+  }, [live, requestedMatchId, completedFixtures, replayActive]);
+
+  // Poll replay status so auto-cycle pauses while a replay is running.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      void fetch("/api/replay")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!cancelled && data?.status) setReplayActive(Boolean(data.status.active));
+        })
+        .catch(() => {});
+    };
+    poll();
+    const timer = window.setInterval(poll, 5_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
+
   return (
     <main className="app-shell">
       <div className="match-room">
@@ -123,12 +164,8 @@ function MatchRoomContent() {
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Listening"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Listening for the next match"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Listening for the next match"}</span></div>
           {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} onPhase={(phase) => setSnapshot({ updatedAt: Date.now(), score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 }, stats: { corners: 0, cards: 0 } })} />}
           <ReplayLauncher
-            fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => {
-              // StartTime may arrive as string ISO or numeric epoch — normalise both
-              const ta = typeof a.StartTime === "string" ? a.StartTime : new Date((a.StartTime as unknown as number) * 1000).toISOString();
-              const tb = typeof b.StartTime === "string" ? b.StartTime : new Date((b.StartTime as unknown as number) * 1000).toISOString();
-              return tb.localeCompare(ta);
-            })}
+            fixtures={completedFixtures}
+            autoLaunchFixtureId={autoReplayFixtureId}
             onLaunched={() => { /* the SSE feed picks the replay up automatically */ }}
           />
         </section>

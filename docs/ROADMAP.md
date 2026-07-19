@@ -1,8 +1,9 @@
 # Roadmap
 
-Target: TxODDS "Prediction Markets and Settlement" bounty (Superteam Earn,
-World Cup track). **Submissions close July 19, 2026 at 23:59 UTC.** Winners
-are announced July 29, 2026.
+Target: TxODDS World Cup track (Superteam Earn) — the autonomous
+agent/tool track: build a running agent or tool that ingests TxLINE feeds
+and executes a defined strategy. **Submissions close July 19, 2026 at
+23:59 UTC.** Winners are announced July 29, 2026.
 
 This file is the single status ledger. If something is deployed, broken,
 or descoped, it's recorded here and nowhere else.
@@ -82,14 +83,14 @@ or descoped, it's recorded here and nowhere else.
   semi-final now constructs the proof-gated resolution path for the
   supported total goals and total corners templates; templates without a
   deterministic TxLINE stat-proof mapping are left inactive.
-- **Public devnet deployment live.** Web app:
-  `https://stoppage.sportwarren.com`. DNS points to `nuncio-vultr`
-  (`144.202.117.160`), Traefik terminates HTTPS, and the `stoppage-web`
-  Docker service runs on the shared `coolify` network without a host port.
-  `/api/fixtures` returns TxLINE fixture data publicly. The autonomous
-  keeper runs as PM2 process `stoppage-agent` on the same VPS, using a
-  dedicated funded devnet wallet, and is connected to live TxLINE SSE with
-  `--live-tx`.
+- **Public devnet deployment live.** Web app (frontend):
+  `https://stoppage.sportwarren.com`, served by Vercel (auto-deploys from
+  `git push` to `main`). `/api/fixtures` returns TxLINE fixture data
+  publicly. The autonomous keeper runs as PM2 process `stoppage-agent` on
+  the VPS `nuncio-vultr` (`144.202.117.160`), using a dedicated funded
+  devnet wallet, and is connected to live TxLINE SSE with `--live-tx`. The
+  agent exposes an internal HTTP API on port 8765 that Vercel serverless
+  functions reach over the public internet.
 - **Viral mechanics complete**: ShareBar component (tweet generation,
   Blink URL copy, direct link copy), referral tracking via URL params
   + localStorage, tweet generation with market odds + pool size.

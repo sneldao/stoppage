@@ -8,10 +8,16 @@
  * Usage:
  *   npx tsx apps/agent/src/index.ts live
  *   npx tsx apps/agent/src/index.ts replay <fixtureId>
+ *   npx tsx apps/agent/src/index.ts replay <fixtureId> --live-tx --speed=10
  *
- * The agent wallet is supplied via SOLANA_KEYPAIR_PATH (default:
- * ~/.config/solana/id.json). It pays for market creation bonds and
- * settlement transactions.
+ * Environment:
+ *   SOLANA_KEYPAIR_PATH — path to the agent wallet keypair
+ *                           (default: ~/.config/solana/id.json)
+ *   SOLANA_RPC_URL        — Solana RPC endpoint
+ *                           (default: https://api.devnet.solana.com)
+ *
+ * The agent wallet pays for market creation bonds and settlement
+ * transactions.
  */
 
 import * as fs from "fs";
@@ -43,6 +49,11 @@ async function main() {
   const mode = process.argv[2] ?? "replay";
   const fixtureId = process.argv[3] ? Number(process.argv[3]) : 18237038; // France vs Spain semi-final
   const dryRun = !process.argv.includes("--live-tx");
+  const replaySpeedArg = process.argv.find((arg) => arg.startsWith("--speed="));
+  const replaySpeed = Math.max(
+    1,
+    Number(replaySpeedArg?.split("=")[1] ?? 1000) || 1000
+  );
 
   console.log("╔══════════════════════════════════════════╗");
   console.log("║       Stoppage Autonomous Agent          ║");
@@ -67,8 +78,11 @@ async function main() {
   );
   console.log(`Agent wallet: ${wallet.publicKey.toBase58()}`);
 
+  const rpcUrl = process.env.SOLANA_RPC_URL ?? clusterApiUrl("devnet");
+  console.log(`RPC: ${rpcUrl}`);
+
   if (!dryRun) {
-    const balance = await new Connection(clusterApiUrl("devnet")).getBalance(wallet.publicKey);
+    const balance = await new Connection(rpcUrl).getBalance(wallet.publicKey);
     console.log(`Balance: ${balance / 1e9} SOL`);
   }
   console.log();
@@ -109,7 +123,7 @@ async function main() {
     }
     const matchId = matchIdFromFixture(replayFixture);
     console.log(`Replaying: ${replayFixture.Participant1} vs ${replayFixture.Participant2} (${matchId})`);
-    source = createReplaySource(network, creds, fixtureId, replayFixture, 1000); // 1000x speed
+    source = createReplaySource(network, creds, fixtureId, replayFixture, replaySpeed);
   }
   console.log();
 
@@ -118,7 +132,7 @@ async function main() {
   const liveStore = new LiveStore();
   const oddsTracker = new OddsTracker();
   const quoteTracker = new QuoteTracker();
-  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+  const connection = new Connection(rpcUrl, "confirmed");
 
   // Track running scores by matchId (shared by the primary agent)
   const liveScores = new Map<string, { home: number; away: number; homeTeam: string; awayTeam: string }>();

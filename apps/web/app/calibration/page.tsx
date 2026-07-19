@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { PricingSnapshot } from "@stoppage/sdk";
+import { SpinningGrooves } from "@/components/SpinningGrooves";
 
 /**
  * Calibration page — the public, verifiable "was the model right?" board.
@@ -42,17 +43,21 @@ export default function CalibrationPage() {
 
   return (
     <main className="page-shell calibration-page">
-      <header className="page-head">
-        <p className="eyebrow">Verifiable calibration</p>
-        <h1>Was the model right?</h1>
-        <p className="page-lede">
-          Every Matchkeeper quote is anchored to a Merkle-proven TxLINE snapshot and a
-          published, open-source model. Every settlement is proof-gated on-chain. That
-          means the model&apos;s quoted probabilities can be checked against reality — a
-          Brier score and calibration curve anyone can audit. A web2 book can&apos;t offer
-          this: their edge is the black box.
-        </p>
-      </header>
+      <div className="page-shell-content">
+        <div className="cal-grooves" aria-hidden="true">
+          <SpinningGrooves size={360} rings={5} color="var(--blue)" counterRotate speed={0.5} />
+        </div>
+        <header className="page-head">
+          <p className="eyebrow">Verifiable calibration</p>
+          <h1>Was the model right?</h1>
+          <p className="page-lede">
+            Every Matchkeeper quote is anchored to a Merkle-proven TxLINE snapshot and a
+            published, open-source model. Every settlement is proof-gated on-chain. That
+            means the model&apos;s quoted probabilities can be checked against reality — a
+            Brier score and calibration curve anyone can audit. A web2 book can&apos;t offer
+            this: their edge is the black box.
+          </p>
+        </header>
 
       <section className="cal-method">
         <div className="cal-method-card">
@@ -108,10 +113,11 @@ export default function CalibrationPage() {
         )}
       </section>
 
-      <section className="cal-cta">
-        <p>Building an agent, a sportsbook, or a prediction market? License the verifiable pricing + settlement layer.</p>
-        <Link href="/operators" className="cal-cta-link">See the operator API →</Link>
-      </section>
+        <section className="cal-cta">
+          <p>Building an agent, a sportsbook, or a prediction market? License the verifiable pricing + settlement layer.</p>
+          <Link href="/operators" className="cal-cta-link">See the operator API →</Link>
+        </section>
+      </div>
     </main>
   );
 }
