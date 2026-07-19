@@ -219,7 +219,7 @@ export default function MarketDetailPage() {
         pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`}
       />}
 
-      <details className="market-trust-details">
+      <details className="market-trust-details" open>
         <summary>How this market settles</summary>
         <div><MatchkeeperStatus marketPhase={market.status} compact /><ProofPath status={market.status} /></div>
       </details>

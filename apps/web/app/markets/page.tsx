@@ -47,17 +47,16 @@ function MarketRow({ market }: { market: Market }) {
   const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
   const team = pred.params.team ? ` · ${pred.params.team}` : "";
   const total = market.yesPool + market.noPool;
+  const isOpen = market.status === "open";
 
   const refTag = publicKey?.toBase58() ?? referrer ?? undefined;
   const pageUrl = typeof window !== "undefined"
     ? `${window.location.origin}/markets/${market.id}`
     : `/markets/${market.id}`;
-  const tweetIntent = buildTweetIntent(
-    buildMarketTweet(market, pageUrl, refTag)
-  );
+  const tweetIntent = buildTweetIntent(buildMarketTweet(market, pageUrl, refTag));
 
   return (
-    <div className="explorer-market">
+    <div className={`explorer-market ${isOpen ? "explorer-market--open" : ""}`}>
       <Link href={`/markets/${market.id}`} className="block">
         <div className="explorer-market-head">
           <div className="min-w-0">
@@ -69,26 +68,34 @@ function MarketRow({ market }: { market: Market }) {
             </p>
           </div>
           <span className={`explorer-status ${statusBadge(market.status)}`}>
+            {isOpen && <i className="live-dot" style={{ marginRight: 5, width: 6, height: 6 }} />}
             {market.status.replace("_", " ")}
           </span>
         </div>
-        {market.status === "open" && (
+        {isOpen && (
           <div className="explorer-odds">
             <span>YES <strong>{(odds.yes * 100).toFixed(0)}%</strong></span>
-            <span className="explorer-odds-track"><i style={{ width: `${odds.yes * 100}%` }} /></span>
+            <span className="explorer-odds-track">
+              <i style={{ width: `${odds.yes * 100}%`, transition: "width 600ms cubic-bezier(.2,.75,.25,1)" }} />
+            </span>
             <span>NO <strong>{(odds.no * 100).toFixed(0)}%</strong></span>
-            <span className="explorer-live"><i /> LIVE</span>
+            <span className="explorer-live"><i className="live-dot" style={{ width: 5, height: 5 }} /> LIVE</span>
+          </div>
+        )}
+        {market.status === "settled" && (
+          <div className="explorer-settled-row">
+            <span className={`explorer-outcome ${market.outcome === "yes" ? "outcome--yes" : "outcome--no"}`}>
+              {market.outcome?.toUpperCase()} resolved
+            </span>
+            {market.verifications > 0 && (
+              <span className="explorer-verified">✓ proof verified</span>
+            )}
           </div>
         )}
       </Link>
-      {market.status === "open" && (
+      {isOpen && (
         <div className="explorer-share">
-          <a
-            href={tweetIntent}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => recordShare()}
-          >
+          <a href={tweetIntent} target="_blank" rel="noopener noreferrer" onClick={() => recordShare()}>
             Share on X →
           </a>
         </div>
@@ -103,6 +110,12 @@ export default function MarketsPage() {
   useHeliusMonitor();
   const [filter, setFilter] = useState<TapeFilter>("all");
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
+
+  // Silent auto-refresh every 12 s — markets settle and open in real time
+  useEffect(() => {
+    const id = window.setInterval(() => void refresh(), 12_000);
+    return () => window.clearInterval(id);
+  }, [refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,56 +156,84 @@ export default function MarketsPage() {
   return (
     <main className="app-shell">
       <div className="market-explorer">
-      <div className="explorer-heading">
-        <div>
-          <p className="eyebrow">Markets</p>
-          <h1>Every bet in play.</h1>
-          <p>Peer-funded positions with outcomes locked to the TxLINE proof path.</p>
+        <div className="explorer-heading">
+          <div>
+            <p className="eyebrow">Markets</p>
+            <h1>Every bet in play.</h1>
+            <p>Peer-funded positions with outcomes locked to the TxLINE proof path.</p>
+          </div>
+          <button onClick={() => void refresh()} className="explorer-refresh" aria-label="Refresh markets">
+            Refresh
+          </button>
         </div>
-        <button
-          onClick={() => void refresh()}
-          className="explorer-refresh"
-        >
-          Refresh
-        </button>
-      </div>
 
-      <div className="tape-controls" aria-label="Market state filters">
-        <div><p className="eyebrow">Filter markets</p><span>{visible.length} visible</span></div>
-        <div className="tape-filter-list">{tapeFilters.map((item) => <button type="button" key={item.id} className={filter === item.id ? "active" : ""} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
-      </div>
-
-      {visible.length === 0 ? (
-        <div className="explorer-empty">
-          <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
-          <p className="explorer-empty-hint">
-            {sorted.length === 0 ? "Markets appear here when Matchkeeper publishes an eligible read." : "Try another market state to return to the full tape."}
-          </p>
+        <div className="tape-controls" aria-label="Market state filters">
+          <div>
+            <p className="eyebrow">Filter markets</p>
+            <span>{visible.length} visible</span>
+          </div>
+          <div className="tape-filter-list">
+            {tapeFilters.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                className={filter === item.id ? "active" : ""}
+                onClick={() => setFilter(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-      ) : (
-        <div className="explorer-list">
-          {byMatch.map(([matchId, matchMarkets]) => {
-            const fixture = fixtures.find((item) => item.matchId === matchId);
-            const label = fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : `Match ${matchId}`;
-            return <section className="tape-match-group" key={matchId} aria-label={`${label} markets`}>
-              <div className="tape-match-heading"><span>{label}</span><small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small></div>
-              {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}
-            </section>;
-          })}
+
+        {/* Two-column layout: market list + proof sidebar */}
+        <div className="tape-body">
+          <div className="tape-list-col">
+            {visible.length === 0 ? (
+              <div className="explorer-empty">
+                <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
+                <p className="explorer-empty-hint">
+                  {sorted.length === 0
+                    ? "Markets appear when Matchkeeper publishes an eligible read."
+                    : "Try another filter to return to the full tape."}
+                </p>
+              </div>
+            ) : (
+              <div className="explorer-list">
+                {byMatch.map(([matchId, matchMarkets]) => {
+                  const fixture = fixtures.find((f) => f.matchId === matchId);
+                  const label = fixture
+                    ? `${fixture.Participant1} v ${fixture.Participant2}`
+                    : `Match ${matchId}`;
+                  return (
+                    <section className="tape-match-group" key={matchId} aria-label={`${label} markets`}>
+                      <div className="tape-match-heading">
+                        <span>{label}</span>
+                        <small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small>
+                      </div>
+                      {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Proof sidebar — public protocol facts, always visible */}
+          <aside className="tape-proof-col">
+            <ProofBoard markets={sorted} />
+            <StatsPanel />
+          </aside>
         </div>
-      )}
 
-      <div className="explorer-context">
-        <StatsPanel />
-        <ProofBoard markets={sorted} />
-      </div>
-
-      {/* Calendar is personal planning, separate from public proof state. */}
-      <div className="explorer-sidecars">
-        <MatchCalendar />
-      </div>
-      <PositionHistory />
-
+        {/* Personal history — collapsed by default, out of judges' way */}
+        <details className="tape-personal-details">
+          <summary>My positions &amp; history</summary>
+          <div className="tape-personal-body">
+            <PositionHistory />
+            <MatchCalendar />
+          </div>
+        </details>
       </div>
     </main>
   );
