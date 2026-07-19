@@ -17,6 +17,7 @@ import { MatchCalendar } from "@/components/MatchCalendar";
 import { formatSol as SOL } from "@/lib/format";
 import { PREDICATE_LABEL } from "@stoppage/sdk";
 import { ProofBoard } from "@/components/ProofBoard";
+import { MatchPulse } from "@/components/MatchPulse";
 
 const tapeFilters = [
   { id: "all", label: "All" },
@@ -156,6 +157,7 @@ export default function MarketsPage() {
   return (
     <main className="app-shell">
       <div className="market-explorer">
+        <MatchPulse live={false} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
         <div className="explorer-heading">
           <div>
             <p className="eyebrow">Markets</p>

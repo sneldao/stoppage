@@ -288,6 +288,21 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 /* === STOPPAGE CLOCK (ambient hero / 404) === */
 .command-center { position: relative; }
 .match-pulse { position: absolute; inset: 24px -6vw 18px; z-index: 0; width: calc(100% + 12vw); height: calc(100% - 42px); opacity: .26; mix-blend-mode: screen; pointer-events: none; }
+/* Ambient pulse variants — same dither field, different placement per page so
+   the energy reads as a motif, not a one-off homepage flourish. */
+.market-explorer, .market-shell, .match-room { position: relative; }
+.match-pulse--tape { inset: -40px -6vw auto auto; width: min(46vw, 620px); height: 360px; opacity: .18; }
+.match-pulse--detail { inset: auto auto -10px -8vw; width: min(54vw, 720px); height: 320px; opacity: .16; }
+.match-pulse--match { inset: -32px auto auto -6vw; width: min(50vw, 680px); height: 380px; opacity: .2; }
+/* Lift page content above the ambient pulse canvas */
+.market-explorer > *:not(.match-pulse),
+.market-shell > *:not(.match-pulse),
+.match-room > *:not(.match-pulse) { position: relative; z-index: 1; }
+@media (max-width: 800px) {
+  .match-pulse--tape, .match-pulse--detail, .match-pulse--match { width: calc(100% + 36px); height: 240px; opacity: .14; }
+  .match-pulse--tape, .match-pulse--match { inset: -8px -18px auto -18px; }
+  .match-pulse--detail { inset: auto auto -8px -18px; }
+}
 .hero-clock { position: absolute; top: 50%; left: 50%; z-index: 0; width: 560px; height: 560px; opacity: .16; transform: translate(-50%, -50%); pointer-events: none; }
 .command-center > .command-copy, .command-center > .live-stage { position: relative; z-index: 1; }
 .not-found-shell { display: grid; place-items: center; min-height: 70vh; padding: 40px 24px; }

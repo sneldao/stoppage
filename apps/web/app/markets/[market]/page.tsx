@@ -25,6 +25,7 @@ import { MarketMatchContext } from "@/components/MarketMatchContext";
 import { CallCard } from "@/components/CallCard";
 import { ResolutionCard } from "@/components/ResolutionCard";
 import { OdometerPool } from "@/components/OdometerPool";
+import { MatchPulse } from "@/components/MatchPulse";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 
@@ -173,6 +174,7 @@ export default function MarketDetailPage() {
 
   return (
     <main className="market-shell">
+      <MatchPulse live={market.status === "open"} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--detail" />
 
       {/* ── Nav ── */}
       <header className="market-nav">

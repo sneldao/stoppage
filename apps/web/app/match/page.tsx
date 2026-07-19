@@ -19,6 +19,7 @@ import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { SharpMoves } from "@/components/SharpMoves";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MatchSignal } from "@/components/MatchSignal";
+import { MatchPulse } from "@/components/MatchPulse";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -124,6 +125,7 @@ function MatchRoomContent() {
   return (
     <main className="app-shell">
       <div className="match-room">
+        <MatchPulse live={live} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--match" />
         <header className="match-room-header">
           <div><p className="eyebrow">Match</p><h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1></div>
           <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>

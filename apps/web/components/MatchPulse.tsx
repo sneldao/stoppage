@@ -17,7 +17,7 @@ function clamp(value: number, min: number, max: number) {
  * Decorative live-data texture. The dither field is deliberately driven by
  * real score updates rather than pointer movement, so it reads as match state.
  */
-export function MatchPulse({ live, signalVersion, lastSignalType }: { live: boolean; signalVersion: number; lastSignalType: "goal" | "corner" | "card" | null }) {
+export function MatchPulse({ live, signalVersion, lastSignalType, className = "match-pulse" }: { live: boolean; signalVersion: number; lastSignalType: "goal" | "corner" | "card" | null; className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -135,5 +135,5 @@ export function MatchPulse({ live, signalVersion, lastSignalType }: { live: bool
     };
   }, [live, signalVersion, lastSignalType]);
 
-  return <canvas ref={canvasRef} className="match-pulse" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
