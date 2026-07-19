@@ -97,11 +97,19 @@ export function CallCard({ market, side, amountSol, probability, signingMs, page
         </div>
       )}
 
+      <div className="call-card-actions call-card-actions--primary">
+        <Link href={`/match?match=${encodeURIComponent(market.predicate.matchId)}`} className="setup-guide-cta">
+          Watch it live <span>→</span>
+        </Link>
+      </div>
+      <p className="call-card-watch-hint">
+        Your call is live. Follow the match feed, see odds move, and get the settlement moment.
+      </p>
+
       <div className="call-card-actions">
         <a href={tweetIntent} target="_blank" rel="noopener noreferrer" onClick={() => recordShare()}>Share Challenge Blink</a>
         <button type="button" onClick={() => void copyCall()}>{copied ? "Link copied" : "Copy call link"}</button>
         <button type="button" onClick={() => void copyChallengeBlink()}>{copiedBlink ? "Blink copied!" : "Copy Challenge Blink"}</button>
-        <Link href={`/match?match=${encodeURIComponent(market.predicate.matchId)}`}>Open match room</Link>
       </div>
     </section>
   );

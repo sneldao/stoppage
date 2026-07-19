@@ -18,6 +18,7 @@ const routes = [
   { href: "/", label: "Live" },
   { href: "/match", label: "Match" },
   { href: "/markets", label: "Markets" },
+  { href: "/positions", label: "Positions" },
 ];
 
 export function InstrumentNav() {

@@ -18,6 +18,9 @@ import { SharpMoves } from "@/components/SharpMoves";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { RightNowLine } from "@/components/RightNowLine";
+import { PersonalizedHero, usePrimaryOpenPosition } from "@/components/PersonalizedHero";
+import { StreakCelebration } from "@/components/StreakCelebration";
+import { Achievements } from "@/components/Achievements";
 import { useAutoReplay, type ReplayStatus } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 
@@ -28,6 +31,8 @@ interface LiveMatchSnapshot {
   score: { home: number; away: number };
   stats: { corners: number; cards: number };
 }
+
+type FixtureWithMatchId = Fixture & { matchId: string };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,8 +83,9 @@ export default function Home() {
   const lastSigningMs = useStoppageStore((s) => s.lastSigningMs);
   const marketsLoading = useStoppageStore((s) => s.marketsLoading);
   const positions = useStoppageStore((s) => s.positions);
+  const history = useStoppageStore((s) => s.history);
 
-  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
   const [signalVersion, setSignalVersion] = useState(0);
   const [lastSignalType, setLastSignalType] = useState<"goal" | "corner" | "card" | null>(null);
@@ -142,14 +148,21 @@ export default function Home() {
     setScoringTeam,
   });
 
-  const featuredMarket = useMemo(
-    () => Object.values(markets).find((m) => m.status === "open") ?? null,
-    [markets],
-  );
-  const featuredFixture = useMemo(
-    () => fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null,
-    [fixtures],
-  );
+  const { market: primaryMarket, position: primaryPosition } = usePrimaryOpenPosition(markets, positions);
+
+  const featuredMarket = useMemo(() => {
+    if (primaryMarket) return primaryMarket;
+    return Object.values(markets).find((m) => m.status === "open") ?? null;
+  }, [markets, primaryMarket]);
+
+  const featuredFixture = useMemo(() => {
+    if (primaryMarket) {
+      const matchId = String(primaryMarket.predicate.matchId);
+      const matchFixture = fixtures.find((f) => String(f.matchId) === matchId);
+      return matchFixture ?? fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null;
+    }
+    return fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null;
+  }, [fixtures, primaryMarket]);
   // During a replay the hero shows the replay match; during preview the
   // synthetic preview fixture; otherwise the live/next fixture.
   const heroFixture = isPreview ? previewFixture : (isReplay && replayFixture ? replayFixture : featuredFixture);
@@ -269,6 +282,9 @@ export default function Home() {
         </>
       )}
 
+      {/* ── Streak celebration — global milestone moment ── */}
+      <StreakCelebration history={history} />
+
       {/* ── Command centre ── */}
       <section className="command-center">
         <MatchPulse live={isLive(featuredFixture)} signalVersion={signalVersion} lastSignalType={lastSignalType} />
@@ -279,13 +295,26 @@ export default function Home() {
 
         {/* Left column: copy + CTA */}
         <div className="command-copy">
-          <h1>Bet on what happens next.</h1>
-          <p className="lede">
-            Choose a live football outcome, stake devnet SOL, and watch the
-            result verify automatically.
-          </p>
-          <RightNowLine />
-          <SetupPrompt marketHref={marketHref} />
+          {primaryPosition && primaryMarket ? (
+            <PersonalizedHero
+              markets={markets}
+              positions={positions}
+              history={history}
+              fixtures={fixtures}
+              primaryMarket={primaryMarket}
+              primaryPosition={primaryPosition}
+            />
+          ) : (
+            <>
+              <h1>Bet on what happens next.</h1>
+              <p className="lede">
+                Choose a live football outcome, stake devnet SOL, and watch the
+                result verify automatically.
+              </p>
+              <RightNowLine />
+              <SetupPrompt marketHref={marketHref} />
+            </>
+          )}
           <OpenPositionsBanner />
           {state.delegated && lastSigningMs !== null && (
             <p className="hero-speed-note">
@@ -351,9 +380,10 @@ export default function Home() {
           )}
         </div>
 
-        {/* Right sidecar: sharp signals + additional markets — only after connect */}
+        {/* Right sidecar: sharp signals + additional markets + achievements — only after connect */}
         {publicKey && (
           <div className="hero-sidecar">
+            <Achievements history={history} positions={positions} />
             <SharpMoves />
             <HeroMarketRail markets={otherMarkets} />
           </div>

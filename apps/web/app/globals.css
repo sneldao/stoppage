@@ -91,6 +91,65 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .electric-wrap.electric-amber > .electric-glow-2 { border-color: rgba(251,191,36,.3); }
 .electric-wrap.electric-amber > .electric-bg-glow { background: radial-gradient(ellipse at center, rgba(251,191,36,.5), transparent 70%); }
 
+/* === PERSONALIZED RETURN-HERO === */
+.returning-hero { display: grid; gap: 18px; animation: route-enter-detail 380ms var(--ease) both; }
+.returning-hero .eyebrow { margin: 0; color: var(--lime); }
+.returning-hero h1 { margin: 0; font: 400 clamp(38px, 4vw, 58px)/.92 "Instrument Serif", Georgia, serif; }
+.returning-hero .lede { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.returning-hero-position-card { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); background: var(--panel); }
+.returning-hero-side { display: grid; place-items: center; width: 46px; height: 46px; font: 700 13px Manrope, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.returning-hero-side--yes { background: var(--lime); color: var(--ink); }
+.returning-hero-side--no { background: #ff958c; color: var(--ink); }
+.returning-hero-position-meta { display: grid; gap: 3px; }
+.returning-hero-position-meta strong { color: var(--ink); font-size: 15px; }
+.returning-hero-position-meta span { color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
+.returning-hero-settling { color: var(--amber) !important; }
+.returning-hero-fixture { margin: 0; color: var(--muted); font: 500 11px "DM Mono", monospace; text-transform: uppercase; }
+.returning-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 4px; }
+.returning-hero-link { color: var(--blue); font: 500 11px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
+.returning-hero-link:hover { color: var(--ink); }
+.returning-hero-streak { margin: 0; color: var(--lime); font: 500 12px "DM Mono", monospace; text-transform: uppercase; }
+
+/* === STREAK CELEBRATION === */
+.streak-celebration { width: min(1200px, calc(100% - 48px)); margin: 0 auto; padding-top: 38px; animation: route-enter-detail 380ms var(--ease) both; }
+.streak-celebration-content { display: grid; gap: 12px; padding: 22px 24px; border: 1px solid var(--line); background: linear-gradient(160deg, #111d3a, #0d1830); box-shadow: 0 2px 25px rgba(0,0,0,.4); }
+.streak-celebration-flames { font-size: 28px; line-height: 1; }
+.streak-celebration h2 { margin: 0; font: 400 33px/.95 "Instrument Serif", Georgia, serif; color: var(--ink); }
+.streak-celebration p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.streak-celebration-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.streak-celebration-dismiss { padding: 0; border: 0; background: transparent; color: var(--muted-dim); font: 500 10px "DM Mono", monospace; cursor: pointer; text-transform: uppercase; }
+.streak-celebration-dismiss:hover { color: var(--ink); }
+
+/* === OPEN POSITIONS DASHBOARD === */
+.positions-body { display: grid; grid-template-columns: 1fr minmax(280px, .35fr); gap: 38px; padding: 24px 0; }
+.positions-list-col { min-width: 0; }
+.positions-side-col { display: grid; gap: 18px; align-content: start; }
+.open-positions-grid { display: grid; gap: 18px; }
+.open-position-card { padding: 22px; border: 1px solid var(--line); background: var(--panel); transition: border-color 180ms var(--ease); }
+.open-position-card:hover { border-color: var(--ink); }
+.open-position-card-head { display: flex; gap: 14px; align-items: start; margin-bottom: 18px; }
+.open-position-card-meta { min-width: 0; }
+.open-position-card-meta h2 { margin: 0 0 5px; font: 400 24px/1.05 "Instrument Serif", Georgia, serif; }
+.open-position-card-meta p { margin: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
+.open-position-card-settling { color: var(--amber); }
+.open-position-card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.open-position-card-stats div { display: grid; gap: 3px; }
+.open-position-card-stats span { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
+.open-position-card-stats strong { color: var(--ink); font: 500 17px "DM Mono", monospace; }
+.open-position-card-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 18px; }
+
+/* === ACHIEVEMENTS === */
+.achievements { padding: 18px; border: 1px solid var(--line); background: var(--paper-deep); }
+.achievements-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.achievements-head .eyebrow { margin: 0; }
+.achievements-head > span { color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
+.achievements-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.achievement-card { display: grid; gap: 3px; padding: 12px; border: 1px solid var(--line); background: var(--panel); opacity: .55; transition: opacity 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease); }
+.achievement-card--unlocked { opacity: 1; border-color: var(--lime); background: rgba(0,255,136,.06); }
+.achievement-emoji { font-size: 20px; line-height: 1; }
+.achievement-card strong { color: var(--ink); font-size: 12px; }
+.achievement-card span { color: var(--muted); font: 500 9px "DM Mono", monospace; line-height: 1.35; }
+
 /* === VIBRANT THEME — colorful overrides === */
 .nav-route.active::after { background: var(--lime); box-shadow: 0 0 12px rgba(0,255,136,.6); }
 .nav-route:hover { color: var(--lime); }
