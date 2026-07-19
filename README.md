@@ -72,6 +72,15 @@ stream and call it done. The bets we're making on differentiation:
    proofs feed a public, verifiable accuracy leaderboard — social proof and
    a second use for the same data model, at near-zero extra cost.
 
+7. **Verifiable quant market-maker — the no-black-box price.**
+   Matchkeeper prices each open market from a deterministic, seeded Monte
+   Carlo model and anchors the quote on-chain in a `PricingReceipt`. The
+   snapshot hash, model version, fair value, bid/ask, and agent signature
+   are all public; the "Verify this price" button re-runs the same open
+   model in the browser and confirms the on-chain quote reproduces. This is
+   the differentiator the judges highlighted: onchain provability where web2
+   sportsbooks rely on opaque black-box models.
+
 ## Quickstart
 
 ```bash
@@ -121,6 +130,8 @@ stoppage/
 │   └── settlement/              Anchor program: on-chain CPI into TxLINE
 │                                 validate_stat + proof-carrying MarketResolved
 ├── packages/
+│   ├── quant/                   Deterministic Monte Carlo fair-value engine +
+│   │                            market-maker quoting; open-source, versioned model
 │   ├── sdk/                     TS that touches the chain: types, escrow, proofs,
 │   │                            session-key signing, program IDs, IDLs, PREDICATE_LABEL
 │   └── txline/                  TxLINE API client: auth, SSE, fixtures, scores,

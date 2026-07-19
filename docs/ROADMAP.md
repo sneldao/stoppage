@@ -174,8 +174,9 @@ or descoped, it's recorded here and nowhere else.
     (permissionless validation counter) — judge-visible.
 - Remaining before submission: record the M1 acceptance capture (delegate ->
   close wallet -> ping -> no-popup clip), record the deployed app + TxLINE
-  fixture/API walkthrough, publish the demo video, confirm the public GitHub
-  repository visibility, and complete the submission writeup/feedback.
+  fixture/API walkthrough, record the new "Verify this price" quant flow,
+  publish the demo video, confirm the public GitHub repository visibility,
+  and complete the submission writeup/feedback.
 
 ## Milestones
 

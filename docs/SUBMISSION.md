@@ -17,6 +17,13 @@ via CPI into TxLINE's `validate_stat` instruction. The market program then
 consumes the resulting settlement receipt before releasing the peer-funded
 vault.
 
+A second proof surface runs alongside settlement: a verifiable quant market-
+maker. Matchkeeper prices each open market from a deterministic Monte Carlo
+model, anchors the quote inputs in a `PricingReceipt`, and signs the quote
+with its Ed25519 key. Anyone can re-run the published model against the
+anchored snapshot and confirm the price — the "no black box" loop that
+onchain apps can offer and web2 sportsbooks cannot.
+
 ## What To Show In The Demo
 
 1. Open the deployed app and show the live match instrument on mobile width.
@@ -27,20 +34,24 @@ vault.
 3. Connect a devnet wallet and delegate a session key once.
 4. Close or avoid the wallet popup path, then place a small devnet position
    with the session key.
-5. Open a settled market and show the resolution/proof panel.
-6. Show the public board. It is derived from on-chain market and position
+5. Open a focused market with a live quote and show the pricing receipt:
+   anchored snapshot hash, model version, fair value, bid/ask, and agent
+   signature. Click "Verify this price" to re-run the open model in the
+   browser and confirm the on-chain quote reproduces.
+6. Open a settled market and show the resolution/proof panel.
+7. Show the public board. It is derived from on-chain market and position
    accounts, not local browser history.
-7. Open Solana Explorer for the settlement transaction and market account.
+8. Open Solana Explorer for the settlement transaction and market account.
 
 ## TxLINE Endpoints Used
 
 | Endpoint | Used for |
 |---|---|
 | `GET /fixtures` | Match discovery, home scoreboard, agent fixture polling |
-| `GET /fixtures/{id}/score` | Live score, corners, cards for the featured match |
+| `GET /fixtures/{id}/score` | Live score, corners, cards for the featured match and for quant snapshots |
 | `GET /fixtures/{id}/validation-proof` | Merkle proof fetched by settlement agent, verified on-chain via CPI |
 | TxLINE on-chain `validate_stat` CPI | Called by `settlement` program's `resolve_market` instruction to gate fund release |
-| SSE event stream | Agent loop (`apps/agent`) for real-time match events → market creation triggers |
+| SSE event stream | Agent loop (`apps/agent`) for real-time match events → market creation and live re-pricing |
 
 - Fixtures snapshot: powers match discovery and the home scoreboard.
 - Scores snapshot: powers fixture-level score, corner, and card state.
@@ -108,6 +119,12 @@ Latest public board verification:
 - The UX continues to frame Stoppage as a devnet protocol and verification
   demo. It avoids production sportsbook claims and keeps session state,
   proof status, and TxLINE connectivity visible.
+- **Verifiable pricing UI**: focused markets show a live fair-value
+  sparkline, bid/ask depth, and a pricing receipt panel. The
+  "Verify this price" button re-runs the open-source Monte Carlo model
+  against the anchored snapshot and confirms the on-chain fair value
+  reproduces. `/calibration` explains the model methodology; `/operators`
+  frames the protocol as B2B pricing + settlement infrastructure.
 
 ## Scope And Compliance Framing
 
