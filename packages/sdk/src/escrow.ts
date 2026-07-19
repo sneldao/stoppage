@@ -17,6 +17,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
+import nacl from "tweetnacl";
 import marketIdl from "../idl/market.json";
 import type {
   Market,
@@ -42,6 +43,13 @@ function ixDiscriminator(name: string): Buffer {
 export function findProtocolConfigPda(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from("protocol_config")],
+    MARKET_PROGRAM_ID
+  );
+}
+
+export function findAgentAuthorityPda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("agent_authority")],
     MARKET_PROGRAM_ID
   );
 }
@@ -99,6 +107,13 @@ export function findPositionPda(
   );
 }
 
+export function findPricingReceiptPda(market: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("pricing_receipt"), market.toBuffer()],
+    MARKET_PROGRAM_ID
+  );
+}
+
 // ── Encoding helpers ─────────────────────────────────────────────────
 //
 // Browser Buffer polyfills (e.g. the 'buffer' npm package) often omit
@@ -114,6 +129,12 @@ function encodeU8(n: number): Buffer {
 function encodeU16(n: number): Buffer {
   const buf = Buffer.alloc(2);
   buf.writeUInt16LE(n, 0);
+  return buf;
+}
+
+function encodeU32(n: number): Buffer {
+  const buf = Buffer.alloc(4);
+  buf.writeUInt32LE(n, 0);
   return buf;
 }
 
@@ -181,12 +202,14 @@ export function buildInitializeProtocolIx(
   feeBps: number
 ): TransactionInstruction {
   const [config] = findProtocolConfigPda();
+  const [agentAuthority] = findAgentAuthorityPda();
   const [treasury] = findTreasuryPda();
   return new TransactionInstruction({
     programId: MARKET_PROGRAM_ID,
     keys: [
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: config, isSigner: false, isWritable: true },
+      { pubkey: agentAuthority, isSigner: false, isWritable: true },
       { pubkey: treasury, isSigner: false, isWritable: true },
       { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
@@ -372,6 +395,152 @@ export function buildAttestVerificationIx(
   });
 }
 
+export function buildSetAgentAuthorityIx(
+  authority: PublicKey,
+  agentAuthority: PublicKey
+): TransactionInstruction {
+  const [config] = findProtocolConfigPda();
+  const [agentAuthorityPda] = findAgentAuthorityPda();
+  return new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    keys: [
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: config, isSigner: false, isWritable: false },
+      { pubkey: agentAuthorityPda, isSigner: false, isWritable: true },
+    ],
+    data: Buffer.concat([
+      ixDiscriminator("set_agent_authority"),
+      agentAuthority.toBuffer(),
+    ]),
+  });
+}
+
+export interface AttestPricingParams {
+  agentAuthority: PublicKey;
+  market: PublicKey;
+  snapshotHash: Uint8Array;
+  modelVersion: string;
+  /** Fair value in [0,1]; scaled to 1_000_000 on-chain. */
+  fairValue: number;
+  /** Bid in [0,1]; scaled to 1_000_000 on-chain. */
+  bid: number;
+  /** Ask in [0,1]; scaled to 1_000_000 on-chain. */
+  ask: number;
+  agentSignature: Uint8Array;
+  ts: number;
+}
+
+/** Fields that the agent signs over when attesting a price. */
+export interface QuoteSignaturePayload {
+  market: string;
+  snapshotHash: string;
+  modelVersion: string;
+  fairValue: number;
+  bid: number;
+  ask: number;
+  ts: number;
+}
+
+/**
+ * Build the canonical message that the agent signs for a pricing attestation.
+ * The message covers the market, snapshot hash, model version, the scaled
+ * fair value / bid / ask, and the attestation timestamp. Using scaled integers
+ * avoids floating-point ambiguity and makes the same payload easy to verify
+ * on-chain in the future.
+ */
+export function buildQuoteSignatureMessage(
+  payload: QuoteSignaturePayload
+): Uint8Array {
+  const fairValueBps = Math.round(payload.fairValue * 1_000_000);
+  const bidBps = Math.round(payload.bid * 1_000_000);
+  const askBps = Math.round(payload.ask * 1_000_000);
+  const message =
+    `market:${payload.market}:` +
+    `snapshotHash:${payload.snapshotHash}:` +
+    `modelVersion:${payload.modelVersion}:` +
+    `fairValue:${fairValueBps}:` +
+    `bid:${bidBps}:` +
+    `ask:${askBps}:` +
+    `ts:${payload.ts}`;
+  return new TextEncoder().encode(message);
+}
+
+/** Sign a pricing quote with an Ed25519 secret key. */
+export function signQuote(
+  secretKey: Uint8Array,
+  payload: QuoteSignaturePayload
+): Uint8Array {
+  const message = buildQuoteSignatureMessage(payload);
+  return nacl.sign.detached(message, secretKey);
+}
+
+/** Verify a pricing quote signature against an Ed25519 public key. */
+export function verifyQuoteSignature(
+  publicKey: Uint8Array,
+  signature: Uint8Array,
+  payload: QuoteSignaturePayload
+): boolean {
+  const message = buildQuoteSignatureMessage(payload);
+  return nacl.sign.detached.verify(message, signature, publicKey);
+}
+
+/** Scale a [0,1] probability to the on-chain u64 representation. */
+function scaleProbability(p: number): number {
+  if (p > 1.000001 || p < -0.000001) {
+    throw new Error(
+      `buildAttestPricingIx expects probabilities in [0,1], got ${p}. ` +
+        "If you already scaled the value, pass the unscaled [0,1] form."
+    );
+  }
+  return Math.round(Math.min(Math.max(p, 0), 1) * 1_000_000);
+}
+
+export function buildAttestPricingIx(
+  params: AttestPricingParams
+): TransactionInstruction {
+  const [agentAuthority] = findAgentAuthorityPda();
+  const [receipt] = findPricingReceiptPda(params.market);
+  const versionBuf = Buffer.from(params.modelVersion, "utf8");
+  return new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    keys: [
+      { pubkey: params.agentAuthority, isSigner: true, isWritable: true },
+      { pubkey: agentAuthority, isSigner: false, isWritable: false },
+      { pubkey: params.market, isSigner: false, isWritable: false },
+      { pubkey: receipt, isSigner: false, isWritable: true },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.concat([
+      ixDiscriminator("attest_pricing"),
+      Buffer.from(params.snapshotHash),
+      encodeU32(versionBuf.length),
+      versionBuf,
+      encodeU64(scaleProbability(params.fairValue)),
+      encodeU64(scaleProbability(params.bid)),
+      encodeU64(scaleProbability(params.ask)),
+      Buffer.from(params.agentSignature),
+      encodeI64(params.ts),
+    ]),
+  });
+}
+
+export function buildVerifyPricingIx(
+  pricingReceipt: PublicKey,
+  snapshotBytes: Buffer
+): TransactionInstruction {
+  const len = Buffer.alloc(4);
+  len.writeUInt32LE(snapshotBytes.length, 0);
+  return new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    keys: [{ pubkey: pricingReceipt, isSigner: false, isWritable: false }],
+    data: Buffer.concat([
+      ixDiscriminator("verify_pricing"),
+      len,
+      snapshotBytes,
+    ]),
+  });
+}
+
 // ── Account parsing ─────────────────────────────────────────────────
 
 /** Parse a raw account buffer into a Market object. */
@@ -429,6 +598,58 @@ export async function getMarket(
     throw new Error(`Market account not found: ${marketAddress.toBase58()}`);
   }
   return parseMarket(accountInfo.data, marketAddress.toBase58());
+}
+
+/** Parse a raw PricingReceipt account buffer into a PricingReceipt object. */
+export function parsePricingReceipt(
+  accountData: Buffer,
+  marketAddress: string
+): import("./types").PricingReceipt {
+  // Skip 8-byte discriminator.
+  let offset = 8;
+  const market = new PublicKey(accountData.subarray(offset, offset + 32)).toBase58();
+  offset += 32;
+  const snapshotHash = accountData.subarray(offset, offset + 32).toString("hex");
+  offset += 32;
+  const modelVersionLen = accountData.readUInt32LE(offset);
+  offset += 4;
+  const modelVersion = accountData.subarray(offset, offset + modelVersionLen).toString("utf8");
+  offset += modelVersionLen;
+  const fairValue = Number(readU64LE(accountData, offset)) / 1_000_000;
+  offset += 8;
+  const bid = Number(readU64LE(accountData, offset)) / 1_000_000;
+  offset += 8;
+  const ask = Number(readU64LE(accountData, offset)) / 1_000_000;
+  offset += 8;
+  const agentSignature = accountData.subarray(offset, offset + 64).toString("hex");
+  offset += 64;
+  const ts = Number(readI64LE(accountData, offset));
+  offset += 8;
+  // bump is the last byte but not needed in the TS type.
+
+  return {
+    market,
+    snapshotHash,
+    modelVersion,
+    fairValue,
+    bid,
+    ask,
+    agentSignature,
+    ts,
+  };
+}
+
+/** Fetch and parse a PricingReceipt account from chain. */
+export async function getPricingReceipt(
+  connection: Connection,
+  marketAddress: PublicKey
+): Promise<import("./types").PricingReceipt | null> {
+  const [receiptPda] = findPricingReceiptPda(marketAddress);
+  const accountInfo = await connection.getAccountInfo(receiptPda);
+  if (!accountInfo || !accountInfo.data) {
+    return null;
+  }
+  return parsePricingReceipt(accountInfo.data, marketAddress.toBase58());
 }
 
 /** Derive implied probability from vault balances. */

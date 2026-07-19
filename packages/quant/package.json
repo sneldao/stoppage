@@ -1,0 +1,12 @@
+{
+  "name": "@stoppage/quant",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Verifiable in-play quant layer for Stoppage: deterministic Monte Carlo pricing + market-maker quoting. Pure TS, no I/O, no chain. Reproducible fair value is the offchain half of the no-black-box proof.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@stoppage/sdk": "*",
+    "js-sha256": "^0.11.1"
+  }
+}

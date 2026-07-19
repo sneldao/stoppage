@@ -6,6 +6,7 @@
   "types": "src/index.ts",
   "dependencies": {
     "@solana/web3.js": "^1.98.4",
-    "js-sha256": "^0.11.1"
+    "js-sha256": "^0.11.1",
+    "tweetnacl": "^1.0.3"
   }
 }

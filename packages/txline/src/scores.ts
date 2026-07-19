@@ -40,7 +40,7 @@ export async function fetchScoresSnapshot(
   if (contentType.includes("text/event-stream")) {
     return collectSseStream(resp);
   }
-  return resp.json();
+  return (await resp.json()) as ScoreUpdate[];
 }
 
 /**
@@ -88,7 +88,7 @@ export async function fetchScoreUpdates(
   if (contentType.includes("text/event-stream")) {
     return collectSseStream(resp);
   }
-  return resp.json();
+  return (await resp.json()) as ScoreUpdate[];
 }
 
 /**

@@ -3,6 +3,7 @@ import type { MatchEventLedger } from "./eventLedger";
 import type { LiveStore } from "./liveStore";
 import type { ReplayManager } from "./replayManager";
 import type { OddsTracker } from "./oddsTracker";
+import type { QuoteTracker } from "./quoteTracker";
 import type { Fixture } from "@stoppage/txline";
 
 const DEFAULT_PORT = 18766;
@@ -29,12 +30,13 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 export interface HttpServerDeps {
   replayManager?: ReplayManager;
   oddsTracker?: OddsTracker;
+  quoteTracker?: QuoteTracker;
   resolveFixture?: (fixtureId: number) => Promise<Fixture | null>;
 }
 
 export function startEventHttpServer(ledger: MatchEventLedger, liveStore?: LiveStore, deps: HttpServerDeps = {}) {
   const port = Number(process.env.AGENT_HTTP_PORT) || DEFAULT_PORT;
-  const { replayManager, oddsTracker, resolveFixture } = deps;
+  const { replayManager, oddsTracker, quoteTracker, resolveFixture } = deps;
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -98,6 +100,41 @@ export function startEventHttpServer(ledger: MatchEventLedger, liveStore?: LiveS
       const marketId = url.searchParams.get("marketId");
       if (!marketId) { writeJson(res, 400, { error: "marketId required" }); return; }
       writeJson(res, 200, { marketId, points: oddsTracker.getHistory(marketId) });
+      return;
+    }
+
+    // ── Verifiable quotes (Phase 3A) ────────────────────────────────
+    // The agent's live reference line: fair value + bid/ask per market,
+    // reproducible off-chain from the anchored snapshot ("no black box").
+    if (path === "/quotes" && quoteTracker) {
+      const marketId = url.searchParams.get("marketId");
+      if (marketId) {
+        const latest = quoteTracker.getLatest(marketId);
+        if (!latest) { writeJson(res, 404, { error: "no quote yet" }); return; }
+        writeJson(res, 200, {
+          marketId,
+          latest,
+          history: quoteTracker.getHistory(marketId),
+        });
+      } else {
+        writeJson(res, 200, { quotes: quoteTracker.getAllLatest() });
+      }
+      return;
+    }
+
+    if (path === "/quotes/stream" && quoteTracker) {
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        ...CORS_HEADERS,
+      });
+      const init = quoteTracker.getAllLatest();
+      if (init.length) {
+        res.write(`data: ${JSON.stringify({ type: "init", quotes: init })}\n\n`);
+      }
+      quoteTracker.addClient(res);
+      req.on("close", () => quoteTracker.removeClient(res));
       return;
     }
 

@@ -20,6 +20,8 @@ import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
 import { ProofPanel } from "@/components/ProofPanel";
+import { PricingPanel } from "@/components/PricingPanel";
+import { PricingReceiptPanel } from "@/components/PricingReceiptPanel";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { StoppageClock } from "@/components/StoppageClock";
 import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed, formatSessionCountdown } from "@/lib/format";
@@ -566,6 +568,10 @@ export default function MarketDetailPage() {
           <ProofPath status={market.status} />
         </div>
       </div>
+
+      {/* ── Verifiable pricing panel (Phase 4) ── */}
+      <PricingPanel market={market} />
+      <PricingReceiptPanel market={market} />
 
       {/* ── Proof panel ── */}
       <div id="proof"><ProofPanel market={market} /></div>

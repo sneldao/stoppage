@@ -59,7 +59,7 @@ export async function fetchStatValidation(
   if (!resp.ok) {
     throw new Error(`Stat validation failed: ${resp.status} ${await resp.text()}`);
   }
-  return resp.json();
+  return (await resp.json()) as StatValidationResponse;
 }
 
 /**
@@ -89,7 +89,7 @@ export async function fetchStatValidationV2(
   if (!resp.ok) {
     throw new Error(`V2 stat validation failed: ${resp.status} ${await resp.text()}`);
   }
-  return resp.json();
+  return (await resp.json()) as StatValidationResponse;
 }
 
 // ── Proof helpers ───────────────────────────────────────────────────

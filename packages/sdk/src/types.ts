@@ -130,3 +130,57 @@ export interface ProtocolConfig {
   feeBps: number;
   treasury: string;
 }
+
+export interface AgentAuthority {
+  authority: string;
+}
+
+/**
+ * Output of the verifiable quant model. `priceMarket(predicate, snapshot,
+ * params, seed)` returns this. The CI + sims + seed make the quoted fair
+ * value reproducible off-chain (the "no black box" re-run), while bid/ask are
+ * what the agent publishes as a live reference line.
+ */
+export interface PricingResult {
+  /** Fair value of YES, 0..1. */
+  fairValue: number;
+  bid: number;
+  ask: number;
+  /** Confidence interval [low, high] on fairValue from Monte Carlo CI width. */
+  ci: [number, number];
+  /** Monte Carlo simulation count used. */
+  sims: number;
+  /** Model version string (committed in packages/quant). */
+  modelVersion: string;
+  /** Deterministic seed used — required to reproduce this exact quote. */
+  seed: string;
+}
+
+/** Input to the quant model — must be byte-identical on-chain and off-chain. */
+export interface PricingSnapshot {
+  matchId: string;
+  fixtureId: number;
+  minute: number;
+  score: { home: number; away: number };
+  corners: { home: number; away: number };
+  cards: {
+    homeYellow: number;
+    homeRed: number;
+    awayYellow: number;
+    awayRed: number;
+  };
+  seq: number;
+  ts: number;
+}
+
+/** A committed, verifiable quote from the agent. */
+export interface PricingReceipt {
+  market: string;
+  snapshotHash: string;
+  modelVersion: string;
+  fairValue: number;
+  bid: number;
+  ask: number;
+  agentSignature: string;
+  ts: number;
+}

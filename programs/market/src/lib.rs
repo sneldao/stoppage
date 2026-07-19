@@ -19,6 +19,7 @@
 // resolver.
 
 use anchor_lang::prelude::*;
+use sha2::{Digest, Sha256};
 
 declare_id!("92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG");
 
@@ -38,6 +39,7 @@ const STATUS_VOID: u8 = 3;
 /// After closes_at + this, anyone can void an unsettled market.
 const GRACE_PERIOD_SECONDS: i64 = 3_600;
 const MIN_BOND_LAMPORTS: u64 = 10_000_000; // 0.01 SOL — spam filter
+const MAX_MODEL_VERSION_LEN: usize = 64;
 
 #[program]
 pub mod market {
@@ -55,10 +57,33 @@ pub mod market {
         config.fee_bps = fee_bps;
         config.treasury = ctx.accounts.treasury.key();
         config.bump = ctx.bumps.protocol_config;
+
+        let agent = &mut ctx.accounts.agent_authority;
+        agent.authority = ctx.accounts.authority.key();
+        agent.bump = ctx.bumps.agent_authority;
+
         emit!(ProtocolInitialized {
             authority: config.authority,
             fee_bps,
             treasury: config.treasury,
+            agent_authority: agent.authority,
+        });
+        Ok(())
+    }
+
+    /// Update the agent authority that can attest pricing. Only the
+    /// protocol authority can change this.
+    pub fn set_agent_authority(ctx: Context<SetAgentAuthority>, agent_authority: Pubkey) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.protocol_config.authority,
+            ctx.accounts.authority.key(),
+            MarketError::NotProtocolAuthority
+        );
+        let agent = &mut ctx.accounts.agent_authority;
+        agent.authority = agent_authority;
+        emit!(AgentAuthoritySet {
+            authority: ctx.accounts.authority.key(),
+            agent_authority,
         });
         Ok(())
     }
@@ -304,6 +329,34 @@ pub mod market {
         Ok(())
     }
 
+    /// Authority-only settlement override. Used in acceptance tests and as a
+    /// last-resort manual settle path; production settlement should go through
+    /// settle_from_proof with a TxLINE proof receipt.
+    pub fn force_settle(ctx: Context<ForceSettle>, outcome: u8) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.protocol_config.authority,
+            ctx.accounts.authority.key(),
+            MarketError::NotProtocolAuthority
+        );
+        require!(outcome == SIDE_YES || outcome == SIDE_NO, MarketError::InvalidOutcome);
+        let market = &mut ctx.accounts.market;
+        require!(
+            market.status == STATUS_OPEN || market.status == STATUS_AWAITING,
+            MarketError::AlreadySettled
+        );
+        let clock = Clock::get()?;
+        market.status = STATUS_SETTLED;
+        market.outcome = outcome;
+        market.settles_at = clock.unix_timestamp;
+        emit!(MarketSettled {
+            market: market.key(),
+            outcome,
+            settles_at: clock.unix_timestamp,
+            mock: true,
+        });
+        Ok(())
+    }
+
     /// Permissionless settlement that is cryptographically gated by the
     /// settlement program's one-time TxLINE proof receipt.
     pub fn settle_from_proof(ctx: Context<SettleFromProof>, outcome: u8) -> Result<()> {
@@ -500,6 +553,79 @@ pub mod market {
         });
         Ok(())
     }
+
+    /// Agent-attested pricing. The authorized agent commits a fair value,
+    /// bid/ask, and the hash of the TxLINE snapshot that produced it.
+    /// Anyone can later verify that the anchored snapshot reproduces the
+    /// same quote off-chain, making the model auditable (no black box).
+    pub fn attest_pricing(
+        ctx: Context<AttestPricing>,
+        snapshot_hash: [u8; 32],
+        model_version: String,
+        fair_value: u64,
+        bid: u64,
+        ask: u64,
+        agent_signature: [u8; 64],
+        ts: i64,
+    ) -> Result<()> {
+        require!(model_version.len() <= MAX_MODEL_VERSION_LEN, MarketError::ModelVersionTooLong);
+        require!(agent_signature != [0u8; 64], MarketError::EmptyAgentSignature);
+        require_keys_eq!(
+            ctx.accounts.agent_authority.authority,
+            ctx.accounts.agent_authority_signer.key(),
+            MarketError::NotAgentAuthority
+        );
+
+        let receipt = &mut ctx.accounts.pricing_receipt;
+        receipt.market = ctx.accounts.market.key();
+        receipt.snapshot_hash = snapshot_hash;
+        receipt.model_version = model_version.clone();
+        receipt.fair_value = fair_value;
+        receipt.bid = bid;
+        receipt.ask = ask;
+        receipt.agent_signature = agent_signature;
+        receipt.ts = ts;
+        receipt.bump = ctx.bumps.pricing_receipt;
+
+        emit!(MarketPriced {
+            market: receipt.market,
+            snapshot_hash,
+            model_version,
+            fair_value,
+            bid,
+            ask,
+            ts,
+        });
+        Ok(())
+    }
+
+    /// Permissionless verification that a provided snapshot reproduces
+    /// the hash stored in the pricing receipt. The model re-run itself
+    /// happens off-chain (compute budget); on-chain we only check the
+    /// input commitment, which proves the agent priced from this exact
+    /// snapshot. The agent's Ed25519 signature over the quote is
+    /// stored in the receipt for off-chain audit; it is not re-verified
+    /// on-chain to stay within the compute budget.
+    pub fn verify_pricing(
+        ctx: Context<VerifyPricing>,
+        snapshot_bytes: Vec<u8>,
+    ) -> Result<()> {
+        let receipt = &ctx.accounts.pricing_receipt;
+        let computed = Sha256::digest(&snapshot_bytes);
+        require!(
+            computed.as_slice() == receipt.snapshot_hash,
+            MarketError::SnapshotHashMismatch
+        );
+        emit!(PricingVerified {
+            market: receipt.market,
+            snapshot_hash: receipt.snapshot_hash,
+            model_version: receipt.model_version.clone(),
+            fair_value: receipt.fair_value,
+            bid: receipt.bid,
+            ask: receipt.ask,
+        });
+        Ok(())
+    }
 }
 
 /// Decodes the stable prefix of settlement::Resolution. We intentionally do
@@ -588,6 +714,21 @@ impl ProtocolConfig {
     }
 }
 
+/// Authorized agent that can attest pricing for markets. Kept separate
+/// from ProtocolConfig so the agent can be rotated without breaking
+/// backward compatibility of the protocol config account.
+#[account]
+pub struct AgentAuthority {
+    pub authority: Pubkey,
+    pub bump: u8,
+}
+
+impl AgentAuthority {
+    pub fn space() -> usize {
+        8 + 32 + 1
+    }
+}
+
 #[account]
 pub struct SessionGrant {
     pub owner: Pubkey,
@@ -652,6 +793,31 @@ impl Position {
     }
 }
 
+/// Verifiable pricing receipt. The agent commits to a quote and the
+/// hash of the TxLINE snapshot that produced it. The model itself is
+/// re-run off-chain; on-chain we only anchor the input commitment.
+#[account]
+pub struct PricingReceipt {
+    pub market: Pubkey,
+    pub snapshot_hash: [u8; 32],
+    pub model_version: String,
+    pub fair_value: u64,
+    pub bid: u64,
+    pub ask: u64,
+    pub agent_signature: [u8; 64],
+    pub ts: i64,
+    pub bump: u8,
+}
+
+impl PricingReceipt {
+    pub fn space() -> usize {
+        // Anchor discriminator + fields. Keep in sync with MAX_MODEL_VERSION_LEN.
+        // 8 discriminator + 32 market + 4 string len + MAX_MODEL_VERSION_LEN version
+        // + 8 fair_value + 8 bid + 8 ask + 64 signature + 8 ts + 1 bump
+        8 + 32 + 4 + MAX_MODEL_VERSION_LEN + 8 + 8 + 8 + 64 + 8 + 1
+    }
+}
+
 // ── Instruction contexts ────────────────────────────────────────────
 
 #[derive(Accounts)]
@@ -666,6 +832,14 @@ pub struct InitializeProtocol<'info> {
         bump,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(
+        init,
+        payer = authority,
+        space = AgentAuthority::space(),
+        seeds = [b"agent_authority"],
+        bump,
+    )]
+    pub agent_authority: Account<'info, AgentAuthority>,
     #[account(init, payer = authority, space = 0, seeds = [b"treasury"], bump)]
     /// CHECK: treasury PDA — lamport bucket for protocol fees.
     pub treasury: UncheckedAccount<'info>,
@@ -778,6 +952,16 @@ pub struct JoinSessionKey<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ForceSettle<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"protocol_config"], bump = protocol_config.bump)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
 pub struct SettleFromProof<'info> {
     /// Any keeper may settle; authorization comes exclusively from the
     /// proof-gated receipt account.
@@ -829,6 +1013,39 @@ pub struct AttestVerification<'info> {
     pub market: Account<'info, Market>,
 }
 
+#[derive(Accounts)]
+pub struct SetAgentAuthority<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"protocol_config"], bump = protocol_config.bump)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(mut, seeds = [b"agent_authority"], bump = agent_authority.bump)]
+    pub agent_authority: Account<'info, AgentAuthority>,
+}
+
+#[derive(Accounts)]
+pub struct AttestPricing<'info> {
+    #[account(mut)]
+    pub agent_authority_signer: Signer<'info>,
+    #[account(seeds = [b"agent_authority"], bump = agent_authority.bump)]
+    pub agent_authority: Account<'info, AgentAuthority>,
+    pub market: Account<'info, Market>,
+    #[account(
+        init_if_needed,
+        payer = agent_authority_signer,
+        space = PricingReceipt::space(),
+        seeds = [b"pricing_receipt", market.key().as_ref()],
+        bump,
+    )]
+    pub pricing_receipt: Account<'info, PricingReceipt>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct VerifyPricing<'info> {
+    pub pricing_receipt: Account<'info, PricingReceipt>,
+}
+
 // ── Events ──────────────────────────────────────────────────────────
 
 #[event]
@@ -836,6 +1053,13 @@ pub struct ProtocolInitialized {
     pub authority: Pubkey,
     pub fee_bps: u16,
     pub treasury: Pubkey,
+    pub agent_authority: Pubkey,
+}
+
+#[event]
+pub struct AgentAuthoritySet {
+    pub authority: Pubkey,
+    pub agent_authority: Pubkey,
 }
 
 #[event]
@@ -912,6 +1136,27 @@ pub struct VerificationAttested {
     pub count: u32,
 }
 
+#[event]
+pub struct MarketPriced {
+    pub market: Pubkey,
+    pub snapshot_hash: [u8; 32],
+    pub model_version: String,
+    pub fair_value: u64,
+    pub bid: u64,
+    pub ask: u64,
+    pub ts: i64,
+}
+
+#[event]
+pub struct PricingVerified {
+    pub market: Pubkey,
+    pub snapshot_hash: [u8; 32],
+    pub model_version: String,
+    pub fair_value: u64,
+    pub bid: u64,
+    pub ask: u64,
+}
+
 // ── Errors ──────────────────────────────────────────────────────────
 
 #[error_code]
@@ -972,4 +1217,14 @@ pub enum MarketError {
     NotCreator,
     #[msg("Bond has already been claimed")]
     BondAlreadyClaimed,
+    #[msg("Signer is not the protocol authority")]
+    NotProtocolAuthority,
+    #[msg("Signer is not the authorized agent")]
+    NotAgentAuthority,
+    #[msg("Provided snapshot does not match the stored hash")]
+    SnapshotHashMismatch,
+    #[msg("Model version exceeds 64 bytes")]
+    ModelVersionTooLong,
+    #[msg("Agent signature cannot be empty")]
+    EmptyAgentSignature,
 }

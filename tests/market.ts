@@ -21,6 +21,7 @@ import * as chai from "chai";
 const { assert, expect } = chai;
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "crypto";
 
 // Load the IDL via fs (rule 2 — single source of truth in packages/sdk/idl/)
 // rather than a JSON import, to stay loader-agnostic under Node 22.
@@ -71,10 +72,28 @@ describe("stoppage / market program (M2)", () => {
     [Buffer.from("treasury")],
     MARKET_PROGRAM_ID
   );
+  const [agentAuthorityPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("agent_authority")],
+    MARKET_PROGRAM_ID
+  );
 
-  // Airdrop helpers for ephemeral test wallets.
+  // Fund ephemeral test wallets from the authority wallet. Using the
+  // authority's genesis balance avoids the local validator's airdrop
+  // rate limit, which otherwise causes 429 errors during a full run.
   async function fund(pk: PublicKey, lamports = 2 * LAMPORTS_PER_SOL) {
-    const sig = await connection.requestAirdrop(pk, lamports);
+    const authorityKeypair = (provider.wallet as any).payer as Keypair;
+    const tx = new web3.Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: authority.publicKey,
+        toPubkey: pk,
+        lamports,
+      })
+    );
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.lastValidBlockHeight = lastValidBlockHeight;
+    tx.sign(authorityKeypair);
+    const sig = await connection.sendRawTransaction(tx.serialize());
     await connection.confirmTransaction(sig, "confirmed");
   }
 
@@ -168,6 +187,7 @@ describe("stoppage / market program (M2)", () => {
         .accounts({
           authority: authority.publicKey,
           protocolConfig: configPda,
+          agentAuthority: agentAuthorityPda,
           treasury: treasuryPda,
           systemProgram: SystemProgram.programId,
         })
@@ -509,5 +529,208 @@ describe("stoppage / market program (M2)", () => {
       .signers([session])
       .rpc();
     // No throw == pass. The grant is active and the session key signed.
+  });
+
+  // ── Pricing attestation (Phase 2: verifiable quant market-maker) ───
+
+  it("sets the agent authority", async () => {
+    const agent = Keypair.generate();
+    await program.methods
+      .setAgentAuthority(agent.publicKey)
+      .accounts({
+        authority: authority.publicKey,
+        protocolConfig: configPda,
+        agentAuthority: agentAuthorityPda,
+      })
+      .rpc();
+    const aa = await program.account.agentAuthority.fetch(agentAuthorityPda);
+    assert.deepEqual(aa.authority, agent.publicKey);
+  });
+
+  it("attests and verifies pricing for a market", async () => {
+    // Use the existing authority as agent for simplicity.
+    const agent = authority;
+    const creator = Keypair.generate();
+    await fund(creator.publicKey);
+    const closesAt = 2_000_000_000;
+    const m = marketFor("m-price", 600, closesAt);
+    await createMarket(creator, m);
+
+    // Ensure agent authority is set to the agent.
+    await program.methods
+      .setAgentAuthority(agent.publicKey)
+      .accounts({
+        authority: authority.publicKey,
+        protocolConfig: configPda,
+        agentAuthority: agentAuthorityPda,
+      })
+      .rpc();
+
+    const [receiptPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("pricing_receipt"), m.marketPda.toBuffer()],
+      MARKET_PROGRAM_ID
+    );
+
+    // Canonical snapshot bytes (matches SDK/quant schema).
+    const snapshotBytes = Buffer.from(
+      JSON.stringify({
+        matchId: "m-price",
+        fixtureId: 12345,
+        minute: 63,
+        score: { home: 1, away: 0 },
+        corners: { home: 3, away: 1 },
+        cards: { homeYellow: 1, homeRed: 0, awayYellow: 0, awayRed: 0 },
+        seq: 42,
+        ts: Date.now(),
+      }),
+      "utf8"
+    );
+    const snapshotHash = Array.from(createHash("sha256").update(snapshotBytes).digest());
+    const modelVersion = "quant-v1";
+    const fairValue = new BN(62000);
+    const bid = new BN(61000);
+    const ask = new BN(63000);
+    const agentSignature = new Uint8Array(64).fill(0xab);
+    const ts = new BN(1_750_000_000);
+
+    await program.methods
+      .attestPricing(
+        snapshotHash,
+        modelVersion,
+        fairValue,
+        bid,
+        ask,
+        Array.from(agentSignature),
+        ts
+      )
+      .accounts({
+        agentAuthoritySigner: agent.publicKey,
+        agentAuthority: agentAuthorityPda,
+        market: m.marketPda,
+        pricingReceipt: receiptPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([agent.payer])
+      .rpc();
+
+    const receipt = await program.account.pricingReceipt.fetch(receiptPda);
+    assert.deepEqual(receipt.market, m.marketPda);
+    assert.equal(receipt.modelVersion, modelVersion);
+    assert.equal(receipt.fairValue.toNumber(), fairValue.toNumber());
+
+    // Verify with the exact snapshot bytes succeeds.
+    await program.methods
+      .verifyPricing(snapshotBytes)
+      .accounts({
+        pricingReceipt: receiptPda,
+      })
+      .rpc();
+
+    // Verify with tampered snapshot bytes fails.
+    const tampered = Buffer.concat([snapshotBytes, Buffer.from([0x00])]);
+    try {
+      await program.methods
+        .verifyPricing(tampered)
+        .accounts({
+          pricingReceipt: receiptPda,
+        })
+        .rpc();
+      assert.fail("should have rejected mismatched snapshot");
+    } catch (e) {
+      expect((e as Error).message).to.match(/SnapshotHashMismatch|custom program error/i);
+    }
+  });
+
+  it("rejects pricing attestation from an unauthorized agent", async () => {
+    const creator = Keypair.generate();
+    const unauthorized = Keypair.generate();
+    await fund(creator.publicKey);
+    await fund(unauthorized.publicKey);
+    const closesAt = 2_000_000_000;
+    const m = marketFor("m-unauth", 600, closesAt);
+    await createMarket(creator, m);
+
+    const [receiptPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("pricing_receipt"), m.marketPda.toBuffer()],
+      MARKET_PROGRAM_ID
+    );
+
+    const snapshotBytes = Buffer.from(JSON.stringify({ matchId: "x" }), "utf8");
+    const snapshotHash = Array.from(createHash("sha256").update(snapshotBytes).digest());
+
+    try {
+      await program.methods
+        .attestPricing(
+          snapshotHash,
+          "quant-v1",
+          new BN(62000),
+          new BN(61000),
+          new BN(63000),
+          new Array(64).fill(0xab),
+          new BN(1_750_000_000)
+        )
+        .accounts({
+          agentAuthoritySigner: unauthorized.publicKey,
+          agentAuthority: agentAuthorityPda,
+          market: m.marketPda,
+          pricingReceipt: receiptPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([unauthorized])
+        .rpc();
+      assert.fail("should have rejected unauthorized attestation");
+    } catch (e) {
+      expect((e as Error).message).to.match(/NotAgentAuthority|custom program error/i);
+    }
+
+    // Receipt should not have been created.
+    try {
+      await program.account.pricingReceipt.fetch(receiptPda);
+      assert.fail("receipt should not exist after unauthorized attestation");
+    } catch {
+      // Expected — account does not exist.
+    }
+  });
+
+  it("rejects pricing attestation with a model version too long", async () => {
+    const creator = Keypair.generate();
+    await fund(creator.publicKey);
+    const closesAt = 2_000_000_000;
+    const m = marketFor("m-longver", 600, closesAt);
+    await createMarket(creator, m);
+
+    const [receiptPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("pricing_receipt"), m.marketPda.toBuffer()],
+      MARKET_PROGRAM_ID
+    );
+
+    const snapshotBytes = Buffer.from(JSON.stringify({ matchId: "x" }), "utf8");
+    const snapshotHash = Array.from(createHash("sha256").update(snapshotBytes).digest());
+    const longVersion = "v".repeat(65);
+
+    try {
+      await program.methods
+        .attestPricing(
+          snapshotHash,
+          longVersion,
+          new BN(62000),
+          new BN(61000),
+          new BN(63000),
+          new Array(64).fill(0xab),
+          new BN(1_750_000_000)
+        )
+        .accounts({
+          agentAuthoritySigner: authority.publicKey,
+          agentAuthority: agentAuthorityPda,
+          market: m.marketPda,
+          pricingReceipt: receiptPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority.payer])
+        .rpc();
+      assert.fail("should have rejected long model version");
+    } catch (e) {
+      expect((e as Error).message).to.match(/ModelVersionTooLong|custom program error/i);
+    }
   });
 });

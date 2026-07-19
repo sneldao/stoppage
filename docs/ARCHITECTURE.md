@@ -53,6 +53,32 @@ Match view. This preserves the distinction between public keeper observations
 and a wallet's own signed activity without granting the web runtime write access
 to the keeper ledger.
 
+### Verifiable quant pricing
+
+A second proof surface runs alongside settlement: the agent publishes a
+fair-value reference line for each open market and anchors it on-chain in
+a `PricingReceipt`.
+
+1. `packages/quant` holds a deterministic, seeded Monte Carlo simulator plus
+   market-maker quoting. Given a TxLINE snapshot and a market predicate it
+   produces a reproducible `{ fairValue, bid, ask, ci, sims }`. The model
+   parameters are committed and versioned, so anyone can re-run it.
+2. On every TxLINE tick the agent re-prices every open market, records the
+   quote locally, and submits `attest_pricing`. The instruction stores the
+   SHA-256 hash of the canonical snapshot, the model version, the scaled
+   fair value / bid / ask, an Ed25519 signature over those fields, and a
+   timestamp.
+3. The web UI's "Verify this price" button re-hashes the live snapshot,
+   re-runs the same open model with the same seed, and checks that the
+   computed fair value matches the on-chain receipt. This closes the
+   no-black-box loop: data → model → price → attestation → public
+   reproduction.
+
+The on-chain program currently stores and compares the snapshot hash; the
+Ed25519 signature is stored and can be verified off-chain via the SDK's
+`verifyQuoteSignature` helper. A future program upgrade can enforce the
+signature check on-chain.
+
 ### Settlement and proof verification
 
 Settlement is gated by TxLINE's on-chain validation primitive:

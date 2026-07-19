@@ -14,6 +14,7 @@
     "anchor:build": "PATH=\"$HOME/.cargo/bin:$PATH\" anchor build",
     "anchor:test": "PATH=\"$HOME/.cargo/bin:$PATH\" anchor test",
     "test:programs": "PATH=\"$HOME/.cargo/bin:$PATH\" anchor test --skip-build",
+    "test:quant": "mocha --config packages/quant/.mocharc.json",
     "check:ids": "node scripts/check-ids.js",
     "sync:ids": "node scripts/sync-ids.js",
     "deploy:programs": "bash scripts/deploy.sh"

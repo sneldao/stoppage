@@ -145,6 +145,22 @@ or descoped, it's recorded here and nowhere else.
 - **DRY audit complete**: PREDICATE_LABEL consolidated to SDK, SOL
   formatter consolidated to lib/format.ts, loadCredentials consolidated
   to packages/txline/src/credentials.ts.
+- **Verifiable quant market-maker layer implemented**: `packages/quant`
+  delivers a deterministic, seeded Monte Carlo fair-value engine plus
+  confidence-interval market-maker quoting. The model is open-source,
+  versioned, and reproducible — the "no black box" keystone.
+- **On-chain pricing attestation wired**: `programs/market` stores
+  `PricingReceipt` accounts with snapshot hash, model version, fair value,
+  bid/ask, agent signature, and timestamp. SDK parses receipts and builds
+  `attest_pricing` / `verify_pricing` instructions.
+- **Agent publishes verifiable quotes**: `apps/agent` re-prices open markets
+  on every TxLINE tick, streams `quote_updated` facts, and attests pricing
+  on-chain. The placeholder signature was replaced with a real Ed25519
+  signature over the quote fields.
+- **Web UI surfaces the no-black-box loop**: `PricingReceiptPanel`
+  displays the anchored snapshot hash and model version; the
+  "Verify this price" button re-hashes the snapshot, re-runs the open model,
+  and confirms the attested fair value reproduces.
 - **Tier 1 contract evolution applied** (pre-deploy design review):
   - Protocol fee (25bps default, capped at 5%) skimmed on claim to a
     treasury PDA — investor story.

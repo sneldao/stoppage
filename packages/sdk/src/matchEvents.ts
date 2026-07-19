@@ -11,7 +11,9 @@ export type MatchEventKind =
   | "market_voided"
   | "action_failed"
   | "position_submitted"
-  | "decision_logged";
+  | "decision_logged"
+  | "quote_updated"
+  | "inventory_skew";
 
 export interface MatchEvent {
   id: string;

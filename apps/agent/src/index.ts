@@ -37,6 +37,7 @@ import { startEventHttpServer } from "./httpServer";
 import { LiveStore } from "./liveStore";
 import { OddsTracker } from "./oddsTracker";
 import { ReplayManager } from "./replayManager";
+import { QuoteTracker } from "./quoteTracker";
 
 async function main() {
   const mode = process.argv[2] ?? "replay";
@@ -116,6 +117,7 @@ async function main() {
   const ledger = createMatchEventLedger();
   const liveStore = new LiveStore();
   const oddsTracker = new OddsTracker();
+  const quoteTracker = new QuoteTracker();
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
   // Track running scores by matchId (shared by the primary agent)
@@ -135,6 +137,7 @@ async function main() {
   startEventHttpServer(ledger, liveStore, {
     replayManager,
     oddsTracker,
+    quoteTracker,
     resolveFixture: async (fixtureId) => {
       const found = fixtureMap.get(fixtureId);
       if (found) return found;
@@ -166,6 +169,7 @@ async function main() {
     dryRun,
     txlineNetwork: network,
     txlineCreds: creds,
+    quoteTracker,
     onEvent: (event) => {
       if (event.type !== "heartbeat") {
         console.log(`  📡 ${event.type}: ${formatEvent(event)}`);
@@ -177,6 +181,10 @@ async function main() {
           fixtureId: event.fixtureId,
           source: "txline",
         });
+
+        if (event.type === "match_started") {
+          agent.registerTeams(event.matchId, event.homeTeam, event.awayTeam);
+        }
 
         if (!liveScores.has(event.matchId) && event.type === "match_started") {
           liveScores.set(event.matchId, { home: 0, away: 0, homeTeam: event.homeTeam, awayTeam: event.awayTeam });

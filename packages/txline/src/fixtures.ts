@@ -30,7 +30,7 @@ export async function fetchFixtures(
   if (!resp.ok) {
     throw new Error(`Fixtures snapshot failed: ${resp.status} ${await resp.text()}`);
   }
-  return resp.json();
+  return (await resp.json()) as Fixture[];
 }
 
 /**

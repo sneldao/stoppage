@@ -25,7 +25,10 @@ export async function fetchGuestJwt(network: Network): Promise<string> {
   if (!resp.ok) {
     throw new Error(`Guest auth failed: ${resp.status} ${await resp.text()}`);
   }
-  const data = await resp.json();
+  const data = (await resp.json()) as { token?: string };
+  if (!data.token) {
+    throw new Error("Guest auth response missing token");
+  }
   return data.token;
 }
 

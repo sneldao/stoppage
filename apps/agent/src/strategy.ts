@@ -11,7 +11,11 @@
  */
 
 import type { NormalizedEvent } from "@stoppage/txline";
-import { PREDICATE_KIND, type MarketPredicate } from "@stoppage/sdk";
+import {
+  PREDICATE_KIND,
+  type MarketPredicate,
+  type PricingSnapshot,
+} from "@stoppage/sdk";
 
 // ── Actions ─────────────────────────────────────────────────────────
 
@@ -34,6 +38,13 @@ export type AgentAction =
       type: "void_market";
       predicate: MarketPredicate;
       label: string;
+    }
+  | {
+      type: "quote_market";
+      predicate: MarketPredicate;
+      label: string;
+      /** Current match state at quote time. */
+      snapshot: PricingSnapshot;
     };
 
 /**
@@ -155,6 +166,78 @@ export function decideActions(
 
 function noActionNote(matchId: string, fixtureId: number, reason: string): DecisionNote {
   return { label: reason, matchId, fixtureId };
+}
+
+// ── Verifiable quoting (Phase 3A) ────────────────────────────────────
+
+/**
+ * Build a PricingSnapshot from the live match state. This exact shape is
+ * what the quant model prices from AND what Person 2 anchors on-chain, so
+ * the two MUST stay byte-identical — the verify loop breaks otherwise.
+ */
+export function snapshotFromState(args: {
+  matchId: string;
+  fixtureId: number;
+  minute: number;
+  score: { home: number; away: number };
+  corners: { home: number; away: number };
+  cards: { homeYellow: number; homeRed: number; awayYellow: number; awayRed: number };
+  seq: number;
+  ts: number;
+}): PricingSnapshot {
+  return {
+    matchId: args.matchId,
+    fixtureId: args.fixtureId,
+    minute: args.minute,
+    score: { home: args.score.home, away: args.score.away },
+    corners: { home: args.corners.home, away: args.corners.away },
+    cards: {
+      homeYellow: args.cards.homeYellow,
+      homeRed: args.cards.homeRed,
+      awayYellow: args.cards.awayYellow,
+      awayRed: args.cards.awayRed,
+    },
+    seq: args.seq,
+    ts: args.ts,
+  };
+}
+
+/**
+ * Emit quote_market actions for every open market tied to this match on a
+ * TxLINE state change. Pure: the loop executes them (runs the model, emits
+ * the quote_updated ledger fact). Keeps the strategy as the single brain.
+ */
+export function quoteOpenMarkets(
+  matchId: string,
+  fixtureId: number,
+  minute: number,
+  score: { home: number; away: number },
+  corners: { home: number; away: number },
+  cards: { homeYellow: number; homeRed: number; awayYellow: number; awayRed: number },
+  seq: number,
+  ts: number,
+  openMarkets: OpenMarket[]
+): AgentAction[] {
+  const actions: AgentAction[] = [];
+  for (const m of openMarkets) {
+    if (m.predicate.matchId !== matchId) continue;
+    actions.push({
+      type: "quote_market",
+      predicate: m.predicate,
+      label: m.label,
+      snapshot: snapshotFromState({
+        matchId,
+        fixtureId,
+        minute,
+        score,
+        corners,
+        cards,
+        seq,
+        ts,
+      }),
+    });
+  }
+  return actions;
 }
 
 // ── Open market tracking ────────────────────────────────────────────

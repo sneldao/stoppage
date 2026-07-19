@@ -19,6 +19,8 @@ const routes = [
   { href: "/match", label: "Match" },
   { href: "/markets", label: "Markets" },
   { href: "/positions", label: "Positions" },
+  { href: "/calibration", label: "Calibration" },
+  { href: "/operators", label: "Operators" },
 ];
 
 export function InstrumentNav() {

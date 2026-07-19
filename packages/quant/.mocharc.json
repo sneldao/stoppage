@@ -1,0 +1,4 @@
+{
+  "node-option": ["import=tsx", "no-warnings"],
+  "spec": ["tests/quant/*.test.ts"]
+}
