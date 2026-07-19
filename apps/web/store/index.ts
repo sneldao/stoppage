@@ -9,10 +9,12 @@ import { createPositionsSlice, type PositionsSlice } from "./positionsSlice";
 import { createReferralSlice, type ReferralSlice } from "./referralSlice";
 import { createHistorySlice, type HistorySlice, computeHistoryStats } from "./historySlice";
 import { createActivitySlice, type ActivitySlice } from "./activitySlice";
+import { createActivityFeedSlice, type ActivityFeedSlice, TOAST_KINDS } from "./activityFeedSlice";
 export { computeHistoryStats } from "./historySlice";
 export type { HistoryStats, SettledPosition } from "./historySlice";
+export { TOAST_KINDS } from "./activityFeedSlice";
 
-export type StoppageStore = MarketsSlice & PositionsSlice & ReferralSlice & HistorySlice & ActivitySlice;
+export type StoppageStore = MarketsSlice & PositionsSlice & ReferralSlice & HistorySlice & ActivitySlice & ActivityFeedSlice;
 
 export const useStoppageStore = create<StoppageStore>()((...args) => ({
   ...createMarketsSlice(...args),
@@ -20,4 +22,5 @@ export const useStoppageStore = create<StoppageStore>()((...args) => ({
   ...createReferralSlice(...args),
   ...createHistorySlice(...args),
   ...createActivitySlice(...args),
+  ...createActivityFeedSlice(...args),
 }));

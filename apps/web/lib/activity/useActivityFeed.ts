@@ -1,64 +1,22 @@
 /**
- * useActivityFeed — the protocol's pulse, surfaced globally.
+ * useActivityFeedMonitor — the single poll that feeds the activity slice.
  *
- * Polls /api/match-events (the keeper ledger, no matchId filter = all
- * recent observable facts) on a slow cadence and merges with the user's
- * own signed activity from the store. New settlement/proof events become
- * toasts; the recent merged stream feeds the global ticker.
+ * Polls /api/match-events (the keeper ledger, no matchId = all recent
+ * observable facts) on a slow cadence, merges with the user's own signed
+ * activity, dedupes, and writes the result to the activityFeedSlice. New
+ * settlement/proof/void events are pushed as toasts. Call ONCE from the
+ * layout (ActivitySurfaces) — every consumer reads from the store.
  *
- * Boundary: this is a frontend orchestrator. It writes nothing to the
- * keeper ledger and controls nothing — /api/match-events is read-only.
+ * Boundary: read-only on the keeper ledger; controls nothing.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { MatchEvent } from "@stoppage/sdk";
-import { useStoppageStore } from "@/store";
+import { useStoppageStore, TOAST_KINDS } from "@/store";
 
-const TOAST_KINDS: MatchEvent["kind"][] = [
-  "settlement_confirmed",
-  "proof_validated",
-  "market_voided",
-];
-
-export function useActivityFeed() {
-  const activity = useStoppageStore((s) => s.activity);
-  const [remote, setRemote] = useState<MatchEvent[]>([]);
-  const [toasts, setToasts] = useState<MatchEvent[]>([]);
-  const seenRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const res = await fetch("/api/match-events");
-        if (!res.ok) return;
-        const data = await res.json();
-        const events: MatchEvent[] = data.events ?? [];
-        if (cancelled) return;
-        setRemote(events);
-        const newToasts: MatchEvent[] = [];
-        for (const e of events) {
-          if (seenRef.current.has(e.id)) continue;
-          seenRef.current.add(e.id);
-          if (TOAST_KINDS.includes(e.kind)) newToasts.push(e);
-        }
-        if (newToasts.length) setToasts((prev) => [...newToasts, ...prev].slice(0, 4));
-      } catch {
-        // agent unreachable — feed just stays stale; ticker hides itself
-      }
-    };
-    refresh();
-    const id = window.setInterval(refresh, 8_000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, []);
-
-  const dismissToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
-
-  // Merge remote keeper events with the user's own signed activity, dedupe,
-  // newest first.
-  const merged = [...remote, ...activity];
+export function mergeFeed(remote: MatchEvent[], local: MatchEvent[]): MatchEvent[] {
   const seen = new Set<string>();
-  const feed = merged
+  return [...remote, ...local]
     .sort((a, b) => b.occurredAt - a.occurredAt)
     .filter((e) => {
       if (seen.has(e.id)) return false;
@@ -66,8 +24,6 @@ export function useActivityFeed() {
       return true;
     })
     .slice(0, 12);
-
-  return { feed, toasts, dismissToast };
 }
 
 export function relTime(ts: number): string {
@@ -77,4 +33,47 @@ export function relTime(ts: number): string {
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m`;
   return `${Math.floor(m / 60)}h`;
+}
+
+export function useActivityFeedMonitor() {
+  const activity = useStoppageStore((s) => s.activity);
+  const setFeed = useStoppageStore((s) => s.setFeed);
+  const pushToasts = useStoppageStore((s) => s.pushToasts);
+  const remoteRef = useRef<MatchEvent[]>([]);
+  const seenRef = useRef<Set<string>>(new Set());
+
+  // Fetch remote keeper events on a slow cadence.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const res = await fetch("/api/match-events");
+        if (!res.ok) return;
+        const data = await res.json();
+        const events: MatchEvent[] = data.events ?? [];
+        if (cancelled) return;
+        remoteRef.current = events;
+        setFeed(mergeFeed(events, useStoppageStore.getState().activity));
+        const newToasts: MatchEvent[] = [];
+        for (const e of events) {
+          if (seenRef.current.has(e.id)) continue;
+          seenRef.current.add(e.id);
+          if (TOAST_KINDS.includes(e.kind)) newToasts.push(e);
+        }
+        if (newToasts.length) pushToasts(newToasts);
+      } catch {
+        // agent unreachable — feed just stays stale
+      }
+    };
+    refresh();
+    const id = window.setInterval(refresh, 8_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [setFeed, pushToasts]);
+
+  // Re-merge when the user's own signed activity changes.
+  useEffect(() => {
+    setFeed(mergeFeed(remoteRef.current, activity));
+  }, [activity, setFeed]);
+
+  return null;
 }

@@ -3489,7 +3489,29 @@ body {
 .event-toast-link { flex-shrink: 0; color: var(--blue); font: 500 9px "DM Mono", monospace; text-decoration: none; }
 @keyframes toast-slide-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
+/* === MATCH DRAMA + AMBIENT COUNTERS === */
+
+/* Full-bleed edge-glow flash when a goal/card/corner fires */
+.moment-flash { position: fixed; inset: 0; z-index: 55; pointer-events: none; animation: moment-flash 1.2s var(--ease) forwards; }
+.moment-flash--goal { background: radial-gradient(ellipse at center, transparent 55%, rgba(0,255,136,.22) 100%); }
+.moment-flash--card { background: radial-gradient(ellipse at center, transparent 55%, rgba(255,149,140,.22) 100%); }
+.moment-flash--corner { background: radial-gradient(ellipse at center, transparent 55%, rgba(96,165,250,.22) 100%); }
+@keyframes moment-flash { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Your-position line inside the goal alert */
+.moment-alert-position { margin-top: 8px; padding: 6px 10px; border: 1px solid rgba(0,255,136,.3); background: rgba(0,255,136,.08); color: var(--lime); font: 500 11px "DM Mono", monospace; }
+
+/* Odds surge callout — loud inline on the market detail */
+.odds-surge-callout { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; padding: 9px 12px; border: 1px solid var(--amber); border-radius: 3px; background: rgba(251,191,36,.08); color: var(--amber); font: 500 11px "DM Mono", monospace; animation: card-glow-in .4s var(--ease) both; }
+.odds-surge-flame { font-size: 14px; }
+.odds-surge-text { letter-spacing: .02em; }
+
+/* RightNowLine — rotating "right now" fact on the home hero */
+.right-now-line { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; color: var(--muted); font: 500 10px "DM Mono", monospace; letter-spacing: .03em; text-transform: uppercase; }
+.right-now-line span { color: var(--ink); animation: card-glow-in .4s var(--ease) both; }
+
 @media (max-width: 800px) {
+  .odds-surge-callout { font-size: 10px; }
   .live-pnl-total { display: none; }
   .live-pnl-q { max-width: 90px; }
   .event-toasts { top: 70px; right: 8px; left: 8px; max-width: none; }
@@ -3499,7 +3521,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line, .slip-celebration, .signal-grid--listening i, .live-bar-empty--listening::after,
-  .settlement-moment, .global-ticker-item, .event-toast { animation: none; }
+  .settlement-moment, .global-ticker-item, .event-toast,
+  .moment-flash, .odds-surge-callout, .right-now-line span { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

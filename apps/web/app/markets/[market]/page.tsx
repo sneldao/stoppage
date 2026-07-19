@@ -15,6 +15,7 @@ import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
 import { SettlementMoment } from "@/components/SettlementMoment";
+import { OddsSurgeCallout } from "@/components/OddsSurgeCallout";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
@@ -282,6 +283,9 @@ export default function MarketDetailPage() {
               <span className="market-instrument-pool-meta">{market.feeBps / 100}% fee · no house · peer-funded</span>
             </div>
           </div>
+
+          {/* ── Odds surge callout — loud when ≥10pp swings in 60s ── */}
+          {canJoin && <OddsSurgeCallout market={market} />}
 
           {/* ── Bet slip ── */}
           {canJoin && (

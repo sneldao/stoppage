@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useActivityFeed, relTime } from "@/lib/activity/useActivityFeed";
+import { useStoppageStore } from "@/store";
+import { useActivityFeedMonitor, relTime } from "@/lib/activity/useActivityFeed";
 import type { MatchEvent } from "@stoppage/sdk";
 
 /**
  * ActivitySurfaces — the protocol is alive, made visible.
  *
- * A slim fixed-bottom ticker of recent keeper + user activity, and
- * slide-in toasts when settlements / proofs / voids land. Both lean on
- * the same single poll (useActivityFeed) so there's one network cadence.
- * Renders nothing if the agent is unreachable — the feed just stays
- * empty and both surfaces hide themselves.
+ * Mounts the single activity feed poll (useActivityFeedMonitor) and renders
+ * the fixed-bottom ticker + slide-in toasts from the store. Other consumers
+ * (RightNowLine, etc.) read the same store slice — no double-polling.
+ * Renders nothing if the agent is unreachable — the feed stays empty and
+ * both surfaces hide themselves.
  */
 
 const TOAST_BADGE: Record<string, string> = {
@@ -43,7 +44,10 @@ function EventToasts({ toasts, dismiss }: { toasts: MatchEvent[]; dismiss: (id: 
 }
 
 export function ActivitySurfaces() {
-  const { feed, toasts, dismissToast } = useActivityFeed();
+  useActivityFeedMonitor();
+  const feed = useStoppageStore((s) => s.feed);
+  const toasts = useStoppageStore((s) => s.toasts);
+  const dismissToast = useStoppageStore((s) => s.dismissToast);
 
   return (
     <>

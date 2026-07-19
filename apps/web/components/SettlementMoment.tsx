@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Market, Position } from "@stoppage/sdk";
 import { formatSol as SOL } from "@/lib/format";
+import { useCountUp } from "@/lib/anim/useCountUp";
 
 /**
  * SettlementMoment — the climax of the loop, designed as an event.
@@ -14,24 +15,6 @@ import { formatSol as SOL } from "@/lib/format";
  * designed. The status transition is driven by the Helius monitor
  * pushing the settled market into the store.
  */
-
-function useCountUp(target: number, durationMs: number, active: boolean) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!active || target <= 0) { setVal(0); return; }
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setVal(target * eased);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs, active]);
-  return val;
-}
 
 function proRataPayoutLamports(stake: number, yourPool: number, oppPool: number): number {
   if (yourPool <= 0) return stake;
