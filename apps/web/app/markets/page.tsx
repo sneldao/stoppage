@@ -18,6 +18,7 @@ import { formatSol as SOL } from "@/lib/format";
 import { PREDICATE_LABEL } from "@stoppage/sdk";
 import { ProofBoard } from "@/components/ProofBoard";
 import { MatchPulse } from "@/components/MatchPulse";
+import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 
 const tapeFilters = [
   { id: "all", label: "All" },
@@ -109,6 +110,7 @@ export default function MarketsPage() {
   const { markets, refresh } = useMarkets();
   useMyPositions();
   useHeliusMonitor();
+  const marketsLoading = useStoppageStore((s) => s.marketsLoading);
   const [filter, setFilter] = useState<TapeFilter>("all");
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
 
@@ -189,9 +191,21 @@ export default function MarketsPage() {
         </div>
 
         {/* Two-column layout: market list + proof sidebar */}
+        <OpenPositionsBanner />
+
         <div className="tape-body">
           <div className="tape-list-col">
-            {visible.length === 0 ? (
+            {marketsLoading ? (
+              <div className="explorer-skeleton" aria-label="Loading markets">
+                {[0, 1, 2].map((i) => (
+                  <div className="explorer-skeleton-row" key={i}>
+                    <span className="skeleton-line skeleton-line--title" />
+                    <span className="skeleton-line skeleton-line--meta" />
+                    <span className="skeleton-line skeleton-line--bar" />
+                  </div>
+                ))}
+              </div>
+            ) : visible.length === 0 ? (
               <div className="explorer-empty">
                 <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
                 <p className="explorer-empty-hint">

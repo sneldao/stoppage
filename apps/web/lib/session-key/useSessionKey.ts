@@ -22,9 +22,14 @@ import {
   buildRevokeSessionKeyIx,
   buildSessionPingIx,
   signWithSessionKey,
+  findSessionGrantPda,
+  readU64LE,
+  readI64LE,
   MARKET_PROGRAM_ID,
 } from "@stoppage/sdk";
 
+// localStorage so one-tap betting survives new tabs (sessionStorage silently
+// reverted users to wallet popups — the differentiator died invisibly).
 const STORAGE_KEY = "stoppage_session_key";
 // Match-scoped by design: a session should not outlive the day's fixtures.
 // The expiry is the cool-off mechanism (rule 9) — re-delegation after
@@ -45,8 +50,17 @@ export interface SessionKeyState {
   isActive: boolean;
   createdAt: number | null;
   expiresAt: number | null;
-  /** Set after a successful delegate tx; null until on-chain grant exists. */
+  /** True once an on-chain grant is confirmed (delegate tx, or a resumed
+   *  grant found on-chain for the restored keypair). */
   delegated: boolean;
+  /** True while we check the chain for a grant matching the restored key. */
+  restoring: boolean;
+  /** Local keypair removed but the on-chain grant still exists — one
+   *  wallet signature (a fresh delegate tx) re-activates without losing
+   *  the old grant's history. "Pause" never revokes on-chain. */
+  paused: boolean;
+  /** Wallet that owns the on-chain grant for this keypair. */
+  owner: string | null;
   /** Last ping signature — the M1 acceptance artifact. */
   lastPingSig: string | null;
 }
@@ -55,6 +69,9 @@ interface StoredSession {
   secret: number[];
   createdAt: number;
   expiresAt: number;
+  /** Wallet that delegated this session — grants are per (owner, key). */
+  owner?: string;
+  paused?: boolean;
 }
 
 const EMPTY_STATE: SessionKeyState = {
@@ -64,19 +81,32 @@ const EMPTY_STATE: SessionKeyState = {
   createdAt: null,
   expiresAt: null,
   delegated: false,
+  restoring: false,
+  paused: false,
+  owner: null,
   lastPingSig: null,
 };
 
-function serialize(keypair: Keypair, createdAt: number, expiresAt: number): string {
+function serialize(
+  keypair: Keypair,
+  createdAt: number,
+  expiresAt: number,
+  owner?: string,
+  paused = false
+): string {
   const stored: StoredSession = {
     secret: Array.from(keypair.secretKey),
     createdAt,
     expiresAt,
+    owner,
+    paused,
   };
   return JSON.stringify(stored);
 }
 
-function deserialize(data: string): { keypair: Keypair; createdAt: number; expiresAt: number } | null {
+function deserialize(
+  data: string
+): { keypair: Keypair; createdAt: number; expiresAt: number; owner?: string; paused?: boolean } | null {
   try {
     const parsed = JSON.parse(data) as StoredSession;
     if (!Array.isArray(parsed.secret) || !parsed.expiresAt) return null;
@@ -84,7 +114,39 @@ function deserialize(data: string): { keypair: Keypair; createdAt: number; expir
       keypair: Keypair.fromSecretKey(Uint8Array.from(parsed.secret)),
       createdAt: parsed.createdAt,
       expiresAt: parsed.expiresAt,
+      owner: parsed.owner,
+      paused: parsed.paused,
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the on-chain SessionGrant for (owner, sessionPubkey).
+ * Returns expiry (seconds) if the grant exists and is not revoked.
+ * Layout after the 8-byte discriminator:
+ *   owner(32) | sessionPubkey(32) | vec<pubkey> allowed_programs |
+ *   u64 max_stake_per_market | u64 max_total_stake | u64 staked_so_far |
+ *   i64 expires_at | bool revoked
+ */
+async function fetchLiveGrant(
+  connection: ReturnType<typeof useConnection>["connection"],
+  owner: PublicKey,
+  sessionPubkey: PublicKey
+): Promise<{ expiresAtSec: number } | null> {
+  try {
+    const [grant] = findSessionGrantPda(owner, sessionPubkey);
+    const info = await connection.getAccountInfo(grant, "confirmed");
+    if (!info?.data || info.data.length < 8 + 32 + 32 + 4) return null;
+    let offset = 8 + 32 + 32;
+    const vecLen = info.data.readUInt32LE(offset);
+    offset += 4 + vecLen * 32 + 8 + 8 + 8;
+    const expiresAtSec = Number(readI64LE(info.data, offset));
+    offset += 8;
+    const revoked = info.data.readUInt8(offset) !== 0;
+    if (revoked) return null;
+    return { expiresAtSec };
   } catch {
     return null;
   }
@@ -107,7 +169,7 @@ export function useSessionKey() {
 
   // Restore a persisted session on mount, honoring its ORIGINAL expiry.
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return;
 
     const restored = deserialize(stored);
@@ -115,23 +177,55 @@ export function useSessionKey() {
       setState({
         keypair: restored.keypair,
         publicKey: restored.keypair.publicKey,
-        isActive: true,
+        isActive: !restored.paused,
         createdAt: restored.createdAt,
         expiresAt: restored.expiresAt,
-        delegated: false, // re-confirmed on next ping/delegate; not persisted
+        delegated: false,
+        restoring: !restored.paused,
+        paused: Boolean(restored.paused),
+        owner: restored.owner ?? null,
         lastPingSig: null,
       });
     } else {
-      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
+
+  // Once the wallet is connected, check the chain for a live grant matching
+  // the restored keypair. This is what makes one-tap resume in a new tab
+  // with NO popup — before this, `delegated` reset to false on every load
+  // and users silently fell back to wallet approval.
+  useEffect(() => {
+    if (!state.keypair || !publicKey) return;
+    if (state.delegated || state.paused) return;
+    if (state.owner && state.owner !== publicKey.toBase58()) return;
+    let cancelled = false;
+    void fetchLiveGrant(connection, publicKey, state.keypair.publicKey).then((grant) => {
+      if (cancelled) return;
+      if (grant && grant.expiresAtSec * 1000 > Date.now()) {
+        setState((s) => ({ ...s, delegated: true, restoring: false, expiresAt: grant.expiresAtSec * 1000 }));
+      } else {
+        // Grant missing/revoked/expired on-chain — drop the local key so the
+        // UI doesn't promise one-tap that will fail at signing time.
+        if (grant) {
+          // Expired naturally: keep the key (re-delegation is a conscious
+          // re-commitment per rule 9) but don't claim it's live.
+          setState((s) => ({ ...s, restoring: false }));
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setState(EMPTY_STATE);
+        }
+      }
+    });
+    return () => { cancelled = true; };
+  }, [connection, publicKey, state.keypair, state.delegated, state.paused, state.owner]);
 
   const createSession = useCallback((): Keypair => {
     const keypair = Keypair.generate();
     const createdAt = Date.now();
     const expiresAt = createdAt + SESSION_TIMEOUT_MS;
 
-    sessionStorage.setItem(STORAGE_KEY, serialize(keypair, createdAt, expiresAt));
+    localStorage.setItem(STORAGE_KEY, serialize(keypair, createdAt, expiresAt, publicKey?.toBase58()));
     setState({
       keypair,
       publicKey: keypair.publicKey,
@@ -139,13 +233,16 @@ export function useSessionKey() {
       createdAt,
       expiresAt,
       delegated: false,
+      restoring: false,
+      paused: false,
+      owner: publicKey?.toBase58() ?? null,
       lastPingSig: null,
     });
     return keypair;
-  }, []);
+  }, [publicKey]);
 
   const clearSession = useCallback(() => {
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     setState(EMPTY_STATE);
   }, []);
 
@@ -155,9 +252,9 @@ export function useSessionKey() {
   }, [state.isActive, state.expiresAt]);
 
   const getSessionSigner = useCallback((): Keypair | null => {
-    if (!isSessionValid()) return null;
+    if (!isSessionValid() || !state.delegated) return null;
     return state.keypair;
-  }, [state.keypair, isSessionValid]);
+  }, [state.keypair, state.delegated, isSessionValid]);
 
   /**
    * One wallet popup: generate a session keypair and delegate to it
@@ -204,10 +301,14 @@ export function useSessionKey() {
 
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
-      setState((s) => ({ ...s, delegated: true }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        serialize(keypair, state.createdAt ?? Date.now(), expiresAt * 1000, publicKey.toBase58())
+      );
+      setState((s) => ({ ...s, delegated: true, restoring: false, paused: false, isActive: true, expiresAt: expiresAt * 1000, owner: publicKey.toBase58() }));
       return sig;
     },
-    [publicKey, connection, sendTransaction, state.keypair, createSession]
+    [publicKey, connection, sendTransaction, state.keypair, state.createdAt, createSession]
   );
 
   /**
@@ -228,10 +329,9 @@ export function useSessionKey() {
   }, [publicKey, connection, getSessionSigner]);
 
   /**
-   * Revoke the delegation (owner wallet signs once more) and clear the
-   * local keypair. The session key's remaining fee lamports are left on
-   * the keypair address — a client-side sweep back to the owner is a
-   * follow-up; on devnet the amounts are trivial.
+   * Revoke the delegation on-chain (owner wallet signs once more) and clear
+   * the local keypair. This is the self-exclude path (rule 9) — deliberate
+   * and destructive. For a temporary opt-out use pause() instead.
    */
   const revoke = useCallback(async (): Promise<string> => {
     if (!publicKey) throw new Error("Wallet not connected");
@@ -251,6 +351,29 @@ export function useSessionKey() {
     return sig;
   }, [publicKey, connection, sendTransaction, state.keypair, clearSession]);
 
+  /**
+   * Pause one-tap betting WITHOUT an on-chain revoke: drop the local
+   * keypair but leave the grant on-chain. No wallet popup. The user can
+   * resume later with one wallet signature (a fresh delegate tx) instead
+   * of paying for a full re-delegation.
+   */
+  const pause = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    setState((s) => ({
+      ...EMPTY_STATE,
+      paused: true,
+      expiresAt: s.expiresAt,
+    }));
+  }, []);
+
+  /**
+   * Resume a paused session: generate a fresh keypair and delegate to it
+   * on-chain (one wallet popup). The grant's expiry is preserved.
+   */
+  const resume = useCallback(async (): Promise<string> => {
+    return delegate();
+  }, [delegate]);
+
   return {
     state,
     createSession,
@@ -260,6 +383,8 @@ export function useSessionKey() {
     delegate,
     ping,
     revoke,
+    pause,
+    resume,
   };
 }
 

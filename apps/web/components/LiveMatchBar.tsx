@@ -58,8 +58,23 @@ const PHASE_COLORS: Record<string, string> = {
   Resumed: "#00ff88",
 };
 
+// Module-level mute flag — the nav toggle flips this. Default ON for
+// desktop; the toggle persists the user's choice in localStorage.
+const SOUND_KEY = "stoppage:match_sounds";
+let soundEnabled =
+  typeof window !== "undefined" ? localStorage.getItem(SOUND_KEY) !== "off" : true;
+
+export function setMatchSoundsEnabled(enabled: boolean) {
+  soundEnabled = enabled;
+  if (typeof window !== "undefined") localStorage.setItem(SOUND_KEY, enabled ? "on" : "off");
+}
+
+export function getMatchSoundsEnabled(): boolean {
+  return soundEnabled;
+}
+
 function playEventSound(type: string) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !soundEnabled) return;
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const osc = ctx.createOscillator();

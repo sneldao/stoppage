@@ -104,6 +104,24 @@ or descoped, it's recorded here and nowhere else.
 - **Navigation depth pass complete**: persistent instrument nav shared across
   the match desk, market tape, and focused market views; route transitions
   are short, state-preserving, and keep the live instrument context intact.
+- **Frictionless/delight pass complete**: the "no popup" promise now holds
+  across tabs — the session keypair persists in `localStorage` and the hook
+  resumes a live on-chain `SessionGrant` with zero popups. Onboarding
+  collapses from three popups to two by bundling delegation with the first
+  wallet-signed bet (opt-in checkbox on the slip). Two distinct opt-outs:
+  **Pause** (drop local key, no popup, reversible) and **End session**
+  (on-chain `revoke_session_key`, self-exclude — rule 9). Bet-slip errors
+  moved inline with Retry; claim carries an honest "owner-signed" note
+  (the deployed program has no session-claim instruction and the toolchain
+  is pinned). Live feed replaces polling for the moments that matter —
+  Helius account events push the affected market into the store
+  immediately so settlement and odds appear without the 12s poll, and the
+  monitor now runs on the market detail page too. The fake "Live data
+  connected" text is now a real feed-state badge (Live / Polling / Offline)
+  in both the nav and the market detail header. Open-positions banner on
+  home and `/markets`; first-fetch skeletons on the tape and the hero
+  instrument (replacing ambiguous "no markets" copy during load); match
+  sounds get a persisted mute toggle in the nav.
 - **Onboarding and system-actor pass complete**: the match desk now leads
   first-time users through wallet -> scoped Fast Session -> first market read.
   Matchkeeper is exposed as the constrained autonomous system actor, with live

@@ -193,9 +193,11 @@ function MatchFace({
 function MarketFace({
   market,
   lastSettled,
+  marketsLoading = false,
 }: {
   market: Market | null;
   lastSettled: LastSettled | null;
+  marketsLoading?: boolean;
 }) {
   const [pendingStake, setPendingStake] = useState<string | null>(null);
   const STAKES = ["0.01", "0.05", "0.10"];
@@ -204,8 +206,17 @@ function MarketFace({
     return (
       <div className="instrument-face-content instrument-market-content instrument-market--empty">
         <p className="eyebrow">Markets</p>
-        <h2>Markets open with the match.</h2>
-        <p className="market-empty-sub">The next market appears as soon as it is published.</p>
+        {marketsLoading ? (
+          <>
+            <h2>Finding live markets…</h2>
+            <p className="market-empty-sub"><span className="skeleton-line skeleton-line--inline" /></p>
+          </>
+        ) : (
+          <>
+            <h2>Markets open with the match.</h2>
+            <p className="market-empty-sub">The next market appears as soon as it is published.</p>
+          </>
+        )}
 
         {lastSettled && (
           <div className="last-settled-preview">
@@ -290,6 +301,9 @@ interface LiveInstrumentProps {
   fixture: Fixture | null;
   snapshot: LiveMatchSnapshot | null;
   market: Market | null;
+  /** True during the first markets fetch — the empty face shows a loading
+   *  label instead of implying no markets exist. */
+  marketsLoading?: boolean;
   signalVersion: number;
   lastSignalType: "goal" | "corner" | "card" | null;
   allFixtures: Fixture[];
@@ -300,6 +314,7 @@ export function LiveInstrument({
   fixture,
   snapshot,
   market,
+  marketsLoading = false,
   signalVersion,
   lastSignalType,
   allFixtures,
@@ -421,7 +436,7 @@ export function LiveInstrument({
             className={`instrument-face instrument-market ${front === 1 ? "instrument-face--front" : "instrument-face--back"}`}
             aria-hidden={front !== 1}
           >
-            <MarketFace market={market} lastSettled={lastSettled} />
+            <MarketFace market={market} lastSettled={lastSettled} marketsLoading={marketsLoading} />
           </div>
         </div>
 

@@ -17,3 +17,5 @@ secrets/
 *.key
 *.p12
 .runtime/
+.vercel
+.env*

@@ -43,6 +43,18 @@ export function formatConfirmationSpeed(submittedAt: number, confirmedAt: number
   return `${(delta / 1000).toFixed(1)}s`;
 }
 
+/** Human countdown to session expiry, e.g. "in 5h 12m", "in 8m", "soon". */
+export function formatSessionCountdown(expiresAtMs: number): string {
+  const ms = expiresAtMs - Date.now();
+  if (ms <= 0) return "soon";
+  const totalMin = Math.floor(ms / 60_000);
+  if (totalMin < 1) return "soon";
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `in ${h}h ${m}m`;
+  return `in ${m}m`;
+}
+
 /**
  * Map common country/competition names to flag emoji.
  * Falls back to 🏁 for unmapped values.

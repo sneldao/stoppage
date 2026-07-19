@@ -1,0 +1,46 @@
+"use client";
+
+import Link from "next/link";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useStoppageStore } from "@/store";
+import { formatSol as SOL } from "@/lib/format";
+import { formatMarketQuestion } from "@/lib/format";
+
+/**
+ * Persistent banner surfacing the user's open positions on home and the
+ * markets tape — previously a returning user had to open each market to
+ * discover they still had money riding on it.
+ */
+export function OpenPositionsBanner() {
+  const { publicKey } = useWallet();
+  const positions = useStoppageStore((s) => s.positions);
+  const markets = useStoppageStore((s) => s.markets);
+
+  if (!publicKey) return null;
+
+  const owner = publicKey.toBase58();
+  const open = Object.values(positions).filter((p) => {
+    if (p.owner !== owner || p.amountLamports <= 0) return false;
+    const m = markets[p.marketId];
+    // Show while open or awaiting settlement; settled is handled by claim UI.
+    return m ? m.status === "open" || m.status === "awaiting_settlement" : true;
+  });
+
+  if (open.length === 0) return null;
+
+  return (
+    <div className="open-positions-banner" role="status">
+      {open.map((p) => {
+        const m = markets[p.marketId];
+        return (
+          <Link key={`${p.marketId}:${p.owner}`} href={`/markets/${p.marketId}`} className="open-position-chip">
+            <span className="open-position-side">{p.side.toUpperCase()}</span>
+            <span className="open-position-q">{m ? formatMarketQuestion(m.predicate) : "Live market"}</span>
+            <span className="open-position-amt">{SOL(p.amountLamports)}</span>
+            {m?.status === "awaiting_settlement" && <span className="open-position-settling">settling…</span>}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}

@@ -80,13 +80,28 @@ last two steps from the immutable receipt after a transient failure.
   a generated session keypair to act on their behalf within scoped limits
   (max stake per market, expiry, program allowlist = market + settlement
   programs only).
+- The session keypair is persisted in `localStorage` (not `sessionStorage`)
+  keyed by the owner wallet. On load the hook checks the chain for a live
+  `SessionGrant` matching the restored keypair and resumes one-tap betting
+  with **no popup** — opening a new tab no longer silently reverts the user
+  to wallet approval. A revoked/expired grant drops the local key so the
+  UI never promises one-tap that will fail at signing time.
 - Session key is held client-side (or in a lightweight enclave/service for
   mobile), never has withdrawal rights beyond placing/claiming positions it
   itself opened.
 - Every in-play bet after delegation is signed by the session key directly
   — no wallet popup, no `wallet.signTransaction()` round-trip.
 - Delegation is revocable at any time and expires automatically (e.g. end
-  of match + settlement window).
+  of match + settlement window). Two distinct opt-out paths, both surfaced
+  in the bet slip and onboarding prompt:
+  - **Pause** — drop the local keypair only. No wallet popup, no on-chain
+    revoke. Resume later with one signature. Caps and expiry stay enforced
+    on the untouched grant.
+  - **End session** — on-chain `revoke_session_key`: closes the grant,
+    refunds rent. The self-exclude path; irreversible without a fresh
+    delegation. Onboarding collapses the connect / first-bet / delegate
+    sequence into two popups by optionally bundling delegation with the
+    first wallet-signed bet (a checkbox on the bet slip, on by default).
 
 This is the one piece worth NOT treating as boilerplate. A session key that
 is authorized on-chain but never actually signs anything (delegated-in-name-

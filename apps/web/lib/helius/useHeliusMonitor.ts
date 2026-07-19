@@ -9,8 +9,9 @@
 
 import { useEffect, useRef } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { HeliusMonitor } from "@/lib/helius/monitor";
-import { MARKET_PROGRAM_ID } from "@stoppage/sdk";
+import { MARKET_PROGRAM_ID, getMarket } from "@stoppage/sdk";
 import { useStoppageStore } from "@/store";
 
 const EVENT_MATCHERS = [
@@ -21,9 +22,16 @@ const EVENT_MATCHERS = [
   "PositionClaimed",
 ];
 
+/** Extract a base58 market address from a program log line, if present. */
+function extractMarketAddress(log: string): string | null {
+  const match = log.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+  return match ? match[0] : null;
+}
+
 export function useHeliusMonitor() {
   const { connection } = useConnection();
-  const setMarketStatus = useStoppageStore((s) => s.setMarketStatus);
+  const upsertMarket = useStoppageStore((s) => s.upsertMarket);
+  const setFeedState = useStoppageStore((s) => s.setFeedState);
   const monitorRef = useRef<HeliusMonitor | null>(null);
 
   useEffect(() => {
@@ -34,8 +42,8 @@ export function useHeliusMonitor() {
         : undefined);
 
     if (!rpcUrl || rpcUrl.includes("YOUR_API_KEY")) {
-      // No Helius URL configured — skip live monitoring. Polling via
-      // useMarkets.refresh() is the fallback.
+      // No Helius URL configured — polling via useMarkets.refresh().
+      setFeedState("polling");
       return;
     }
 
@@ -45,23 +53,30 @@ export function useHeliusMonitor() {
       eventMatchers: EVENT_MATCHERS,
       logLevel: "error",
       onEvent: (event) => {
-        // On any market/position event, the simplest correct action is
-        // to mark the affected market stale and let the next render
-        // re-fetch. For settle/void we flip the status optimistically;
-        // a full refresh happens on the next poll or navigation.
-        if (event.name === "MarketSettled") {
-          // The log line carries the market address; a full parse is
-          // non-trivial, so we rely on the next useMarkets.refresh().
+        setFeedState("connected");
+        // Push the affected market into the store immediately — no waiting
+        // for the 12s poll. This is what makes settlement appear live.
+        const addr = extractMarketAddress(event.log);
+        if (addr) {
+          void getMarket(connection, new PublicKey(addr))
+            .then((m) => upsertMarket(m))
+            .catch(() => {});
         }
       },
     });
 
     monitorRef.current = monitor;
-    monitor.connect();
+    try {
+      monitor.connect();
+      setFeedState("connected");
+    } catch {
+      setFeedState("polling");
+    }
 
     return () => {
       monitor.disconnect();
       monitorRef.current = null;
+      setFeedState("polling");
     };
-  }, [connection.rpcEndpoint, setMarketStatus]);
+  }, [connection, upsertMarket, setFeedState]);
 }

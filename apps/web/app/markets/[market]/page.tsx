@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { Keypair } from "@solana/web3.js";
 import { getMarket, impliedProbability, type Market, type Side } from "@stoppage/sdk";
 import { useMarketActions } from "@/lib/markets/useMarketActions";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
+import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
@@ -18,7 +20,7 @@ import { ShareBar } from "@/components/ShareBar";
 import { ProofPanel } from "@/components/ProofPanel";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { StoppageClock } from "@/components/StoppageClock";
-import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed } from "@/lib/format";
+import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed, formatSessionCountdown } from "@/lib/format";
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MarketMatchContext } from "@/components/MarketMatchContext";
@@ -28,6 +30,7 @@ import { OdometerPool } from "@/components/OdometerPool";
 import { MatchPulse } from "@/components/MatchPulse";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
+const LAST_STAKE_KEY = "stoppage:last_stake";
 
 interface ExecutionReceipt extends ActionResult {
   viaSession: boolean;
@@ -53,9 +56,11 @@ export default function MarketDetailPage() {
   const marketAddr = params.market;
   const { connection } = useConnection();
   const { publicKey } = useWallet();
-  const { state, getSessionSigner, revoke } = useSessionKey();
+  const { state, getSessionSigner, delegate, pause, resume, revoke } = useSessionKey();
   const { joinViaWallet, joinViaSessionKey, claim } = useMarketActions();
   useMyPositions();
+  useHeliusMonitor();
+  const feedState = useStoppageStore((s) => s.feedState);
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
   const recordActivity = useStoppageStore((s) => s.recordActivity);
@@ -63,11 +68,18 @@ export default function MarketDetailPage() {
   const myPosition = useStoppageStore((s) =>
     publicKey ? s.positions[`${marketAddr}:${publicKey.toBase58()}`] : undefined
   );
+  const hasAnyHistory = useStoppageStore((s) => s.history.length > 0);
 
   const [liveMarket, setLiveMarket] = useState<Market | null>(storeMarket ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [amountSol, setAmountSol] = useState("0.05");
+  const [amountSol, setAmountSol] = useState(() => {
+    if (typeof window === "undefined") return "0.05";
+    return localStorage.getItem(LAST_STAKE_KEY) ?? "0.05";
+  });
+  const [wantsOneTap, setWantsOneTap] = useState(true);
+  const [justOnboarded, setJustOnboarded] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   const initialSide = searchParams.get("side");
   const [selectedSide, setSelectedSide] = useState<Side | null>(
@@ -79,6 +91,22 @@ export default function MarketDetailPage() {
     if (initialStake && stakePresets.includes(initialStake)) setAmountSol(initialStake);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist last stake across markets
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem(LAST_STAKE_KEY, amountSol);
+  }, [amountSol]);
+
+  // Surface session expiry instead of silently flipping to wallet approval
+  useEffect(() => {
+    if (state.keypair && state.expiresAt && state.expiresAt <= Date.now() && !state.paused) {
+      setSessionNotice("One-tap session expired. Bets will use wallet approval until you re-enable.");
+    } else if (state.paused) {
+      setSessionNotice(null);
+    } else {
+      setSessionNotice(null);
+    }
+  }, [state.keypair, state.expiresAt, state.paused]);
 
   const [submittedWithSession, setSubmittedWithSession] = useState(false);
   const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
@@ -120,6 +148,8 @@ export default function MarketDetailPage() {
           signature: result.signature,
           source: "wallet",
         });
+        // First one-tap bet celebration — one time only
+        if (viaSession && !hasAnyHistory && !justOnboarded) setJustOnboarded(true);
       }
       try { setLiveMarket(await getMarket(connection, new PublicKey(marketAddr))); } catch {}
     } catch (cause) {
@@ -129,25 +159,60 @@ export default function MarketDetailPage() {
     }
   };
 
+  const joinWithSigner = useCallback(async (signer: Keypair, side: Side, lamports: number) => {
+    return joinViaSessionKey(signer, publicKey!, { market: new PublicKey(marketAddr), side, amountLamports: lamports });
+  }, [joinViaSessionKey, publicKey, marketAddr]);
+
   const onJoin = () => {
     if (!selectedSide) { setError("Choose YES or NO first"); return; }
     if (!publicKey) { setError("Connect your wallet first"); return; }
     if (amountLamports <= 0) { setError("Enter a stake amount"); return; }
+
+    // Already delegated and session valid → straight to one-tap
     const signer = getSessionSigner();
-    const usesSession = Boolean(signer && state.delegated);
-    setSubmittedWithSession(usesSession);
+    setSubmittedWithSession(Boolean(signer));
     setReceipt(null);
     setLockedCall(null);
-    if (signer && state.delegated) {
-      void run(`join-${selectedSide}-session`, () =>
-        joinViaSessionKey(signer, publicKey, { market: new PublicKey(marketAddr), side: selectedSide, amountLamports }), true);
+    if (signer) {
+      void run(`join-${selectedSide}-session`, () => joinWithSigner(signer, selectedSide, amountLamports), true);
       return;
     }
+
+    // Wallet path — optionally bundle delegation so the NEXT bet is one-tap.
+    // This collapses onboarding from 3 popups to 2 (connect, this one).
+    if (wantsOneTap && !state.paused && !state.delegated) {
+      void run(`join-${selectedSide}-delegate`, async () => {
+        await delegate();
+        // Read the freshly-created keypair from storage (state hasn't flushed yet)
+        const stored = localStorage.getItem("stoppage_session_key");
+        if (!stored) throw new Error("Delegation succeeded but no session key was stored");
+        const restored = JSON.parse(stored) as { secret: number[] };
+        const fresh = Keypair.fromSecretKey(Uint8Array.from(restored.secret));
+        return joinWithSigner(fresh, selectedSide, amountLamports);
+      }, true);
+      return;
+    }
+
     void run(`join-${selectedSide}-wallet`, () =>
       joinViaWallet({ market: new PublicKey(marketAddr), side: selectedSide, amountLamports }));
   };
 
-  const onRevokeSession = () => {
+  const onPauseSession = () => {
+    pause();
+    setSessionNotice(null);
+  };
+
+  const onResumeSession = () => {
+    setBusy("resume");
+    setError(null);
+    void resume()
+      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => setBusy(null));
+  };
+
+  // Self-exclude path (rule 9): on-chain revoke. Destructive, irreversible
+  // without a fresh delegation, but must stay prominent in the UI.
+  const onEndSession = () => {
     setBusy("revoke");
     setError(null);
     void revoke()
@@ -180,7 +245,10 @@ export default function MarketDetailPage() {
       <header className="market-nav">
         <Link href="/markets">← Markets</Link>
         <span>Position</span>
-        <span className="market-feed"><i className="live-dot" /> Live data connected</span>
+        <span className={`market-feed market-feed--${feedState}`}>
+          <i className={feedState === "connected" ? "live-dot" : feedState === "polling" ? "schedule-dot" : "offline-dot"} />
+          {feedState === "connected" ? "Live on-chain feed" : feedState === "polling" ? "Polling for updates" : "Feed offline"}
+        </span>
       </header>
 
       {/* ── Hero instrument — ElectricBorder wraps the whole hero + slip ── */}
@@ -220,14 +288,40 @@ export default function MarketDetailPage() {
               {/* Session badge */}
               <div className="slip-session-row">
                 <span className={state.delegated ? "fast-badge active" : "fast-badge"}>
-                  {state.delegated ? "⚡ One-tap ready" : "🔐 Wallet approval"}
+                  {state.restoring
+                    ? "… Checking one-tap"
+                    : state.delegated
+                    ? "⚡ One-tap ready"
+                    : state.paused
+                    ? "⏸ One-tap paused"
+                    : "🔐 Wallet approval"}
                 </span>
+                {state.delegated && state.expiresAt && (
+                  <span className="session-expiry-inline">
+                    expires {formatSessionCountdown(state.expiresAt)}
+                  </span>
+                )}
                 {state.delegated && (
-                  <button type="button" className="session-revoke" onClick={onRevokeSession} disabled={busy !== null}>
-                    {busy === "revoke" ? "Pausing…" : "Pause one-tap"}
+                  <div className="slip-session-actions">
+                    <button type="button" className="session-revoke" onClick={onPauseSession} disabled={busy !== null}
+                      title="Temporarily drop the local key. No popup, no on-chain revoke — resume later with one signature.">
+                      Pause one-tap
+                    </button>
+                    <button type="button" className="session-revoke session-revoke--destructive" onClick={onEndSession}
+                      disabled={busy !== null}
+                      title="Revoke the grant on-chain and refund rent. Irreversible without a fresh delegation.">
+                      {busy === "revoke" ? "Ending…" : "End session"}
+                    </button>
+                  </div>
+                )}
+                {state.paused && (
+                  <button type="button" className="session-revoke" onClick={onResumeSession} disabled={busy !== null}>
+                    {busy === "resume" ? "Resuming…" : "Resume one-tap"}
                   </button>
                 )}
               </div>
+
+              {sessionNotice && <p className="slip-notice">{sessionNotice}</p>}
 
               {/* Step 1: Pick an outcome */}
               <div className="slip-step-label">
@@ -238,20 +332,20 @@ export default function MarketDetailPage() {
                 <button
                   type="button"
                   className={`side-option side-yes ${selectedSide === "yes" ? "selected" : ""}`}
-                  onClick={() => setSelectedSide("yes")}
+                  onClick={() => { setSelectedSide("yes"); setError(null); }}
                 >
                   <span>YES · {odds.yes > 0 ? `${(1 / odds.yes).toFixed(1)}x` : "—"}</span>
                   <strong><OddsNumber value={odds.yes} /></strong>
-                  <small>{odds.yes > 0 ? `${Math.round(odds.yes * 100)}¢ per $1` : "Opening"}</small>
+                  <small>{odds.yes > 0 ? `pays ${(1 / odds.yes).toFixed(2)} SOL per 1 SOL` : "Opening"}</small>
                 </button>
                 <button
                   type="button"
                   className={`side-option side-no ${selectedSide === "no" ? "selected" : ""}`}
-                  onClick={() => setSelectedSide("no")}
+                  onClick={() => { setSelectedSide("no"); setError(null); }}
                 >
                   <span>NO · {odds.no > 0 ? `${(1 / odds.no).toFixed(1)}x` : "—"}</span>
                   <strong><OddsNumber value={odds.no} /></strong>
-                  <small>{odds.no > 0 ? `${Math.round(odds.no * 100)}¢ per $1` : "Opening"}</small>
+                  <small>{odds.no > 0 ? `pays ${(1 / odds.no).toFixed(2)} SOL per 1 SOL` : "Opening"}</small>
                 </button>
               </div>
 
@@ -309,6 +403,33 @@ export default function MarketDetailPage() {
                 </strong>
               </div>
 
+              {/* One-tap opt-in on the wallet path — bundles delegation with
+                  this bet so the next one is popup-free. Two popups total
+                  (connect, this one) instead of three. */}
+              {!state.delegated && !state.paused && publicKey && (
+                <label className="slip-onetap-optin">
+                  <input
+                    type="checkbox"
+                    checked={wantsOneTap}
+                    onChange={(e) => setWantsOneTap(e.target.checked)}
+                  />
+                  <span>
+                    <strong>Enable one-tap betting</strong> — this bet signs once in your
+                    wallet; every bet after is instant, no popup. Session is capped and expires in 6h.
+                  </span>
+                </label>
+              )}
+
+              {/* Inline error — where the click happened, not page bottom */}
+              {error && (
+                <p className="slip-error" role="alert">
+                  {error}
+                  <button type="button" className="slip-error-retry" onClick={onJoin} disabled={busy !== null}>
+                    Retry
+                  </button>
+                </p>
+              )}
+
               {/* Place bet */}
               <button
                 type="button"
@@ -321,6 +442,11 @@ export default function MarketDetailPage() {
                   : selectedSide ? `Place ${selectedSide.toUpperCase()} bet` : "Choose YES or NO"}
                 <span>→</span>
               </button>
+
+              {/* First one-tap celebration */}
+              {justOnboarded && receipt?.viaSession && (
+                <p className="slip-celebration">⚡ One-tap is on. This bet signed in {formatSigningSpeed(receipt.signingMs ?? 0)} — no popup.</p>
+              )}
 
               {/* Receipt */}
               {receipt?.viaSession ? (
@@ -394,10 +520,22 @@ export default function MarketDetailPage() {
           {market.status === "void" && <p className="position-loss">Market voided. Claim a full refund.</p>}
           <Link className="position-match-link" href="/match">Back to match <span>→</span></Link>
           {canClaim && (
-            <button type="button" className="claim-action" disabled={busy !== null}
-              onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>
-              {busy === "claim" ? "Claiming…" : "Claim payout"}
-            </button>
+            <div className="claim-block">
+              <button type="button" className="claim-action" disabled={busy !== null}
+                onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>
+                {busy === "claim" ? "Claiming…" : "Claim payout"}
+              </button>
+              <span className="claim-note">Payouts require one wallet signature (owner-signed on-chain).</span>
+              {error && busy === null && (
+                <p className="slip-error" role="alert">
+                  {error}
+                  <button type="button" className="slip-error-retry"
+                    onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>
+                    Retry
+                  </button>
+                </p>
+              )}
+            </div>
           )}
         </section>
       )}

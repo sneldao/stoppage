@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useStoppageStore, computeHistoryStats } from "@/store";
+import { getMatchSoundsEnabled, setMatchSoundsEnabled } from "@/components/LiveMatchBar";
+import { formatSessionCountdown } from "@/lib/format";
 
 const WalletMultiButton = dynamic(
   () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
@@ -22,8 +24,19 @@ export function InstrumentNav() {
   const pathname = usePathname();
   const { state } = useSessionKey();
   const history = useStoppageStore((s) => s.history);
+  const feedState = useStoppageStore((s) => s.feedState);
   const stats = useMemo(() => computeHistoryStats(history), [history]);
   const isHotStreak = stats.currentStreak >= 3;
+
+  const [soundOn, setSoundOn] = useState(true);
+  useEffect(() => { setSoundOn(getMatchSoundsEnabled()); }, []);
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setMatchSoundsEnabled(next);
+  };
+
+  const feedLabel = feedState === "connected" ? "Live" : feedState === "polling" ? "Polling" : "Offline";
 
   return (
     <header className="app-nav instrument-nav">
@@ -41,7 +54,23 @@ export function InstrumentNav() {
           return <Link className={`nav-route ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>{route.label}</Link>;
         })}
       </nav>
-      <Link href="/#setup-prompt" className="nav-session nav-session-link" title={state.expiresAt ? `One-tap betting expires ${new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Set up one-tap betting"}><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "One-tap on" : "One-tap setup"}</Link>
+      <div className="nav-right-cluster">
+        <span className={`nav-feed nav-feed--${feedState}`} title={`On-chain feed: ${feedLabel.toLowerCase()}`}>
+          <i className={feedState === "connected" ? "live-dot" : feedState === "polling" ? "schedule-dot" : "offline-dot"} />
+          {feedLabel}
+        </span>
+        <button type="button" className="nav-sound-toggle" onClick={toggleSound} aria-label={soundOn ? "Mute match sounds" : "Unmute match sounds"} title={soundOn ? "Mute match sounds" : "Unmute match sounds"}>
+          {soundOn ? "🔊" : "🔇"}
+        </button>
+        <Link href="/#setup-prompt" className="nav-session nav-session-link" title={state.expiresAt ? `One-tap expires ${formatSessionCountdown(state.expiresAt)}` : "Set up one-tap betting"}>
+          <i className={state.delegated ? "live-dot" : "schedule-dot"} />
+          {state.delegated && state.expiresAt
+            ? `One-tap · ${formatSessionCountdown(state.expiresAt)}`
+            : state.paused
+            ? "One-tap paused"
+            : "One-tap setup"}
+        </Link>
+      </div>
       <div className="nav-wallet"><WalletMultiButton /></div>
     </header>
   );

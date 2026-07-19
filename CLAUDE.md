@@ -62,7 +62,11 @@ Full context: docs/ARCHITECTURE.md (design), docs/DEVELOPMENT.md
    mechanism: re-delegation after expiry is a conscious
    re-commitment, not an automatic renewal. `revoke_session_key` is
    the self-exclude path and must remain prominent in the UI, not
-   buried.
+   buried. `pause` (drop the local keypair, no on-chain revoke, no
+   popup) is a separate, non-destructive quick opt-out; it is NOT a
+   substitute for `revoke_session_key`. Both must be reachable from
+   the bet slip and the onboarding prompt: **Pause** (instant,
+   reversible) and **End session** (on-chain revoke, self-exclude).
 
 ## Module boundaries (import direction is one-way)
 

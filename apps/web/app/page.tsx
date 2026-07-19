@@ -16,6 +16,7 @@ import { LiveInstrument } from "@/components/LiveInstrument";
 import { StoppageClock } from "@/components/StoppageClock";
 import { SharpMoves } from "@/components/SharpMoves";
 import { MatchPulse } from "@/components/MatchPulse";
+import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export default function Home() {
   const { publicKey } = useWallet();
   const { state } = useSessionKey();
   const lastSigningMs = useStoppageStore((s) => s.lastSigningMs);
+  const marketsLoading = useStoppageStore((s) => s.marketsLoading);
 
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
@@ -191,6 +193,7 @@ export default function Home() {
             result verify automatically.
           </p>
           <SetupPrompt marketHref={marketHref} />
+          <OpenPositionsBanner />
           {state.delegated && lastSigningMs !== null && (
             <p className="hero-speed-note">
               <i className="live-dot" /> Last bet {formatSigningSpeed(lastSigningMs)}
@@ -209,6 +212,7 @@ export default function Home() {
             fixture={featuredFixture}
             snapshot={liveSnapshot}
             market={featuredMarket}
+            marketsLoading={marketsLoading}
             signalVersion={signalVersion}
             lastSignalType={lastSignalType}
             allFixtures={fixtures}

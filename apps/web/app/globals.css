@@ -3342,3 +3342,69 @@ body {
     animation: none;
   }
 }
+
+/* === FRICTIONLESS UX ADDITIONS === */
+
+/* Nav: live feed badge + sound toggle */
+.nav-right-cluster { display: inline-flex; align-items: center; gap: 14px; }
+.nav-feed { display: inline-flex; align-items: center; gap: 6px; font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.nav-feed--connected { color: var(--lime); }
+.nav-feed--polling { color: var(--amber); }
+.nav-feed--offline { color: var(--red); }
+.offline-dot { width: 7px; height: 7px; display: inline-block; flex: 0 0 auto; border-radius: 50%; background: var(--red); }
+.nav-sound-toggle { padding: 0; border: 0; background: transparent; font-size: 13px; line-height: 1; cursor: pointer; opacity: .8; transition: opacity 160ms var(--ease); }
+.nav-sound-toggle:hover { opacity: 1; }
+
+/* Market detail: real feed badge */
+.market-feed--connected { color: var(--lime); }
+.market-feed--polling { color: var(--amber); }
+.market-feed--offline { color: var(--red); }
+
+/* Bet slip: session row, notices, opt-in, inline error, celebration */
+.slip-session-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.slip-session-actions { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; }
+.session-expiry-inline { color: #b8c4cc; font: 500 9px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.session-revoke--destructive { color: var(--red); }
+.session-revoke--destructive:hover { color: #ff7878; }
+.setup-guide-session-controls { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; align-items: center; }
+.setup-guide-revoke--destructive { color: var(--red); }
+.slip-notice { margin: 10px 0 0; padding: 8px 10px; border-left: 2px solid var(--amber); background: rgba(251,191,36,.08); color: var(--amber); font: 500 10px "DM Mono", monospace; letter-spacing: .03em; }
+.slip-onetap-optin { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 12px; border: 1px solid var(--line); background: rgba(0,255,136,.04); cursor: pointer; }
+.slip-onetap-optin input { margin-top: 2px; accent-color: var(--lime); cursor: pointer; }
+.slip-onetap-optin span { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.slip-onetap-optin strong { color: var(--ink); }
+.slip-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0; padding: 10px 12px; border: 1px solid rgba(255,85,85,.4); border-radius: 3px; background: rgba(255,85,85,.08); color: #ff9c91; font-size: 11px; line-height: 1.4; }
+.slip-error-retry { flex-shrink: 0; padding: 5px 10px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: inherit; font: 700 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.slip-error-retry:hover { background: rgba(255,85,85,.15); }
+.slip-celebration { margin: 14px 0 0; padding: 10px 12px; border: 1px solid rgba(0,255,136,.35); border-radius: 3px; background: rgba(0,255,136,.07); color: var(--lime); font-size: 11px; animation: card-glow-in .5s var(--ease) both; }
+
+/* Claim block */
+.claim-block { width: 100%; display: grid; gap: 8px; }
+.claim-note { color: var(--muted-dim); font: 500 9px "DM Mono", monospace; letter-spacing: .03em; text-transform: uppercase; }
+
+/* Open positions banner */
+.open-positions-banner { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.open-position-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); color: var(--ink); text-decoration: none; font-size: 11px; transition: border-color 160ms var(--ease), transform 160ms var(--ease); }
+.open-position-chip:hover { border-color: var(--lime); transform: translateY(-1px); }
+.open-position-side { font: 700 9px "DM Mono", monospace; letter-spacing: .05em; color: var(--lime); }
+.open-position-q { color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.open-position-amt { font: 500 10px "DM Mono", monospace; color: var(--ink); }
+.open-position-settling { font: 500 9px "DM Mono", monospace; color: var(--amber); text-transform: uppercase; }
+
+/* Markets tape skeleton */
+.explorer-skeleton { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.explorer-skeleton-row { display: grid; gap: 10px; padding: 23px 0 15px; border-bottom: 1px solid var(--line); }
+.skeleton-line { display: block; height: 12px; border-radius: 2px; background: linear-gradient(90deg, var(--line) 25%, var(--paper-deep) 50%, var(--line) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s infinite; }
+.skeleton-line--title { width: 55%; height: 20px; }
+.skeleton-line--meta { width: 30%; height: 10px; }
+.skeleton-line--bar { width: 80%; height: 5px; margin-top: 6px; }
+.skeleton-line--inline { width: 160px; height: 10px; display: inline-block; }
+@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line, .slip-celebration { animation: none; }
+}
+@media (max-width: 800px) {
+  .nav-feed { display: none; }
+  .open-position-q { max-width: 120px; }
+}

@@ -24,6 +24,8 @@ export function useMarkets() {
   const markets = useStoppageStore((s) => s.markets);
   const fetchingRef = useRef(false);
 
+  const setMarketsLoading = useStoppageStore((s) => s.setMarketsLoading);
+
   const refresh = useCallback(async () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
@@ -48,8 +50,9 @@ export function useMarkets() {
       }
     } finally {
       fetchingRef.current = false;
+      setMarketsLoading(false);
     }
-  }, [connection, upsertMarket]);
+  }, [connection, upsertMarket, setMarketsLoading]);
 
   // Initial load on mount + when the connection changes.
   useEffect(() => {

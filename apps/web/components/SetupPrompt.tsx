@@ -25,9 +25,9 @@ interface SetupPromptProps {
 export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
-  const { state, delegate, revoke } = useSessionKey();
+  const { state, delegate, pause, resume, revoke } = useSessionKey();
   const positions = useStoppageStore((s) => s.positions);
-  const [busy, setBusy] = useState<"delegate" | "revoke" | null>(null);
+  const [busy, setBusy] = useState<"delegate" | "resume" | "revoke" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hasPlacedBet = publicKey ? Object.keys(positions).length > 0 : false;
@@ -40,11 +40,13 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
   // Current step (1-indexed)
   const currentStep = !step1Done ? 1 : !step2Done ? 2 : !step3Done ? 3 : 0;
 
-  const run = async (action: "delegate" | "revoke") => {
+  const run = async (action: "delegate" | "resume" | "revoke") => {
     setBusy(action);
     setError(null);
     try {
-      await (action === "delegate" ? delegate() : revoke());
+      if (action === "delegate") await delegate();
+      else if (action === "resume") await resume();
+      else await revoke();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Action failed");
     } finally {
@@ -130,13 +132,42 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
             <Link href={marketHref} className="setup-guide-cta">
               Browse markets <span>→</span>
             </Link>
+            <div className="setup-guide-session-controls">
+              <button
+                type="button"
+                className="setup-guide-revoke"
+                disabled={busy !== null}
+                onClick={pause}
+                title="Temporarily turn off one-tap. No popup, nothing revoked on-chain — resume anytime."
+              >
+                Pause one-tap
+              </button>
+              <button
+                type="button"
+                className="setup-guide-revoke setup-guide-revoke--destructive"
+                disabled={busy !== null}
+                onClick={() => void run("revoke")}
+                title="Revoke the grant on-chain and refund rent. Self-exclude path — irreversible without a fresh delegation."
+              >
+                {busy === "revoke" ? "Ending…" : "End session"}
+              </button>
+            </div>
+            {error && <span className="setup-guide-error">{error}</span>}
+          </>
+        )}
+
+        {/* Paused — one wallet signature brings one-tap back */}
+        {step1Done && state.paused && (
+          <>
+            <span className="setup-guide-hint">One-tap is paused. Resume with one wallet signature.</span>
+            {error && <span className="setup-guide-error">{error}</span>}
             <button
               type="button"
-              className="setup-guide-revoke"
+              className="setup-guide-cta setup-guide-cta--secondary"
               disabled={busy !== null}
-              onClick={() => void run("revoke")}
+              onClick={() => void run("resume")}
             >
-              {busy === "revoke" ? "Pausing…" : "Pause one-tap"}
+              {busy === "resume" ? "Resuming…" : "Resume one-tap betting"} <span>→</span>
             </button>
           </>
         )}
