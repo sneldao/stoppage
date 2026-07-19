@@ -395,21 +395,25 @@ export function LiveInstrument({
         displacement={live ? 30 : 20}
         active={live || (face === 1 && market?.status === "open")}
       >
-        {/* Sliding faces container */}
+        {/* Stacked crossfade faces — active face is position:relative,
+            inactive face is absolute and opacity:0 */}
         <div
           className={`instrument-faces ${animating ? "instrument-faces--animating" : ""}`}
-          style={{ "--face": face } as React.CSSProperties}
           aria-live="polite"
         >
-          <MatchFace
-            fixture={fixture}
-            snapshot={snapshot}
-            signalVersion={signalVersion}
-            recentFixtures={recentFixtures}
-            onNewEvent={handleNewEvent}
-            onEvents={setEvents}
-          />
-          <MarketFace market={market} lastSettled={lastSettled} />
+          <div className={`instrument-face instrument-match ${face === 0 ? "instrument-face--active" : ""}`}>
+            <MatchFace
+              fixture={fixture}
+              snapshot={snapshot}
+              signalVersion={signalVersion}
+              recentFixtures={recentFixtures}
+              onNewEvent={handleNewEvent}
+              onEvents={setEvents}
+            />
+          </div>
+          <div className={`instrument-face instrument-market ${face === 1 ? "instrument-face--active" : ""}`}>
+            <MarketFace market={market} lastSettled={lastSettled} />
+          </div>
         </div>
 
         {/* Always-visible event ticker at the base */}

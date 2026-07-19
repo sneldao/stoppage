@@ -1704,39 +1704,48 @@ body { background: var(--paper); }
   min-height: 420px;
 }
 
-/* Clip the sliding faces so only one is visible at a time */
+/* Stacked crossfade container — both faces sit at the same position,
+   the active one is opacity:1, the inactive one opacity:0.
+   Container height is set to the taller of the two so layout never jumps. */
 .instrument-faces {
-  overflow: hidden;
   position: relative;
+  /* min-height keeps the container stable while the inactive face is hidden */
+  min-height: 320px;
 }
 
-/* The two faces sit side-by-side; we translate to show the current one */
-/* --face: 0 = match, 1 = market */
-.instrument-faces {
-  display: flex;
-  width: 200%;
-  transform: translateX(calc(var(--face, 0) * -50%));
-  transition: transform 560ms cubic-bezier(.4, 0, .2, 1);
-}
-
-/* When animating, slightly fade for smoothness */
-.instrument-faces--animating {
-  opacity: .92;
-}
-
-/* Each face takes exactly half the container width (= 100% of visible area) */
+/* Each face is absolutely stacked, full width */
 .instrument-face {
-  flex: 0 0 50%;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
   padding: 21px;
   background: var(--panel);
-  position: relative;
   overflow: hidden;
+  /* Hidden by default */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 420ms cubic-bezier(.4, 0, .2, 1),
+              transform 420ms cubic-bezier(.4, 0, .2, 1);
+  transform: translateY(6px);
+}
+
+/* Active face */
+.instrument-face--active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  /* Relative so the container sizes to it */
+  position: relative;
+}
+
+/* Outgoing face during transition — stays absolute, fades up slightly */
+.instrument-faces--animating .instrument-face:not(.instrument-face--active) {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 /* Match face reuses existing match-board internals */
 .instrument-match {
-  min-height: 300px;
+  background: var(--panel);
 }
 
 /* Market face */
@@ -1923,8 +1932,9 @@ body { background: var(--paper); }
    REDUCED MOTION — instant swap, no sliding
    ================================================================ */
 @media (prefers-reduced-motion: reduce) {
-  .instrument-faces {
+  .instrument-face {
     transition: none;
+    transform: none;
   }
   .event-ticker-track {
     animation: none;
