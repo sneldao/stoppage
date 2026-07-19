@@ -43,7 +43,7 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
   return Date.now() - timestamp <= 45_000;
 }
 
-function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | null; snapshot: LiveMatchSnapshot | null; signalVersion: number }) {
+function MatchBoard({ fixture, snapshot, signalVersion, onNewEvent }: { fixture: Fixture | null; snapshot: LiveMatchSnapshot | null; signalVersion: number; onNewEvent?: (evt: any) => void }) {
   const live = isLive(fixture);
   const fresh = snapshotIsFresh(snapshot);
   return (
@@ -66,7 +66,7 @@ function MatchBoard({ fixture, snapshot, signalVersion }: { fixture: Fixture | n
           <span><span className="match-country-flag">{countryFlag(fixture?.Country ?? "")}</span> {fixture?.Country ?? "World Cup"}</span>
           <span>{live && snapshot ? `Corners ${snapshot.stats.corners} · Cards ${snapshot.stats.cards}${snapshot.updatedAt ? ` · ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : live ? "Live data delayed" : fixture ? new Date(fixture.StartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Waiting for fixture"}</span>
         </div>
-        {fixture && <LiveMatchBar matchId={matchIdFromFixture(fixture)} />}
+        {fixture && <LiveMatchBar matchId={matchIdFromFixture(fixture)} onNewEvent={onNewEvent} />}
       </section>
     </ElectricBorder>
   );
@@ -110,6 +110,35 @@ function FeaturedMarket({ market }: { market: Market | null }) {
   );
 }
 
+function HeroMarketRail({ markets }: { markets: Market[] }) {
+  return (
+    <section className="hero-market-rail" aria-labelledby="hero-market-rail-title">
+      <div className="hero-rail-head">
+        <div>
+          <p className="eyebrow">Live markets</p>
+          <h2 id="hero-market-rail-title">More ways to bet</h2>
+        </div>
+        <Link href="/markets">All <span>→</span></Link>
+      </div>
+      {markets.length > 0 ? (
+        <div className="hero-market-tape">
+          {markets.map((market) => {
+            const odds = impliedProbability(market);
+            return (
+              <Link className="hero-market-ticket" href={`/markets/${market.id}`} key={market.id}>
+                <strong>{formatMarketQuestion(market.predicate)}</strong>
+                <span><b>{Math.round(odds.yes * 100)}%</b> YES</span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="hero-rail-empty">New markets appear as match events create openings.</p>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   const { markets } = useMarkets();
   useHeliusMonitor();
@@ -119,6 +148,7 @@ export default function Home() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
   const [signalVersion, setSignalVersion] = useState(0);
+  const [lastSignalType, setLastSignalType] = useState<"goal" | "corner" | "card" | null>(null);
   const previousSignal = useRef<string | null>(null);
 
   useEffect(() => {
@@ -154,14 +184,70 @@ export default function Home() {
   useEffect(() => {
     if (!liveSnapshot) return;
     const nextSignal = `${liveSnapshot.score.home}:${liveSnapshot.score.away}:${liveSnapshot.stats.corners}:${liveSnapshot.stats.cards}`;
-    if (previousSignal.current && previousSignal.current !== nextSignal) setSignalVersion((version) => version + 1);
+    if (previousSignal.current && previousSignal.current !== nextSignal) {
+      const parts = previousSignal.current.split(":");
+      if (parts.length === 4) {
+        const prevHome = parseInt(parts[0], 10);
+        const prevAway = parseInt(parts[1], 10);
+        const prevCorners = parseInt(parts[2], 10);
+        const prevCards = parseInt(parts[3], 10);
+
+        if (liveSnapshot.score.home !== prevHome || liveSnapshot.score.away !== prevAway) {
+          setLastSignalType("goal");
+        } else if (liveSnapshot.stats.cards !== prevCards) {
+          setLastSignalType("card");
+        } else if (liveSnapshot.stats.corners !== prevCorners) {
+          setLastSignalType("corner");
+        }
+      }
+      setSignalVersion((version) => version + 1);
+    }
     previousSignal.current = nextSignal;
   }, [liveSnapshot]);
 
+  useEffect(() => {
+    if (!lastSignalType) return;
+    const timer = setTimeout(() => {
+      setLastSignalType(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [lastSignalType]);
+
+  const handleNewEvent = (evt: any) => {
+    if (evt.type === "goal_scored" || evt.type === "own_goal") {
+      setLastSignalType("goal");
+      setSignalVersion((v) => v + 1);
+    } else if (evt.type === "card_shown") {
+      setLastSignalType("card");
+      setSignalVersion((v) => v + 1);
+    } else if (evt.type === "corner_awarded") {
+      setLastSignalType("corner");
+      setSignalVersion((v) => v + 1);
+    }
+  };
+
   return (
     <main className="app-shell">
+      {lastSignalType && (
+        <div className={`moment-alert moment-alert--${lastSignalType}`} role="alert" aria-live="assertive">
+          <div className="moment-alert-content">
+            <span className="moment-alert-badge">⚡ Live update</span>
+            <h2>
+              {lastSignalType === "goal" && "GOAL SCORED! ⚽"}
+              {lastSignalType === "card" && "CARD ISSUED! 🟨🟥"}
+              {lastSignalType === "corner" && "CORNER KICK! 🚩"}
+            </h2>
+            <p>
+              {lastSignalType === "goal" && (liveSnapshot ? `Score is now ${liveSnapshot.score.home} — ${liveSnapshot.score.away}` : "A goal was scored!")}
+              {lastSignalType === "card" && (liveSnapshot ? `Total cards: ${liveSnapshot.stats.cards}` : "A card was shown.")}
+              {lastSignalType === "corner" && (liveSnapshot ? `Total corners: ${liveSnapshot.stats.corners}` : "A corner kick was taken.")}
+            </p>
+            <div className="moment-alert-loading" />
+          </div>
+        </div>
+      )}
       <section className="command-center">
-        <MatchPulse live={isLive(featuredFixture)} signalVersion={signalVersion} />
+        <MatchPulse live={isLive(featuredFixture)} signalVersion={signalVersion} lastSignalType={lastSignalType} />
         <div className="hero-clock" aria-hidden="true">
           <StoppageClock size={560} globalPointer />
         </div>
@@ -172,8 +258,12 @@ export default function Home() {
           <Link className="copy-link" href="/markets">Browse markets <span>→</span></Link>
         </div>
         <div className="live-stage">
-          <MatchBoard fixture={featuredFixture} snapshot={liveSnapshot} signalVersion={signalVersion} />
+          <MatchBoard fixture={featuredFixture} snapshot={liveSnapshot} signalVersion={signalVersion} onNewEvent={handleNewEvent} />
           <FeaturedMarket market={featuredMarket} />
+        </div>
+        <div className="hero-sidecar">
+          <FirstRunGuide compact marketHref={featuredMarket ? `/markets/${featuredMarket.id}` : "/markets"} />
+          <HeroMarketRail markets={otherMarkets} />
         </div>
       </section>
 
@@ -184,20 +274,7 @@ export default function Home() {
       </section>
 
       <section className="lower-grid">
-        <div className="market-rail">
-          <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2>More ways to bet.</h2></div><Link href="/markets">All markets <span>→</span></Link></div>
-          {otherMarkets.length > 0 ? (
-            <div className="market-list">
-              {otherMarkets.map((market) => {
-                const odds = impliedProbability(market);
-                return <Link className="market-signal" href={`/markets/${market.id}`} key={market.id}><div><span className="market-signal-kind">{formatMarketQuestion(market.predicate)}</span><strong>{formatMarketQuestion(market.predicate)}</strong></div><div className="market-signal-odds"><b>{Math.round(odds.yes * 100)}%</b><span>YES</span></div></Link>;
-              })}
-            </div>
-          ) : <div className="empty-rail">Markets update when a verified match event creates a new opportunity.</div>}
-        </div>
-
-        <div className="onboarding-stack">
-          <FirstRunGuide marketHref={featuredMarket ? `/markets/${featuredMarket.id}` : "/markets"} />
+        <div className="trust-stack">
           <MatchkeeperStatus updatedAt={liveSnapshot?.updatedAt} marketPhase={featuredMarket?.status} />
           <SharpMoves />
         </div>

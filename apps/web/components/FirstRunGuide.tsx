@@ -8,9 +8,10 @@ import { useSessionKey } from "@/lib/session-key/useSessionKey";
 
 interface FirstRunGuideProps {
   marketHref?: string;
+  compact?: boolean;
 }
 
-export function FirstRunGuide({ marketHref = "/markets" }: FirstRunGuideProps) {
+export function FirstRunGuide({ marketHref = "/markets", compact = false }: FirstRunGuideProps) {
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const { state, delegate, revoke } = useSessionKey();
@@ -30,14 +31,15 @@ export function FirstRunGuide({ marketHref = "/markets" }: FirstRunGuideProps) {
   };
 
   const step = state.delegated ? 3 : publicKey ? 2 : 1;
+  const nextAction = state.delegated ? "Place your first bet" : publicKey ? "Enable Fast Session" : "Connect your wallet";
 
   return (
-    <aside className="onboarding-panel" id="fast-setup" aria-labelledby="fast-setup-title">
+    <aside className={`onboarding-panel${compact ? " onboarding-panel-compact" : ""}`} id="fast-setup" aria-labelledby="fast-setup-title">
       <div className="onboarding-head">
-        <div><p className="eyebrow">Get started</p><h2 id="fast-setup-title">Place your first bet.</h2></div>
+        <div><p className="eyebrow">Get started</p><h2 id="fast-setup-title">{compact ? nextAction : "Place your first bet."}</h2></div>
         <span className="status-pill active">{step}/3 ready</span>
       </div>
-      <p className="onboarding-intro">Set up once, make a small devnet bet, then watch it settle on-chain.</p>
+      <p className="onboarding-intro">{compact ? "One setup path. Small devnet stake. Proof-backed settlement." : "Set up once, make a small devnet bet, then watch it settle on-chain."}</p>
 
       <div className="session-envelope" aria-label="Fast Session limits">
         <span>Per position <strong>0.05 SOL</strong></span>

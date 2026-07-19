@@ -43,20 +43,52 @@ export async function GET(
 ) {
   const { market } = await params;
   const origin = getRequestOrigin(req);
+  const challenger = req.nextUrl.searchParams.get("challenger");
+  const challengerSide = req.nextUrl.searchParams.get("challengerSide");
 
   // Fetch real market data for the unfurl.
-  let title = `Market ${market}`;
+  let marketTitle = `Market ${market}`;
   let description = "In-play micro-market on Stoppage";
+  let yesPct = "50";
+  let noPct = "50";
+  let poolSol = "0.00";
+  
   try {
     const m = await getMarket(connection(), new PublicKey(market));
     const odds = impliedProbability(m);
     const pred = m.predicate;
     const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
     const team = pred.params.team ? ` · ${pred.params.team}` : "";
-    title = `${PREDICATE_LABEL[pred.kind] ?? pred.kind} ${param}${team}`;
-    description = `YES ${(odds.yes * 100).toFixed(0)}% · NO ${(odds.no * 100).toFixed(0)}% · pool ${(m.yesPool + m.noPool) / 1e9} SOL`;
+    marketTitle = `${PREDICATE_LABEL[pred.kind] ?? pred.kind} ${param}${team}`;
+    yesPct = (odds.yes * 100).toFixed(0);
+    noPct = (odds.no * 100).toFixed(0);
+    poolSol = ((m.yesPool + m.noPool) / 1e9).toFixed(2);
+    description = `YES ${yesPct}% · NO ${noPct}% · pool ${poolSol} SOL`;
   } catch {
     // Fall back to generic metadata if the market can't be fetched.
+  }
+
+  let title = marketTitle;
+
+  if (challenger && (challengerSide === "yes" || challengerSide === "no")) {
+    const challengerLabel = challenger.length > 12 ? `${challenger.slice(0, 4)}...${challenger.slice(-4)}` : challenger;
+    const oppositeSide = challengerSide === "yes" ? "no" : "yes";
+    
+    title = `Challenge from ${challengerLabel}`;
+    description = `They backed ${challengerSide.toUpperCase()} on "${marketTitle}". Bet against them! (Odds: YES ${yesPct}% · NO ${noPct}% · Pool: ${poolSol} SOL)`;
+    
+    return actionJson({
+      icon: `${origin}/icon-512x512.png`,
+      title,
+      description,
+      label: "Take challenge",
+      links: {
+        actions: [
+          { label: `Bet Against Them (Back ${oppositeSide.toUpperCase()}) · 0.05 SOL`, href: `/api/actions/${market}?side=${oppositeSide}` },
+          { label: `Support Them (Back ${challengerSide.toUpperCase()}) · 0.05 SOL`, href: `/api/actions/${market}?side=${challengerSide}` },
+        ],
+      },
+    });
   }
 
   return actionJson({

@@ -22,6 +22,7 @@ import { OddsSparkline } from "@/components/OddsSparkline";
 import { MarketMatchContext } from "@/components/MarketMatchContext";
 import { CallCard } from "@/components/CallCard";
 import { ResolutionCard } from "@/components/ResolutionCard";
+import { OdometerPool } from "@/components/OdometerPool";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 
@@ -160,7 +161,7 @@ export default function MarketDetailPage() {
       <section className="market-hero">
         <div className="market-hero-meta"><span>Live · Match {market.predicate.matchId}</span><span>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
         <h1>{formatMarketQuestion(market.predicate)}</h1>
-        <div className="market-context"><span>{SOL(market.yesPool + market.noPool)} pool</span><span>{market.feeBps / 100}% fee · no house · peer-funded</span><span className="status-pill active">{market.status.replace("_", " ")}</span></div>
+        <div className="market-context"><OdometerPool lamports={market.yesPool + market.noPool} label="Pool" className="market-context-odometer" /><span>{market.feeBps / 100}% fee · no house · peer-funded</span><span className="status-pill active">{market.status.replace("_", " ")}</span></div>
       </section>
 
       <MarketMatchContext matchId={market.predicate.matchId} />
@@ -222,6 +223,7 @@ export default function MarketDetailPage() {
         position={myPosition}
         isWinner={Boolean(isWinner)}
         pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`}
+        signingMs={receipt?.signingMs}
       />}
 
       <div id="proof"><ProofPanel market={market} /></div>

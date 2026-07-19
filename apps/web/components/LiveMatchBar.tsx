@@ -42,7 +42,58 @@ const PHASE_COLORS: Record<string, string> = {
   Resumed: "#00ff88",
 };
 
-export function LiveMatchBar({ matchId }: { matchId?: string }) {
+function playEventSound(type: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === "goal_scored" || type === "own_goal") {
+      // Arpeggio chime for goals
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(330, now); // E4
+      osc.frequency.setValueAtTime(440, now + 0.1); // A4
+      osc.frequency.setValueAtTime(554, now + 0.2); // C#5
+      osc.frequency.setValueAtTime(660, now + 0.3); // E5
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+      osc.start(now);
+      osc.stop(now + 0.8);
+    } else if (type === "card_shown") {
+      // Warning double tone for cards
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(220, now); // A3
+      osc.frequency.setValueAtTime(180, now + 0.15); // lower buzz
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else {
+      // Light click for other events (corner, substitutions, etc.)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(523, now); // C5
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    }
+  } catch {
+    // AudioContext blocked or unsupported
+  }
+}
+
+export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewEvent?: (event: LiveEvent) => void }) {
   const [phase, setPhase] = useState<MatchPhaseState | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -69,7 +120,11 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
           if (data.recentEvents) setEvents(data.recentEvents);
         } else if (data.type === "event") {
           if (data.phase) setPhase(data.phase);
-          if (data.event) setEvents((prev) => [data.event!, ...prev].slice(0, 30));
+          if (data.event) {
+            setEvents((prev) => [data.event!, ...prev].slice(0, 30));
+            playEventSound(data.event.type);
+            if (onNewEvent) onNewEvent(data.event);
+          }
         }
       } catch { /* skip malformed */ }
     };
@@ -79,7 +134,7 @@ export function LiveMatchBar({ matchId }: { matchId?: string }) {
       esRef.current = null;
       setConnected(false);
     };
-  }, [matchId]);
+  }, [matchId, onNewEvent]);
 
   useEffect(() => {
     if (phase?.phaseLabel && prevPhaseRef.current !== null && prevPhaseRef.current !== phase.phaseLabel) {

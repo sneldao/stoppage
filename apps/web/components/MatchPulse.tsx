@@ -17,7 +17,7 @@ function clamp(value: number, min: number, max: number) {
  * Decorative live-data texture. The dither field is deliberately driven by
  * real score updates rather than pointer movement, so it reads as match state.
  */
-export function MatchPulse({ live, signalVersion }: { live: boolean; signalVersion: number }) {
+export function MatchPulse({ live, signalVersion, lastSignalType }: { live: boolean; signalVersion: number; lastSignalType: "goal" | "corner" | "card" | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -49,8 +49,10 @@ export function MatchPulse({ live, signalVersion }: { live: boolean; signalVersi
       const rows = Math.ceil(height / cell);
       const centerX = width * .58;
       const centerY = height * .52;
-      const rippleAge = clamp((now - rippleStartedAt) / 950, 0, 1);
-      const rippleRadius = rippleAge * Math.max(width, height) * .56;
+      
+      const rippleSpeed = lastSignalType === "goal" ? 1500 : lastSignalType === "card" ? 750 : 950;
+      const rippleAge = clamp((now - rippleStartedAt) / rippleSpeed, 0, 1);
+      const rippleRadius = rippleAge * Math.max(width, height) * .65;
 
       context.clearRect(0, 0, width, height);
       context.fillStyle = live ? "#183b58" : "#263c58";
@@ -72,18 +74,45 @@ export function MatchPulse({ live, signalVersion }: { live: boolean; signalVersi
           const threshold = BAYER_4X4[(row % 4) * 4 + (column % 4)] / 15;
           const intensity = clamp(.42 + field + wave * .72, 0, 1);
 
+          let cellColor = live ? "rgba(103, 232, 144, .46)" : "rgba(114, 183, 255, .38)";
+          if (lastSignalType === "goal") {
+            cellColor = "rgba(255, 215, 0, .42)";
+          } else if (lastSignalType === "card") {
+            cellColor = "rgba(255, 68, 68, .42)";
+          } else if (lastSignalType === "corner") {
+            cellColor = "rgba(0, 191, 255, .42)";
+          }
+
+          let rippleColor = "rgba(255, 213, 106, .82)"; // default gold
+          if (lastSignalType === "goal") {
+            rippleColor = "rgba(255, 215, 0, .95)";
+          } else if (lastSignalType === "card") {
+            rippleColor = "rgba(255, 68, 68, .95)";
+          } else if (lastSignalType === "corner") {
+            rippleColor = "rgba(0, 191, 255, .95)";
+          }
+
           if (intensity > threshold) {
-            context.fillStyle = wave > .1
-              ? "rgba(255, 213, 106, .82)"
-              : live
-                ? "rgba(103, 232, 144, .46)"
-                : "rgba(114, 183, 255, .38)";
+            context.fillStyle = wave > .1 ? rippleColor : cellColor;
             context.fillRect(x, y, cell - 1, cell - 1);
           }
         }
       }
 
-      context.strokeStyle = "rgba(240, 248, 255, .13)";
+      let lineAlpha = .13;
+      let lineColor = "240, 248, 255";
+      if (lastSignalType === "goal") {
+        lineColor = "255, 215, 0";
+        lineAlpha = .38;
+      } else if (lastSignalType === "card") {
+        lineColor = "255, 68, 68";
+        lineAlpha = .38;
+      } else if (lastSignalType === "corner") {
+        lineColor = "0, 191, 255";
+        lineAlpha = .38;
+      }
+
+      context.strokeStyle = `rgba(${lineColor}, ${lineAlpha})`;
       context.lineWidth = 1;
       context.strokeRect(width * .08, height * .17, width * .84, height * .66);
       context.beginPath();
@@ -104,7 +133,7 @@ export function MatchPulse({ live, signalVersion }: { live: boolean; signalVersi
       observer.disconnect();
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [live, signalVersion]);
+  }, [live, signalVersion, lastSignalType]);
 
   return <canvas ref={canvasRef} className="match-pulse" aria-hidden="true" />;
 }

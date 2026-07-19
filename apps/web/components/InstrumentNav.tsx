@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
+import { useStoppageStore, computeHistoryStats } from "@/store";
 
 const WalletMultiButton = dynamic(
   () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
@@ -19,10 +21,20 @@ const routes = [
 export function InstrumentNav() {
   const pathname = usePathname();
   const { state } = useSessionKey();
+  const history = useStoppageStore((s) => s.history);
+  const stats = useMemo(() => computeHistoryStats(history), [history]);
+  const isHotStreak = stats.currentStreak >= 3;
 
   return (
     <header className="app-nav instrument-nav">
-      <Link href="/" className="wordmark" aria-label="Stoppage match desk">STOPPAGE<span>.</span></Link>
+      <Link href="/" className="wordmark" aria-label="Stoppage match desk">
+        STOPPAGE<span>.</span>
+        {isHotStreak && (
+          <span className="hot-streak-badge" title={`On a hot streak of ${stats.currentStreak} wins!`}>
+            🔥 {stats.currentStreak}
+          </span>
+        )}
+      </Link>
       <nav className="nav-routes" aria-label="Primary navigation">
         {routes.map((route) => {
           const active = route.href === "/" ? pathname === "/" : pathname.startsWith(route.href);

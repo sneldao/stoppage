@@ -64,13 +64,19 @@ export function buildBetSlipTweet(
   amountSol: string,
   signingMs: number | undefined,
   url: string,
-  ref?: string
+  ref?: string,
+  challengerBlinkUrl?: string
 ): string {
   const odds = impliedProbability(market);
   const label = formatMarketQuestion(market.predicate);
   const sideOdds = side === "yes" ? odds.yes : odds.no;
   const projected = sideOdds > 0 ? `${(parseFloat(amountSol) / sideOdds).toFixed(2)} SOL` : "—";
   const fullUrl = ref ? `${url}?ref=${ref}` : url;
+  
+  const linkToUse = challengerBlinkUrl || fullUrl;
+  const inviteText = challengerBlinkUrl 
+    ? "Bet against my call directly in your timeline:" 
+    : "Follow my call here:";
 
   const speedLine = signingMs !== undefined
     ? `Position signed in ${Math.round(signingMs)}ms.`
@@ -79,8 +85,8 @@ export function buildBetSlipTweet(
   return [
     `⚽ My call: ${side.toUpperCase()} — ${label}`,
     `${amountSol} SOL at risk · ${projected} estimated return`,
-    signingMs !== undefined ? speedLine : "Position confirmed on Solana.",
-    fullUrl,
+    speedLine,
+    `${inviteText} ${linkToUse}`,
   ].join("\n");
 }
 
