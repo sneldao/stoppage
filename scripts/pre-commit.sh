@@ -10,8 +10,8 @@
 #   3. npm run check:ids passes (program-ID discipline)
 #
 # The build check (npm run build) is intentionally NOT run here — it's
-# too slow for a pre-commit hook. Run it manually before pushing, or
-# rely on CI.
+# too slow for a pre-commit hook. It runs in scripts/pre-push.sh
+# instead, which gates the remote after the small checks have passed.
 
 set -euo pipefail
 
