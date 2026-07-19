@@ -1692,3 +1692,251 @@ body { background: var(--paper); }
   .setup-prompt { gap: 10px; }
   .keeper-strip { padding-top: 8px; }
 }
+
+/* ================================================================
+   LIVE INSTRUMENT — single flipping card replacing match board +
+   featured market cards. Slides between match face and market face.
+   ================================================================ */
+
+.live-instrument {
+  position: relative;
+  /* Constrain so the ElectricBorder knows its dimensions */
+  min-height: 420px;
+}
+
+/* Clip the sliding faces so only one is visible at a time */
+.instrument-faces {
+  overflow: hidden;
+  position: relative;
+}
+
+/* The two faces sit side-by-side; we translate to show the current one */
+/* --face: 0 = match, 1 = market */
+.instrument-faces {
+  display: flex;
+  width: 200%;
+  transform: translateX(calc(var(--face, 0) * -50%));
+  transition: transform 560ms cubic-bezier(.4, 0, .2, 1);
+}
+
+/* When animating, slightly fade for smoothness */
+.instrument-faces--animating {
+  opacity: .92;
+}
+
+/* Each face takes exactly half the container width (= 100% of visible area) */
+.instrument-face {
+  flex: 0 0 50%;
+  min-width: 0;
+  padding: 21px;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Match face reuses existing match-board internals */
+.instrument-match {
+  min-height: 300px;
+}
+
+/* Market face */
+.instrument-market {
+  background: linear-gradient(160deg, #111d3a, #0d1830);
+  display: flex;
+  flex-direction: column;
+}
+
+.instrument-market--empty {
+  background: var(--paper-deep);
+  gap: 10px;
+}
+
+.instrument-market--empty h2 {
+  margin: 14px 0 6px;
+  font: 400 28px/.95 "Instrument Serif", Georgia, serif;
+}
+
+.market-empty-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.instrument-market-title {
+  max-width: 600px;
+  margin: 14px 0 6px;
+  font: 400 clamp(24px, 2.8vw, 38px)/.98 "Instrument Serif", Georgia, serif;
+}
+
+/* Last settled preview — shown on empty market face */
+.last-settled-preview {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.02);
+}
+
+.last-settled-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.last-settled-q {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.last-settled-outcome {
+  font: 700 10px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.outcome--yes { color: var(--lime); }
+.outcome--no  { color: #ff958c; }
+
+.last-settled-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--blue);
+  font: 500 9px "DM Mono", monospace;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Recent results strip — shown in match face when no live match */
+.recent-results {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.recent-result-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.recent-result-sep {
+  color: var(--line);
+}
+
+.recent-result-badge {
+  margin-left: auto;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  color: var(--muted-dim);
+  font-size: 8px;
+}
+
+/* ── Dot navigation ── */
+.instrument-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 14px;
+  background: var(--panel);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.instrument-dot {
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+  padding: 0;
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.instrument-dot--active {
+  background: var(--blue);
+  transform: scale(1.4);
+}
+
+.instrument-dot:hover:not(.instrument-dot--active) {
+  background: var(--muted-dim);
+}
+
+/* ── Event ticker ── */
+.event-ticker {
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: rgba(0,0,0,.25);
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.event-ticker-track {
+  display: flex;
+  gap: 0;
+  white-space: nowrap;
+  animation: ticker-scroll 28s linear infinite;
+  will-change: transform;
+}
+
+/* Pause on instrument hover (parent sets pointer-events none, so use JS hover instead) */
+.live-instrument:hover .event-ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); } /* -50% because we duplicate content */
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 20px;
+  border-right: 1px solid rgba(255,255,255,.06);
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.ticker-item--goal_scored,
+.ticker-item--own_goal,
+.ticker-item--penalty_awarded { color: var(--lime); }
+
+.ticker-item--card_shown { color: #ff958c; }
+
+.ticker-item--var_review { color: var(--amber); }
+
+.ticker-icon { font-size: 11px; }
+
+/* ================================================================
+   REDUCED MOTION — instant swap, no sliding
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .instrument-faces {
+    transition: none;
+  }
+  .event-ticker-track {
+    animation: none;
+  }
+}
+
+/* ================================================================
+   MOBILE adjustments for LiveInstrument
+   ================================================================ */
+@media (max-width: 800px) {
+  .live-instrument { min-height: 340px; }
+  .instrument-face { padding: 17px; }
+  .instrument-market-title { font-size: 26px; }
+  .instrument-dots { padding: 8px 0 10px; }
+}
