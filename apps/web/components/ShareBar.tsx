@@ -11,6 +11,8 @@ interface ShareBarProps {
   market: Market;
   /** The market page URL (without ref param). */
   pageUrl: string;
+  /** Compact mode — show only Share on X + Copy Blink for the demo. */
+  compact?: boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ interface ShareBarProps {
  * available as props — no API call needed because the GET response
  * format is known from app/api/actions/[market]/route.ts.
  */
-export function ShareBar({ market, pageUrl }: ShareBarProps) {
+export function ShareBar({ market, pageUrl, compact = false }: ShareBarProps) {
   const { publicKey } = useWallet();
   const recordShare = useStoppageStore((s) => s.recordShare);
   const referrer = useStoppageStore((s) => s.referrer);
@@ -63,7 +65,7 @@ export function ShareBar({ market, pageUrl }: ShareBarProps) {
 
   return (
     <div className="share-bar-wrap">
-      <div className="share-bar">
+      <div className={`share-bar${compact ? " share-bar-compact" : ""}`}>
         <a
           href={tweetIntent}
           target="_blank"
@@ -75,16 +77,20 @@ export function ShareBar({ market, pageUrl }: ShareBarProps) {
         <button onClick={() => copy(blinkUrl, "blink")}>
           {copied === "blink" ? "Copied!" : "Copy Blink URL"}
         </button>
-        <button onClick={() => copy(fullUrl, "link")}>
-          {copied === "link" ? "Copied!" : "Copy link"}
-        </button>
-        <button
-          onClick={() => setShowPreview((v) => !v)}
-          aria-expanded={showPreview}
-          className={showPreview ? "active" : ""}
-        >
-          {showPreview ? "Hide preview" : "Preview Blink"}
-        </button>
+        {!compact && (
+          <>
+            <button onClick={() => copy(fullUrl, "link")}>
+              {copied === "link" ? "Copied!" : "Copy link"}
+            </button>
+            <button
+              onClick={() => setShowPreview((v) => !v)}
+              aria-expanded={showPreview}
+              className={showPreview ? "active" : ""}
+            >
+              {showPreview ? "Hide preview" : "Preview Blink"}
+            </button>
+          </>
+        )}
       </div>
 
       {showPreview && (

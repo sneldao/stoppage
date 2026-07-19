@@ -41,7 +41,7 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
 
 function safeStartTime(fixture: Fixture): Date {
   const raw = fixture.StartTime as unknown;
-  if (typeof raw === "number") return new Date(raw * 1000);
+  if (typeof raw === "number") return new Date(raw < 1_000_000_000_000 ? raw * 1000 : raw);
   if (typeof raw === "string") return new Date(raw);
   return new Date(0);
 }
@@ -56,7 +56,8 @@ function useCountdown(target: Date | null): string {
       const h = Math.floor(diff / 3_600_000);
       const m = Math.floor((diff % 3_600_000) / 60_000);
       const s = Math.floor((diff % 60_000) / 1_000);
-      setLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
+      const days = Math.floor(h / 24);
+      setLabel(days > 1 ? `${days}d ${h % 24}h` : h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
     };
     tick();
     const id = setInterval(tick, 1_000);
@@ -124,7 +125,7 @@ function MatchFace({
   }, [onNewEvent]);
 
   return (
-    <div className="instrument-face instrument-match">
+    <div className="instrument-face-content instrument-match-content">
       <div className="signal-grid" aria-hidden="true">
         {Array.from({ length: 64 }, (_, i) => <i key={i} />)}
       </div>
@@ -201,7 +202,7 @@ function MarketFace({
 
   if (!market) {
     return (
-      <div className="instrument-face instrument-market instrument-market--empty">
+      <div className="instrument-face-content instrument-market-content instrument-market--empty">
         <p className="eyebrow">Markets</p>
         <h2>Markets open with the match.</h2>
         <p className="market-empty-sub">The next market appears as soon as it is published.</p>
@@ -237,7 +238,7 @@ function MarketFace({
   const stakeParam = pendingStake ? `&stake=${pendingStake}` : "";
 
   return (
-    <div className="instrument-face instrument-market">
+    <div className="instrument-face-content instrument-market-content">
       <div className="market-kicker">
         <span className="live-label"><i /> Live market</span>
         <span>{SOL(pool)} pool</span>
@@ -311,6 +312,8 @@ export function LiveInstrument({
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [lastSettled, setLastSettled] = useState<LastSettled | null>(null);
   const signalLockRef = useRef(false);
+  const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const signalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevSignalVersion = useRef(signalVersion);
 
   // Fetch last settled market for empty market face
@@ -331,25 +334,33 @@ export function LiveInstrument({
     onNewEvent?.(evt);
   }, [onNewEvent]);
 
-  // Swap function — applies --swapping for the duration of the transition
+  // Both cards stay mounted. Changing front lets CSS physically exchange their
+  // depth without measuring heights or collapsing the deck mid-transition.
   const swapTo = useCallback((next: 0 | 1) => {
     if (next === front) return;
+    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
     setSwapping(true);
-    setTimeout(() => {
-      setFront(next);
+    setFront(next);
+    swapTimerRef.current = setTimeout(() => {
       setSwapping(false);
     }, SWAP_DURATION_MS);
   }, [front]);
+
+  useEffect(() => () => {
+    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+    if (signalTimerRef.current) clearTimeout(signalTimerRef.current);
+  }, []);
 
   // Live signal → snap to match face, hold for SIGNAL_DWELL_MS
   useEffect(() => {
     if (signalVersion === prevSignalVersion.current) return;
     prevSignalVersion.current = signalVersion;
-    clearTimeout((swapTo as any)._signalTimer);
+    if (signalTimerRef.current) clearTimeout(signalTimerRef.current);
     signalLockRef.current = true;
     swapTo(0);
-    const t = window.setTimeout(() => { signalLockRef.current = false; }, SIGNAL_DWELL_MS);
-    (swapTo as any)._signalTimer = t;
+    signalTimerRef.current = setTimeout(() => {
+      signalLockRef.current = false;
+    }, SIGNAL_DWELL_MS);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalVersion]);
 
@@ -384,16 +395,15 @@ export function LiveInstrument({
         displacement={live ? 30 : 20}
         active={live || (front === 1 && market?.status === "open")}
       >
-        {/* Card deck: only the active face is in normal flow.
-            The "card behind" peek is a ::before pseudo on .instrument-deck,
-            coloured/rotated differently per face to hint at what's next.  */}
+        {/* Both faces occupy the same grid cell. The rear card remains visible
+            around the right/bottom edge, so the deck reads before it moves. */}
         <div
           className={`instrument-deck instrument-deck--${front === 0 ? "match" : "market"} ${swapping ? "instrument-deck--swapping" : ""}`}
           aria-live="polite"
         >
           {/* Match face */}
           <div
-            className={`instrument-face instrument-match ${front === 0 ? "instrument-face--visible" : "instrument-face--hidden"}`}
+            className={`instrument-face instrument-match ${front === 0 ? "instrument-face--front" : "instrument-face--back"}`}
             aria-hidden={front !== 0}
           >
             <MatchFace
@@ -408,7 +418,7 @@ export function LiveInstrument({
 
           {/* Market face */}
           <div
-            className={`instrument-face instrument-market ${front === 1 ? "instrument-face--visible" : "instrument-face--hidden"}`}
+            className={`instrument-face instrument-market ${front === 1 ? "instrument-face--front" : "instrument-face--back"}`}
             aria-hidden={front !== 1}
           >
             <MarketFace market={market} lastSettled={lastSettled} />

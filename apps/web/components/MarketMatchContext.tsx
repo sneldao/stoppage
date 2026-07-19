@@ -53,10 +53,21 @@ export function MarketMatchContext({ matchId }: { matchId: string | number }) {
   const [scoreFlash, setScoreFlash] = useState(0);
   const prevScore = useMemo(() => ({ home: -1, away: -1 }), []);
 
-  const fixture = useMemo(
-    () => fixtures.find((f) => f.matchId === String(matchId)) ?? null,
-    [fixtures, matchId],
-  );
+  const fixture = useMemo(() => {
+    // Exact match first
+    const exact = fixtures.find((f) => f.matchId === String(matchId));
+    if (exact) return exact;
+    // Fallback: matchId may be a FixtureId or partial match
+    const byFixtureId = fixtures.find((f) => String(f.FixtureId) === String(matchId));
+    if (byFixtureId) return byFixtureId;
+    // Fallback: case-insensitive or substring match
+    const lower = String(matchId).toLowerCase();
+    return fixtures.find((f) =>
+      f.matchId?.toLowerCase() === lower ||
+      f.matchId?.toLowerCase().includes(lower) ||
+      lower.includes(f.matchId?.toLowerCase() ?? "")
+    ) ?? null;
+  }, [fixtures, matchId]);
 
   const live = isLive(fixture);
   const fresh = snapshot?.updatedAt

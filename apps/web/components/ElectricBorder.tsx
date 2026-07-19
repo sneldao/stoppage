@@ -24,7 +24,7 @@ interface ElectricBorderProps {
   displacement?: number;
   borderRadius?: number;
   active?: boolean;
-  variant?: "lime" | "blue" | "green" | "red";
+  variant?: "lime" | "blue" | "green" | "red" | "amber";
   glow?: boolean;
 }
 
@@ -193,6 +193,7 @@ const VARIANT_COLORS: Record<string, string> = {
   blue: "#3b82f6",
   green: "#22c55e",
   red: "#ff4444",
+  amber: "#fbbf24",
 };
 
 export function ElectricBorder({

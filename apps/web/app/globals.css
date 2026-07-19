@@ -83,6 +83,9 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .electric-wrap.electric-red > .electric-glow-1 { border-color: rgba(255,68,68,.6); }
 .electric-wrap.electric-red > .electric-glow-2 { border-color: rgba(255,68,68,.3); }
 .electric-wrap.electric-red > .electric-bg-glow { background: radial-gradient(ellipse at center, rgba(255,68,68,.5), transparent 70%); }
+.electric-wrap.electric-amber > .electric-glow-1 { border-color: rgba(251,191,36,.6); }
+.electric-wrap.electric-amber > .electric-glow-2 { border-color: rgba(251,191,36,.3); }
+.electric-wrap.electric-amber > .electric-bg-glow { background: radial-gradient(ellipse at center, rgba(251,191,36,.5), transparent 70%); }
 
 /* === VIBRANT THEME — colorful overrides === */
 .nav-route.active::after { background: var(--lime); box-shadow: 0 0 12px rgba(0,255,136,.6); }
@@ -2202,4 +2205,1001 @@ body { background: var(--paper); }
 
 .market-trust-details > div {
   padding: 16px;
+}
+
+/* ================================================================
+   FINAL ENERGY SYSTEM — shared atmosphere, charged edges, time rails
+   ================================================================ */
+
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 14% 4%, rgba(114, 183, 255, .13), transparent 31rem),
+    radial-gradient(circle at 88% 28%, rgba(103, 232, 144, .09), transparent 27rem),
+    linear-gradient(145deg, #101d33 0%, #0d192d 52%, #101d33 100%);
+  background-attachment: fixed;
+}
+
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+
+/* A restrained stadium-clock dial follows every route. The double radial
+   mask keeps the motif atmospheric rather than turning it into decoration. */
+.app-shell::before {
+  position: fixed;
+  z-index: -1;
+  top: 72px;
+  right: 0;
+  width: 100vw;
+  height: calc(100vh - 72px);
+  background: repeating-conic-gradient(from -1deg, rgba(245,248,252,.11) 0 1deg, transparent 1deg 6deg)
+    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
+  opacity: .7;
+  content: "";
+  pointer-events: none;
+  -webkit-mask: radial-gradient(circle, transparent 0 56%, #000 57% 72%, transparent 73%)
+    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
+  mask: radial-gradient(circle, transparent 0 56%, #000 57% 72%, transparent 73%)
+    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
+}
+
+/* Fine pitch/telemetry lines make otherwise quiet pages feel connected to
+   the same live instrument without competing with readable content. */
+.app-shell::after {
+  position: fixed;
+  z-index: -1;
+  inset: 72px 0 0;
+  background:
+    linear-gradient(90deg, transparent 49.9%, rgba(114,183,255,.035) 50%, transparent 50.1%),
+    repeating-linear-gradient(0deg, transparent 0 47px, rgba(195,208,225,.025) 48px);
+  content: "";
+  pointer-events: none;
+}
+
+/* Route headers use the same minute-tick rail as the live clock. */
+.explorer-heading,
+.match-room-header,
+.market-hero {
+  position: relative;
+}
+
+.explorer-heading::after,
+.match-room-header::after,
+.market-hero::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, rgba(114,183,255,.55) 0 1px, transparent 1px 18px);
+  opacity: .48;
+  content: "";
+  pointer-events: none;
+}
+
+/* A lightweight cousin of ElectricBorder for secondary live surfaces. Canvas
+   remains reserved for the hero so several cards can animate cheaply. */
+.control-scoreboard,
+.bet-slip,
+.market-match-context-fresh,
+.proof-board,
+.explorer-market--open {
+  position: relative;
+  isolation: isolate;
+}
+
+.control-scoreboard::before,
+.bet-slip::before,
+.market-match-context-fresh::before,
+.proof-board::before,
+.explorer-market--open::before {
+  position: absolute;
+  z-index: 3;
+  inset: -1px;
+  padding: 1px;
+  background: conic-gradient(from var(--charged-angle, 0deg), transparent 0 18%, rgba(114,183,255,.72) 24%, transparent 31% 62%, rgba(103,232,144,.66) 69%, transparent 76%);
+  content: "";
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: charged-edge 9s linear infinite;
+}
+
+.proof-board::before,
+.explorer-market--open::before { opacity: .5; animation-duration: 13s; }
+
+@keyframes charged-edge {
+  to { --charged-angle: 360deg; }
+}
+
+@property --charged-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ================================================================
+   LIVE INSTRUMENT — two real cards, always mounted and always legible
+   ================================================================ */
+
+.live-instrument { min-height: 0; }
+
+.instrument-deck {
+  display: grid;
+  position: relative;
+  margin: 0;
+  padding: 0 14px 14px 0;
+  perspective: 1100px;
+}
+
+.instrument-deck::before { display: none; }
+
+.instrument-face {
+  grid-area: 1 / 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 1px solid rgba(195, 208, 225, .2);
+  box-shadow: 0 20px 48px rgba(3, 12, 27, .3);
+  transform-origin: 50% 92%;
+  transition:
+    transform 460ms cubic-bezier(.2,.75,.25,1),
+    opacity 360ms ease,
+    filter 460ms ease,
+    box-shadow 460ms ease;
+  will-change: transform;
+}
+
+.instrument-face--front {
+  z-index: 2;
+  opacity: 1;
+  filter: saturate(1);
+  transform: translate3d(0, 0, 18px) rotate(0deg) scale(1);
+  pointer-events: auto;
+}
+
+.instrument-face--back {
+  z-index: 1;
+  opacity: .68;
+  filter: saturate(.76) brightness(.78);
+  transform: translate3d(13px, 12px, 0) rotate(1.35deg) scale(.992);
+  box-shadow: 0 12px 32px rgba(3, 12, 27, .2);
+  pointer-events: none;
+  user-select: none;
+}
+
+.instrument-deck--market .instrument-face--back {
+  transform: translate3d(13px, 12px, 0) rotate(-1.35deg) scale(.992);
+}
+
+.instrument-deck--swapping .instrument-face--front {
+  animation: deck-card-arrive 460ms cubic-bezier(.2,.75,.25,1) both;
+}
+
+@keyframes deck-card-arrive {
+  0% { opacity: .64; filter: saturate(.75) brightness(.8); transform: translate3d(13px, 12px, 0) rotate(1.35deg) scale(.992); }
+  48% { opacity: 1; transform: translate3d(-7px, -10px, 28px) rotate(-.7deg) scale(1.012); }
+  100% { opacity: 1; filter: saturate(1) brightness(1); transform: translate3d(0, 0, 18px) rotate(0) scale(1); }
+}
+
+.instrument-face-content {
+  position: relative;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 21px;
+  overflow: hidden;
+}
+
+.instrument-match,
+.instrument-match-content { background: linear-gradient(155deg, #203a61 0%, #172d4c 58%, #142743 100%); }
+.instrument-market,
+.instrument-market-content { background: linear-gradient(155deg, #1b3152 0%, #142743 62%, #13223c 100%); }
+
+.instrument-match-content::after,
+.instrument-market-content::after {
+  position: absolute;
+  top: -90px;
+  right: -70px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(114,183,255,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 30px rgba(114,183,255,.025), 0 0 0 62px rgba(103,232,144,.018);
+  content: "";
+  pointer-events: none;
+}
+
+.instrument-dots {
+  margin-right: 14px;
+  padding: 9px 0 11px;
+  background: rgba(20, 39, 67, .82);
+}
+
+.instrument-dot {
+  width: 20px;
+  height: 3px;
+  border-radius: 0;
+}
+
+.instrument-dot--active {
+  background: var(--lime);
+  box-shadow: 0 0 12px rgba(103,232,144,.55);
+  transform: none;
+}
+
+.event-ticker { margin-right: 14px; }
+
+/* Market sharing is an action rail, not an unstyled line of utility text. */
+.share-bar-wrap {
+  margin-top: 12px;
+}
+
+.share-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 11px 0 15px;
+  border-bottom: 1px solid var(--line);
+}
+
+.share-bar a,
+.share-bar button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(195,208,225,.3);
+  background: rgba(20,39,67,.7);
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.share-bar a {
+  display: inline-flex;
+  align-items: center;
+}
+
+.share-bar a:hover,
+.share-bar button:hover,
+.share-bar button.active {
+  border-color: var(--lime);
+  background: rgba(103,232,144,.08);
+  color: var(--lime);
+}
+
+.blink-preview-hint {
+  margin: 12px 0 0;
+  color: var(--muted-dim);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Keep the clock present on phones as atmosphere rather than dropping the
+   app's defining motif exactly where visual continuity matters most. */
+@media (max-width: 800px) {
+  .app-shell::before {
+    top: 48px;
+    width: 100vw;
+    height: calc(100vh - 48px);
+    background-position: calc(100% + 13rem) 0;
+    background-size: 34rem 34rem;
+    opacity: .5;
+    -webkit-mask-position: calc(100% + 13rem) 0;
+    -webkit-mask-size: 34rem 34rem;
+    mask-position: calc(100% + 13rem) 0;
+    mask-size: 34rem 34rem;
+  }
+
+  .app-shell::after { inset-block-start: 66px; }
+
+  .hero-clock {
+    display: block;
+    top: 190px;
+    left: 86%;
+    width: 360px;
+    height: 360px;
+    opacity: .07;
+  }
+
+  .hero-clock > div,
+  .hero-clock canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .instrument-deck { padding: 0 9px 10px 0; }
+  .instrument-face-content { padding: 17px; }
+  .instrument-face--back,
+  .instrument-deck--market .instrument-face--back {
+    opacity: .78;
+    border-color: rgba(103,232,144,.3);
+    transform: translate3d(9px, 9px, 0) rotate(.9deg) scale(.995);
+  }
+  .instrument-dots,
+  .event-ticker { margin-right: 9px; }
+  .instrument-market-title { font-size: clamp(22px, 7vw, 29px); }
+  .control-scoreboard::before,
+  .bet-slip::before { animation-duration: 12s; }
+
+  .share-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .share-bar a,
+  .share-bar button {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .matchkeeper-compact .matchkeeper-activity {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ================================================================
+   MARKET DETAIL PAGE — instrument layout
+   ================================================================ */
+
+.market-instrument {
+  position: relative;
+  display: grid;
+  gap: 0;
+  padding: 32px 28px;
+  overflow: hidden;
+  background: linear-gradient(165deg, #0f1e38 0%, #0c1428 40%, #0e1830 100%);
+}
+
+.market-instrument-clock {
+  position: absolute;
+  top: 50%;
+  right: -60px;
+  transform: translateY(-50%);
+  opacity: .06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.market-instrument-clock > div,
+.market-instrument-clock canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.market-instrument-hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 16px;
+}
+
+.market-instrument-hero .market-match-context {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0 0 12px;
+  box-shadow: none;
+}
+
+.market-instrument-hero .market-match-context-fresh {
+  border-bottom: 1px solid rgba(0,255,136,.15);
+}
+
+.market-instrument-hero .market-match-context-warning {
+  border-bottom: 1px solid rgba(251,191,36,.12);
+}
+
+.market-instrument-hero .market-match-context-scheduled {
+  border-bottom: 1px solid var(--line);
+}
+
+.market-instrument-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.market-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.market-status-badge--open {
+  color: var(--lime);
+  border-color: rgba(0,255,136,.3);
+  background: rgba(0,255,136,.06);
+}
+
+.market-status-badge--awaiting_settlement {
+  color: var(--amber);
+  border-color: rgba(251,191,36,.3);
+  background: rgba(251,191,36,.06);
+}
+
+.market-status-badge--settled {
+  color: var(--blue);
+  border-color: rgba(96,165,250,.25);
+  background: rgba(96,165,250,.06);
+}
+
+.market-status-badge--void {
+  color: var(--red);
+  border-color: rgba(255,85,85,.25);
+  background: rgba(255,85,85,.06);
+}
+
+.market-instrument-meta .market-window {
+  margin: 0;
+  padding: 4px 10px;
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(15,29,50,.6);
+}
+
+.market-instrument-meta .market-window span { color: var(--muted); }
+.market-instrument-meta .market-window strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.market-instrument-meta .market-window small { display: none; }
+
+.market-instrument-title {
+  margin: 0;
+  font: 400 clamp(36px, 5.5vw, 58px)/.9 "Instrument Serif", Georgia, serif;
+  color: var(--ink);
+  max-width: 640px;
+}
+
+.market-instrument-pool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 0 8px;
+}
+
+.market-instrument-pool .odometer-pool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.market-instrument-pool .odometer-label {
+  font: 500 10px "DM Mono", monospace;
+  color: var(--lime);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.market-instrument-pool .odometer-digits {
+  font-size: 26px;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+
+.market-instrument-pool .odometer-unit {
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.market-instrument-pool-meta {
+  color: var(--muted-dim);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ── Bet slip ── */
+.market-bet-slip {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.slip-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.slip-session-row .session-revoke {
+  margin-top: 0;
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,.15);
+  font: 500 9px "DM Mono", monospace;
+  color: var(--muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.slip-session-row .session-revoke:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.market-bet-slip .side-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.market-bet-slip .side-option {
+  min-height: 120px;
+  padding: 16px;
+  display: grid;
+  align-content: space-between;
+  border: 1px solid #8e9ba5;
+  background: transparent;
+  color: #f8f7f2;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms var(--ease), border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.market-bet-slip .side-option:hover,
+.market-bet-slip .side-option.selected {
+  transform: translateY(-2px);
+  border-color: currentColor;
+}
+
+.market-bet-slip .side-option.selected {
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 0 20px rgba(0,0,0,.2);
+}
+
+.market-bet-slip .side-yes { color: var(--lime); }
+.market-bet-slip .side-no { color: #ff958c; }
+
+.market-bet-slip .side-option span {
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.market-bet-slip .side-option strong {
+  font-size: 34px;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.market-bet-slip .side-option small {
+  color: #bcc7cf;
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.slip-sparkline {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  opacity: .85;
+}
+
+.market-bet-slip .stake-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  color: #bfc8cf;
+  font: 500 10px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.market-bet-slip .stake-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+
+.market-bet-slip .stake-options button,
+.market-bet-slip .stake-options label {
+  height: 34px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: transparent;
+  color: #e8eef2;
+  padding: 0 10px;
+  font: 500 10px "DM Mono", monospace;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.market-bet-slip .stake-options button.selected {
+  border-color: var(--lime);
+  background: var(--lime);
+  color: var(--ink);
+}
+
+.market-bet-slip .stake-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.market-bet-slip .stake-options input {
+  width: 48px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  text-align: right;
+}
+
+.market-bet-slip .slip-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: #bdc7cf;
+  font: 500 10px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.market-bet-slip .slip-summary strong { color: #fff; }
+
+.market-bet-slip .place-action {
+  width: 100%;
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  padding: 14px;
+  border: 0;
+  background: var(--lime);
+  color: var(--ink);
+  font: 700 12px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 160ms ease, transform 80ms ease;
+}
+
+.market-bet-slip .place-action:hover { background: #33ff99; }
+.market-bet-slip .place-action:active { transform: scale(.985); }
+.market-bet-slip .place-action:disabled { background: #556; color: #999; }
+
+.market-bet-slip .execution-trail {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.market-bet-slip .execution-trail span {
+  color: var(--muted-dim);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  line-height: 1.5;
+}
+
+/* ── Share strip ── */
+.market-share-strip {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.market-share-strip .share-bar {
+  border-bottom: 0;
+  padding: 8px 0 0;
+}
+
+.share-bar-compact {
+  display: flex !important;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.share-bar-compact a,
+.share-bar-compact button {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+}
+
+/* ── Settlement path ── */
+.market-settlement-path {
+  margin-top: 32px;
+}
+
+.market-settlement-path-inner {
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: linear-gradient(165deg, #0f1a34, #0c1428);
+}
+
+/* ── ProofPath — new step styles ── */
+.proof-path .proof-path-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proof-step {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 12px 0 0;
+  border-top: 2px solid var(--line);
+  color: var(--muted);
+  transition: border-color 300ms ease, color 300ms ease;
+}
+
+.proof-step::before {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  content: "";
+  transition: background 300ms ease, box-shadow 300ms ease;
+}
+
+.proof-step--complete {
+  border-color: var(--blue);
+  color: var(--ink);
+}
+
+.proof-step--complete::before {
+  background: var(--blue);
+  box-shadow: 0 0 6px rgba(96,165,250,.4);
+}
+
+.proof-step--active {
+  border-color: var(--amber);
+  color: var(--ink);
+}
+
+.proof-step--active::before {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(251,191,36,.5);
+}
+
+.proof-step--void {
+  border-color: var(--red);
+  color: var(--muted-dim);
+}
+
+.proof-step--void::before {
+  background: var(--red);
+}
+
+.proof-step--pending {
+  border-color: var(--line);
+  color: var(--muted-dim);
+}
+
+.proof-step-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.proof-step-num {
+  font: 500 10px "DM Mono", monospace;
+  color: inherit;
+  letter-spacing: .04em;
+}
+
+.proof-step-body {
+  display: grid;
+  gap: 2px;
+}
+
+.proof-step-body strong {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.proof-step-body small {
+  font: 500 9px "DM Mono", monospace;
+  color: var(--muted-dim);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.proof-step-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: proof-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes proof-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,.6); }
+  50% { box-shadow: 0 0 0 8px rgba(251,191,36,0); }
+}
+
+.proof-path-line {
+  margin-top: 12px;
+  height: 3px;
+  background: var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.proof-path-line-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--lime));
+  transition: width 600ms cubic-bezier(.2,.75,.25,1);
+}
+
+/* ── Market Window urgency ── */
+@keyframes window-urgent-pulse {
+  0%, 100% { opacity: 1; border-color: rgba(251,191,36,.5); }
+  50% { opacity: .7; border-color: rgba(251,191,36,.9); }
+}
+
+@keyframes window-critical-flash {
+  0%, 100% { opacity: 1; border-color: rgba(255,85,85,.6); background: rgba(255,85,85,.08); }
+  50% { opacity: .8; border-color: rgba(255,85,85,1); background: rgba(255,85,85,.15); }
+}
+
+.market-window-urgent {
+  animation: window-urgent-pulse 1.5s ease-in-out infinite;
+}
+
+.market-window-urgent strong {
+  color: var(--amber) !important;
+}
+
+.market-window-critical {
+  animation: window-critical-flash 1s ease-in-out infinite;
+}
+
+.market-window-critical strong {
+  color: var(--red) !important;
+}
+
+/* ── Market error ── */
+.market-error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255,85,85,.3);
+  background: rgba(255,85,85,.06);
+  color: var(--red);
+  font: 500 11px "DM Mono", monospace;
+}
+
+/* ── Position panel ── */
+.position-panel {
+  margin-top: 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  background: linear-gradient(165deg, #111d3a, #0e1730);
+  display: grid;
+  gap: 12px;
+}
+
+.position-panel h2 {
+  margin: 0;
+  font: 400 24px/.95 "Instrument Serif", Georgia, serif;
+}
+
+.position-win { color: var(--lime) !important; font-weight: 600; }
+.position-loss { color: var(--red) !important; }
+
+.position-match-link {
+  color: var(--blue);
+  font: 500 10px "DM Mono", monospace;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.position-match-link:hover { color: var(--ink); }
+.position-match-link span { margin-left: 4px; }
+
+.claim-action {
+  padding: 10px 16px;
+  border: 1px solid var(--lime);
+  background: var(--lime);
+  color: var(--ink);
+  font: 700 11px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.claim-action:hover { background: #33ff99; }
+
+/* ── Responsive — market detail page ── */
+@media (max-width: 800px) {
+  .market-instrument {
+    padding: 20px 16px;
+  }
+
+  .market-instrument-clock {
+    right: -100px;
+    opacity: .04;
+  }
+
+  .market-instrument-title {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+
+  .market-instrument-pool .odometer-digits {
+    font-size: 22px;
+  }
+
+  .market-bet-slip .side-option {
+    min-height: 100px;
+    padding: 12px;
+  }
+
+  .market-bet-slip .side-option strong {
+    font-size: 28px;
+  }
+
+  .proof-path .proof-path-steps {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 8px;
+  }
+
+  .market-settlement-path-inner {
+    padding: 16px;
+  }
+
+  .market-bet-slip .execution-trail {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-scoreboard::before,
+  .bet-slip::before,
+  .market-match-context-fresh::before,
+  .proof-board::before,
+  .explorer-market--open::before,
+  .instrument-deck--swapping .instrument-face--front {
+    animation: none;
+  }
+
+  .proof-step-pulse,
+  .market-window-urgent,
+  .market-window-critical {
+    animation: none;
+  }
 }
