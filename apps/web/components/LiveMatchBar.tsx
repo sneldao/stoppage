@@ -31,6 +31,22 @@ interface SSEMessage {
 
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://144.202.117.160:8765";
 
+/**
+ * Resolve the SSE endpoint. In the browser we always go through the
+ * Next.js proxy (/api/events/stream) so we're never blocked by Mixed
+ * Content restrictions on HTTPS deployments. The raw agent URL is only
+ * used server-side or in local dev where the page is already HTTP.
+ */
+function sseUrl(matchId: string): string {
+  const params = new URLSearchParams({ matchId });
+  if (typeof window !== "undefined") {
+    // Browser — use the same-origin HTTPS proxy
+    return `/api/events/stream?${params}`;
+  }
+  // Server-side (shouldn't happen for an EventSource, but be safe)
+  return `${AGENT_URL}/events/stream?${params}`;
+}
+
 const PHASE_COLORS: Record<string, string> = {
   "1st Half": "#00ff88",
   "2nd Half": "#00ff88",
@@ -105,8 +121,7 @@ export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewE
 
   useEffect(() => {
     if (!matchId) return;
-    const params = new URLSearchParams({ matchId });
-    const es = new EventSource(`${AGENT_URL}/events/stream?${params}`);
+    const es = new EventSource(sseUrl(matchId));
     esRef.current = es;
 
     es.onopen = () => setConnected(true);

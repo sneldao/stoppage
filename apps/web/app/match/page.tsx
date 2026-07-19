@@ -135,7 +135,12 @@ function MatchRoomContent() {
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Fixture context"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context pending"}</span></div>
           {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} />}
           <ReplayLauncher
-            fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => b.StartTime.localeCompare(a.StartTime))}
+            fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => {
+              // StartTime may arrive as string ISO or numeric epoch — normalise both
+              const ta = typeof a.StartTime === "string" ? a.StartTime : new Date((a.StartTime as unknown as number) * 1000).toISOString();
+              const tb = typeof b.StartTime === "string" ? b.StartTime : new Date((b.StartTime as unknown as number) * 1000).toISOString();
+              return tb.localeCompare(ta);
+            })}
             onLaunched={() => { /* the SSE feed picks the replay up automatically */ }}
           />
         </section>
