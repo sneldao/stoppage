@@ -23,10 +23,12 @@ export function useMyPositions() {
   const { publicKey } = useWallet();
   const addPosition = useStoppageStore((s) => s.addPosition);
   const clearPositions = useStoppageStore((s) => s.clearPositions);
+  const setPositionsLoading = useStoppageStore((s) => s.setPositionsLoading);
   const positions = useStoppageStore((s) => s.positions);
 
   const refresh = useCallback(async () => {
     if (!publicKey) return;
+    setPositionsLoading(true);
     try {
       const resp = await connection.getProgramAccounts(
         new PublicKey(MARKET_PROGRAM_ID),
@@ -60,8 +62,10 @@ export function useMyPositions() {
       }
     } catch {
       // Non-fatal — positions just won't load.
+    } finally {
+      setPositionsLoading(false);
     }
-  }, [connection, publicKey, addPosition]);
+  }, [connection, publicKey, addPosition, setPositionsLoading]);
 
   useEffect(() => {
     if (!publicKey) {

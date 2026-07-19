@@ -19,3 +19,6 @@ secrets/
 .runtime/
 .vercel
 .env*
+
+# TypeScript incremental compile cache
+*.tsbuildinfo

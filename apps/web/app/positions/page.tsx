@@ -9,6 +9,7 @@ import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchPulse } from "@/components/MatchPulse";
+import { PositionsEmptyState } from "@/components/PositionsEmptyState";
 
 function positionPayout(market: Market, position: Position): number {
   if (position.side === "yes") {
@@ -111,21 +112,8 @@ export default function PositionsPage() {
 
         <div className="positions-body">
           <div className="positions-list-col">
-            {!publicKey ? (
-              <div className="explorer-empty">
-                <p>Connect your wallet</p>
-                <p className="explorer-empty-hint">Sign in to see your open positions.</p>
-              </div>
-            ) : open.length === 0 ? (
-              <div className="explorer-empty">
-                <p>No live positions</p>
-                <p className="explorer-empty-hint">
-                  You don&apos;t have any open bets right now. Browse markets to place one.
-                </p>
-                <Link href="/markets" className="setup-guide-cta" style={{ marginTop: 18 }}>
-                  Browse markets <span>→</span>
-                </Link>
-              </div>
+            {open.length === 0 ? (
+              <PositionsEmptyState />
             ) : (
               <div className="open-positions-grid">
                 {open.map(({ market, position }) => (

@@ -19,15 +19,9 @@ import { PREDICATE_LABEL } from "@stoppage/sdk";
 import { ProofBoard } from "@/components/ProofBoard";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
+import { MarketsEmptyState } from "@/components/MarketsEmptyState";
+import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
 
-const tapeFilters = [
-  { id: "all", label: "All" },
-  { id: "open", label: "Live" },
-  { id: "awaiting_settlement", label: "Settling" },
-  { id: "settled", label: "Resolved" },
-] as const;
-
-type TapeFilter = (typeof tapeFilters)[number]["id"];
 type FixtureWithMatchId = Fixture & { matchId: string };
 
 function statusBadge(status: Market["status"]) {
@@ -195,7 +189,7 @@ export default function MarketsPage() {
 
         <div className="tape-body">
           <div className="tape-list-col">
-            {marketsLoading ? (
+            {marketsLoading && sorted.length === 0 ? (
               <div className="explorer-skeleton" aria-label="Loading markets">
                 {[0, 1, 2].map((i) => (
                   <div className="explorer-skeleton-row" key={i}>
@@ -206,14 +200,7 @@ export default function MarketsPage() {
                 ))}
               </div>
             ) : visible.length === 0 ? (
-              <div className="explorer-empty">
-                <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
-                <p className="explorer-empty-hint">
-                  {sorted.length === 0
-                    ? "Markets appear when the next match supports them."
-                    : "Try another filter to return to the full tape."}
-                </p>
-              </div>
+              <MarketsEmptyState filter={filter} hasAnyMarkets={sorted.length > 0} marketsLoading={marketsLoading} onSwitchFilter={setFilter} />
             ) : (
               <div className="explorer-list">
                 {byMatch.map(([matchId, matchMarkets]) => {
