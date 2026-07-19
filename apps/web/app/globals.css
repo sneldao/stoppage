@@ -3433,8 +3433,73 @@ body {
 .live-bar-empty--listening { position: relative; overflow: hidden; }
 .live-bar-empty--listening::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(0,255,136,.06), transparent); background-size: 200% 100%; animation: skeleton-shimmer 2.4s infinite; pointer-events: none; }
 
+/* === LIVE ENERGY PASS (P&L + settlement moment + social proof) === */
+
+/* LivePnLStrip — sticky-feeling slim strip below the nav */
+.live-pnl-strip { width: min(1440px, calc(100% - 48px)); margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 9px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(0,255,136,.05), transparent 60%); overflow-x: auto; scrollbar-width: none; }
+.live-pnl-strip::-webkit-scrollbar { display: none; }
+.live-pnl-label { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; color: var(--lime); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.live-pnl-total { flex-shrink: 0; font: 500 11px "DM Mono", monospace; color: var(--ink); font-variant-numeric: tabular-nums; }
+.live-pnl-total.up { color: var(--lime); }
+.live-pnl-total.down { color: var(--red); }
+.live-pnl-chips { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.live-pnl-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); color: var(--ink); text-decoration: none; white-space: nowrap; transition: border-color 160ms var(--ease); }
+.live-pnl-chip:hover { border-color: var(--lime); }
+.live-pnl-side { font: 700 9px "DM Mono", monospace; }
+.live-pnl-side--yes { color: var(--lime); }
+.live-pnl-side--no { color: #ff958c; }
+.live-pnl-q { color: var(--muted); font-size: 10px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.live-pnl-now { font: 500 9px "DM Mono", monospace; color: var(--muted-dim); text-transform: uppercase; }
+.live-pnl-now strong { color: var(--ink); }
+.live-pnl-odds { font: 500 9px "DM Mono", monospace; color: var(--blue); }
+
+/* SettlementMoment — the climax as an event */
+.settlement-moment { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 60; width: min(440px, calc(100% - 32px)); padding: 28px 30px; border: 1px solid var(--lime); border-radius: 4px; background: linear-gradient(160deg, var(--panel), var(--paper-deep)); box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 60px rgba(0,255,136,.15); text-align: center; animation: settlement-arrive .5s var(--ease) both; }
+.settlement-moment--void { border-color: var(--red); box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 60px rgba(255,85,85,.15); }
+.settlement-moment--lost { border-color: var(--muted-dim); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.settlement-moment-badge { display: inline-block; margin-bottom: 12px; padding: 4px 10px; border: 1px solid currentColor; color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .12em; }
+.settlement-moment--void .settlement-moment-badge { color: var(--red); }
+.settlement-moment--lost .settlement-moment-badge { color: var(--muted-dim); }
+.settlement-moment h2 { margin: 0 0 10px; font: 400 36px/.95 "Instrument Serif", Georgia, serif; }
+.settlement-moment-result { margin: 0 0 14px; font: 500 14px "DM Mono", monospace; }
+.settlement-moment-result--won { color: var(--lime); }
+.settlement-moment-result--won strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.settlement-moment-result--lost { color: var(--muted); }
+.settlement-moment-result--neutral { color: var(--muted); }
+.settlement-moment-proof { display: inline-block; color: var(--blue); font: 500 10px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
+@keyframes settlement-arrive { from { opacity: 0; transform: translate(-50%, -42%) scale(.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* Global activity ticker — fixed bottom marquee */
+.global-ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; height: 30px; padding: 0 14px; border-top: 1px solid var(--line); background: rgba(12,20,40,.92); backdrop-filter: blur(8px); overflow: hidden; }
+.global-ticker-label { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--lime); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.global-ticker-track { display: flex; gap: 26px; flex: 1; min-width: 0; overflow: hidden; animation: ticker-scroll 42s linear infinite; }
+.global-ticker:hover .global-ticker-track { animation-play-state: paused; }
+.global-ticker-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; }
+.global-ticker-item .global-ticker-time { color: var(--muted-dim); }
+.global-ticker-item .global-ticker-text { color: var(--ink); }
+@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Event toasts — slide-in from right */
+.event-toasts { position: fixed; top: 84px; right: 16px; z-index: 50; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
+.event-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid var(--line); border-left: 3px solid var(--lime); border-radius: 3px; background: var(--panel); box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; animation: toast-slide-in .4s var(--ease) both; }
+.event-toast--market_voided { border-left-color: var(--red); }
+.event-toast-badge { flex-shrink: 0; font: 700 9px "DM Mono", monospace; color: var(--lime); letter-spacing: .05em; }
+.event-toast--market_voided .event-toast-badge { color: var(--red); }
+.event-toast-text { flex: 1; min-width: 0; color: var(--ink); font-size: 11px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; }
+.event-toast-link { flex-shrink: 0; color: var(--blue); font: 500 9px "DM Mono", monospace; text-decoration: none; }
+@keyframes toast-slide-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+@media (max-width: 800px) {
+  .live-pnl-total { display: none; }
+  .live-pnl-q { max-width: 90px; }
+  .event-toasts { top: 70px; right: 8px; left: 8px; max-width: none; }
+  .global-ticker { display: none; }
+  .settlement-moment { width: min(360px, calc(100% - 24px)); padding: 22px; }
+  .settlement-moment h2 { font-size: 28px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-line, .slip-celebration, .signal-grid--listening i, .live-bar-empty--listening::after { animation: none; }
+  .skeleton-line, .slip-celebration, .signal-grid--listening i, .live-bar-empty--listening::after,
+  .settlement-moment, .global-ticker-item, .event-toast { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

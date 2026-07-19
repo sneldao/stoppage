@@ -14,6 +14,7 @@ import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
+import { SettlementMoment } from "@/components/SettlementMoment";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
@@ -501,6 +502,9 @@ export default function MarketDetailPage() {
           pageUrl={typeof window !== "undefined" ? `${window.location.origin}/markets/${marketAddr}` : `/markets/${marketAddr}`}
         />
       )}
+
+      {/* ── Settlement moment — the climax as an event ── */}
+      <SettlementMoment market={market} myPosition={myPosition ?? undefined} />
 
       {/* ── Your position ── */}
       {myPosition && (

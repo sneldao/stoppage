@@ -3,6 +3,8 @@ import { WalletContextProvider } from "@/components/WalletProvider";
 import { ReferralInit } from "@/components/ReferralInit";
 import { InstrumentNav } from "@/components/InstrumentNav";
 import { RouteFrame } from "@/components/RouteFrame";
+import { LivePnLStrip } from "@/components/LivePnLStrip";
+import { ActivitySurfaces } from "@/components/ActivitySurfaces";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -66,7 +68,9 @@ export default function RootLayout({
         <WalletContextProvider>
           <ReferralInit />
           <InstrumentNav />
+          <LivePnLStrip />
           <RouteFrame>{children}</RouteFrame>
+          <ActivitySurfaces />
         </WalletContextProvider>
       </body>
     </html>
