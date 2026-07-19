@@ -310,22 +310,8 @@ export function LiveInstrument({
   const [paused, setPaused] = useState(false);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [lastSettled, setLastSettled] = useState<LastSettled | null>(null);
-  // Measured height of the front face so the container never collapses
-  const [faceHeight, setFaceHeight] = useState(360);
-  const frontRef = useRef<HTMLDivElement>(null);
   const signalLockRef = useRef(false);
   const prevSignalVersion = useRef(signalVersion);
-
-  // Keep container sized to front face
-  useEffect(() => {
-    const el = frontRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      if (el.offsetHeight > 0) setFaceHeight(el.offsetHeight);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [front]); // re-observe when front changes
 
   // Fetch last settled market for empty market face
   useEffect(() => {
@@ -384,10 +370,6 @@ export function LiveInstrument({
 
   const live = fixture?.GameState === 2 || fixture?.GameState === 4;
 
-  // Determine which face index is front vs back
-  const matchIsFront  = front === 0;
-  const marketIsFront = front === 1;
-
   return (
     <div
       className="live-instrument"
@@ -397,20 +379,22 @@ export function LiveInstrument({
       onBlur={() => setPaused(false)}
     >
       <ElectricBorder
-        variant={live ? "blue" : marketIsFront && market ? "lime" : "blue"}
+        variant={live ? "blue" : front === 1 && market ? "lime" : "blue"}
         speed={live ? 1.5 : 1.0}
         displacement={live ? 30 : 20}
-        active={live || (marketIsFront && market?.status === "open")}
+        active={live || (front === 1 && market?.status === "open")}
       >
-        {/* Card deck — fixed height container, both cards absolutely stacked */}
+        {/* Card deck: only the active face is in normal flow.
+            The "card behind" peek is a ::before pseudo on .instrument-deck,
+            coloured/rotated differently per face to hint at what's next.  */}
         <div
-          className={`instrument-faces ${swapping ? "instrument-faces--swapping" : ""}`}
-          style={{ minHeight: faceHeight + 16 }}
+          className={`instrument-deck instrument-deck--${front === 0 ? "match" : "market"} ${swapping ? "instrument-deck--swapping" : ""}`}
+          aria-live="polite"
         >
           {/* Match face */}
           <div
-            ref={matchIsFront ? frontRef : undefined}
-            className={`instrument-face instrument-match ${matchIsFront ? "instrument-face--front" : "instrument-face--back"}`}
+            className={`instrument-face instrument-match ${front === 0 ? "instrument-face--visible" : "instrument-face--hidden"}`}
+            aria-hidden={front !== 0}
           >
             <MatchFace
               fixture={fixture}
@@ -424,8 +408,8 @@ export function LiveInstrument({
 
           {/* Market face */}
           <div
-            ref={marketIsFront ? frontRef : undefined}
-            className={`instrument-face instrument-market ${marketIsFront ? "instrument-face--front" : "instrument-face--back"}`}
+            className={`instrument-face instrument-market ${front === 1 ? "instrument-face--visible" : "instrument-face--hidden"}`}
+            aria-hidden={front !== 1}
           >
             <MarketFace market={market} lastSettled={lastSettled} />
           </div>

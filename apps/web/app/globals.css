@@ -1704,60 +1704,70 @@ body { background: var(--paper); }
   min-height: 420px;
 }
 
-/* ── Stacked card deck ───────────────────────────────────────────
-   Both faces live in a fixed-height container.
-   The back card peeks out: rotated slightly, offset down-right,
-   dimmed. When faces swap they physically cross each other.
+/* ── Card deck ───────────────────────────────────────────────────
+   .instrument-deck is in normal flow — its height = the visible face.
+   The "card behind" peek is faked with ::before: a thin rectangle
+   sitting behind the real card, rotated slightly, coloured per face.
    ─────────────────────────────────────────────────────────────── */
 
-.instrument-faces {
+.instrument-deck {
   position: relative;
-  /* Height is driven by the tallest face — set a floor so it never
-     collapses while the active face transitions */
-  min-height: 340px;
+  /* Space below the card for the peek shadow to show */
+  margin-bottom: 10px;
 }
 
-/* Both faces are absolutely stacked */
-.instrument-face {
+/* The peeking back card — pure CSS pseudo, no extra DOM */
+.instrument-deck::before {
+  content: "";
   position: absolute;
-  inset: 0;
+  inset: 4px -4px -8px 4px; /* offset: slightly wider + lower than the front */
+  background: var(--panel-warm);
+  border: 1px solid var(--line);
+  transform: rotate(1.6deg);
+  transform-origin: bottom center;
+  transition: transform 460ms cubic-bezier(.4,0,.2,1),
+              background 460ms ease;
+  z-index: 0;
+}
+
+/* When market is front, back card is blue-tinted */
+.instrument-deck--market::before {
+  background: #0e1e38;
+  border-color: rgba(96,165,250,.2);
+  transform: rotate(-1.6deg);
+}
+
+/* Mid-swap: front card lifts, back peeks more */
+.instrument-deck--swapping::before {
+  transform: rotate(0deg) translateY(-4px);
+}
+
+/* The actual visible face sits above the pseudo */
+.instrument-face {
+  position: relative;
+  z-index: 1;
   padding: 21px;
   overflow: hidden;
-  will-change: transform, opacity;
-  transition:
-    opacity  460ms cubic-bezier(.4, 0, .2, 1),
-    transform 460ms cubic-bezier(.4, 0, .2, 1),
-    box-shadow 460ms ease;
 }
 
-/* ── Back card: visible behind, askew ── */
-.instrument-face--back {
-  opacity: .55;
-  transform: rotate(1.8deg) translateX(10px) translateY(8px) scale(.97);
-  box-shadow: 0 8px 32px rgba(0,0,0,.45);
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* ── Front card: flat, fully visible ── */
-.instrument-face--front {
+/* Visible face — normal, no transform */
+.instrument-face--visible {
+  display: block;
   opacity: 1;
-  transform: rotate(0deg) translateX(0) translateY(0) scale(1);
-  box-shadow: 0 2px 16px rgba(0,0,0,.3);
-  z-index: 2;
-  pointer-events: auto;
+  transform: translateY(0) rotate(0deg);
+  transition: opacity 400ms cubic-bezier(.4,0,.2,1),
+              transform 400ms cubic-bezier(.4,0,.2,1);
 }
 
-/* ── Mid-swap: the cards cross in the air ──
-   Applied for the ~460ms duration of the transition */
-.instrument-faces--swapping .instrument-face--front {
-  transform: rotate(-1deg) translateX(-6px) translateY(-10px) scale(1.01);
-  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+/* Hidden face — out of flow so it doesn't affect height */
+.instrument-face--hidden {
+  display: none;
 }
 
-.instrument-faces--swapping .instrument-face--back {
-  transform: rotate(.5deg) translateX(4px) translateY(4px) scale(.99);
-  opacity: .75;
+/* During swap, lift the outgoing card before hiding it */
+.instrument-deck--swapping .instrument-face--visible {
+  transform: translateY(-8px) rotate(-0.5deg);
+  opacity: 0.7;
 }
 
 /* Match face bg */
@@ -1943,11 +1953,9 @@ body { background: var(--paper); }
 
 .ticker-icon { font-size: 11px; }
 
-/* ================================================================
-   REDUCED MOTION — instant swap, no animation
-   ================================================================ */
 @media (prefers-reduced-motion: reduce) {
-  .instrument-face {
+  .instrument-face--visible,
+  .instrument-deck::before {
     transition: none;
     transform: none !important;
   }
@@ -1956,13 +1964,9 @@ body { background: var(--paper); }
   }
 }
 
-/* ================================================================
-   MOBILE adjustments for LiveInstrument
-   ================================================================ */
 @media (max-width: 800px) {
-  .instrument-faces { min-height: 300px; }
   .instrument-face  { padding: 17px; }
-  .instrument-face--back { transform: rotate(1.2deg) translateX(7px) translateY(6px) scale(.97); }
+  .instrument-deck::before { transform: rotate(1deg); }
   .instrument-market-title { font-size: 22px; }
   .instrument-dots { padding: 8px 0 10px; }
 }
