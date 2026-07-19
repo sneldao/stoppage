@@ -114,7 +114,7 @@ export default function MarketDetailPage() {
           id: `position-${result.signature}`,
           occurredAt: result.confirmedAt,
           kind: "position_submitted",
-          label: `${selectedSide.toUpperCase()} · ${SOL(amountLamports)} · ${viaSession ? "Fast Session" : "Wallet signed"}`,
+          label: `${selectedSide.toUpperCase()} · ${SOL(amountLamports)} · ${viaSession ? "One-tap" : "Wallet signed"}`,
           matchId: market.predicate.matchId,
           marketId: market.id,
           signature: result.signature,
@@ -180,7 +180,7 @@ export default function MarketDetailPage() {
       <header className="market-nav">
         <Link href="/markets">← Markets</Link>
         <span>Position</span>
-        <span className="market-feed"><i className="live-dot" /> TxLINE connected</span>
+        <span className="market-feed"><i className="live-dot" /> Live data connected</span>
       </header>
 
       {/* ── Hero instrument — ElectricBorder wraps the whole hero + slip ── */}
@@ -220,16 +220,20 @@ export default function MarketDetailPage() {
               {/* Session badge */}
               <div className="slip-session-row">
                 <span className={state.delegated ? "fast-badge active" : "fast-badge"}>
-                  {state.delegated ? "⚡ Instant confirm" : "🔐 Wallet approval"}
+                  {state.delegated ? "⚡ One-tap ready" : "🔐 Wallet approval"}
                 </span>
                 {state.delegated && (
                   <button type="button" className="session-revoke" onClick={onRevokeSession} disabled={busy !== null}>
-                    {busy === "revoke" ? "Revoking…" : "Revoke"}
+                    {busy === "revoke" ? "Pausing…" : "Pause one-tap"}
                   </button>
                 )}
               </div>
 
-              {/* YES / NO */}
+              {/* Step 1: Pick an outcome */}
+              <div className="slip-step-label">
+                <span className="slip-step-num">1</span>
+                <span className="slip-step-text">Pick an outcome</span>
+              </div>
               <div className="side-choice">
                 <button
                   type="button"
@@ -256,7 +260,11 @@ export default function MarketDetailPage() {
                 <OddsSparkline marketId={market.id} currentYes={odds.yes} width={220} height={30} />
               </div>
 
-              {/* Stake */}
+              {/* Step 2: Choose your stake */}
+              <div className="slip-step-label">
+                <span className="slip-step-num">2</span>
+                <span className="slip-step-text">Choose your stake</span>
+              </div>
               <div className="stake-row">
                 <span>Stake</span>
                 <div className="stake-options">
@@ -283,9 +291,17 @@ export default function MarketDetailPage() {
                 </div>
               </div>
 
-              {/* Summary */}
+              {/* Step 3: Confirm — risk summary + place button */}
+              <div className="slip-step-label">
+                <span className="slip-step-num">3</span>
+                <span className="slip-step-text">Confirm your bet</span>
+              </div>
               <div className="slip-summary">
-                <span>{selectedSide ? `${selectedSide.toUpperCase()} at ${Math.round(selectedOdds * 100)}%` : "Choose an outcome"}</span>
+                <span>
+                  {selectedSide
+                    ? `${selectedSide.toUpperCase()} · ${amountSol || "0"} SOL at risk`
+                    : "Choose an outcome first"}
+                </span>
                 <strong>
                   {selectedSide && selectedOdds > 0
                     ? `${(parseFloat(amountSol || "0") / selectedOdds).toFixed(3)} SOL est. return`
@@ -326,14 +342,14 @@ export default function MarketDetailPage() {
                   <span className="execution-pending">
                     <i /> {receipt
                       ? `Wallet · ${formatSigningSpeed(receipt.signingMs ?? 0)}`
-                      : state.delegated ? "Signed locally · no popup" : "Wallet approval required"}
+                      : state.delegated ? "One-tap · no popup" : "Wallet approval required"}
                   </span>
                   <span>
                     {executionBusy ? "Submitting…" : receipt
                       ? `Confirmed · ${formatConfirmationSpeed(receipt.submittedAt, receipt.confirmedAt)}`
                       : "Timing after submission"}
                   </span>
-                  <span>{receipt ? "Proof path active" : "TxLINE proof at resolution"}</span>
+                  <span>{receipt ? "Result verified automatically" : "Result verified at resolution"}</span>
                 </div>
               )}
             </section>

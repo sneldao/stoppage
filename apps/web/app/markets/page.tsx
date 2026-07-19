@@ -162,7 +162,7 @@ export default function MarketsPage() {
           <div>
             <p className="eyebrow">Markets</p>
             <h1>Every bet in play.</h1>
-            <p>Peer-funded positions with outcomes locked to the TxLINE proof path.</p>
+            <p>Peer-funded positions with results verified automatically.</p>
           </div>
           <button onClick={() => void refresh()} className="explorer-refresh" aria-label="Refresh markets">
             Refresh
@@ -196,7 +196,7 @@ export default function MarketsPage() {
                 <p>{sorted.length === 0 ? "No markets yet." : "No matching markets."}</p>
                 <p className="explorer-empty-hint">
                   {sorted.length === 0
-                    ? "Markets appear when Matchkeeper publishes an eligible read."
+                    ? "Markets appear when the next match supports them."
                     : "Try another filter to return to the full tape."}
                 </p>
               </div>

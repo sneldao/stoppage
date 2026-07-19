@@ -185,17 +185,26 @@ export default function Home() {
 
         {/* Left column: copy + CTA */}
         <div className="command-copy">
-          <h1>Bet the next moment.</h1>
+          <h1>Bet on what happens next.</h1>
+          <p className="lede">
+            Choose a live football outcome, stake devnet SOL, and watch the
+            result verify automatically.
+          </p>
           <SetupPrompt marketHref={marketHref} />
           {state.delegated && lastSigningMs !== null && (
             <p className="hero-speed-note">
               <i className="live-dot" /> Last bet {formatSigningSpeed(lastSigningMs)}
             </p>
           )}
+          {!publicKey && (
+            <p className="hero-watch-hint">
+              <a href="#live-stage">↓ Watch the live demo below</a>
+            </p>
+          )}
         </div>
 
         {/* Centre: single live instrument (match ↔ market) */}
-        <div className="live-stage">
+        <div className="live-stage" id="live-stage">
           <LiveInstrument
             fixture={featuredFixture}
             snapshot={liveSnapshot}
@@ -207,21 +216,25 @@ export default function Home() {
           />
         </div>
 
-        {/* Right sidecar: sharp signals + additional markets */}
-        <div className="hero-sidecar">
-          <SharpMoves />
-          <HeroMarketRail markets={otherMarkets} />
-        </div>
+        {/* Right sidecar: sharp signals + additional markets — only after connect */}
+        {publicKey && (
+          <div className="hero-sidecar">
+            <SharpMoves />
+            <HeroMarketRail markets={otherMarkets} />
+          </div>
+        )}
       </section>
 
-      {/* ── Matchkeeper compact badge ── */}
-      <div className="keeper-strip" aria-label="Agent status">
-        <MatchkeeperStatus
-          updatedAt={liveSnapshot?.updatedAt}
-          marketPhase={featuredMarket?.status}
-          compact
-        />
-      </div>
+      {/* ── Matchkeeper compact badge — only after connect ── */}
+      {publicKey && (
+        <div className="keeper-strip" aria-label="Agent status">
+          <MatchkeeperStatus
+            updatedAt={liveSnapshot?.updatedAt}
+            marketPhase={featuredMarket?.status}
+            compact
+          />
+        </div>
+      )}
 
       <footer className="app-footer">
         <div>
@@ -242,7 +255,7 @@ export default function Home() {
       {publicKey && !state.delegated && (
         <a className="mobile-market-dock" href="#setup-prompt">
           <span><i /> Step 2 of 3</span>
-          <strong>Enable Fast Session <b>→</b></strong>
+          <strong>Place your first bet <b>→</b></strong>
         </a>
       )}
       {publicKey && state.delegated && featuredMarket && (

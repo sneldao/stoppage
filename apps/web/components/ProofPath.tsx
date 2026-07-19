@@ -5,7 +5,7 @@ import type { MarketStatus } from "@stoppage/sdk";
 const STEPS = [
   {
     id: "feed",
-    label: "TxLINE feed",
+    label: "Live match data",
     description: (status: MarketStatus) =>
       status === "open" ? "Match state live" : "Match state observed",
   },
@@ -28,7 +28,7 @@ const STEPS = [
     id: "settlement",
     label: "Settlement",
     description: (status: MarketStatus) =>
-      status === "settled" ? "Proof-backed result" :
+      status === "settled" ? "Result verified automatically" :
       status === "void"    ? "Refund path active" :
       "Awaiting proof path",
   },

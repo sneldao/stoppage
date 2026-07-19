@@ -139,7 +139,7 @@ function MatchFace({
         <span className={live ? "match-live" : "match-next"}>
           <i /> {live ? "Live" : "Next fixture"}
         </span>
-        <span>{live ? (fresh ? "Feed current" : "Feed delayed") : "TxLINE feed"}</span>
+        <span>{live ? (fresh ? "Feed current" : "Feed delayed") : "Live match data"}</span>
       </div>
 
       <div className="scoreline">
@@ -428,20 +428,26 @@ export function LiveInstrument({
         {/* Always-visible event ticker */}
         <EventTicker events={events} />
 
-        {/* Dot indicators */}
-        <div className="instrument-dots" aria-hidden="true">
+        {/* Explicit face controls — labeled, accessible */}
+        <div className="instrument-controls" role="tablist" aria-label="Switch instrument face">
           <button
             type="button"
-            className={`instrument-dot ${front === 0 ? "instrument-dot--active" : ""}`}
+            role="tab"
+            className={`instrument-control ${front === 0 ? "instrument-control--active" : ""}`}
             onClick={() => { setPaused(true); swapTo(0); }}
-            aria-label="Show match"
-          />
+            aria-selected={front === 0}
+          >
+            Match
+          </button>
           <button
             type="button"
-            className={`instrument-dot ${front === 1 ? "instrument-dot--active" : ""}`}
+            role="tab"
+            className={`instrument-control ${front === 1 ? "instrument-control--active" : ""}`}
             onClick={() => { setPaused(true); swapTo(1); }}
-            aria-label="Show market"
-          />
+            aria-selected={front === 1}
+          >
+            Market
+          </button>
         </div>
       </ElectricBorder>
     </div>

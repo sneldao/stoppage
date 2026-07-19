@@ -41,7 +41,7 @@ export function InstrumentNav() {
           return <Link className={`nav-route ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>{route.label}</Link>;
         })}
       </nav>
-      <Link href="/#fast-setup" className="nav-session nav-session-link" title={state.expiresAt ? `Session expires ${new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Set up a scoped Fast Session"}><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "Fast on" : "Fast setup"}</Link>
+      <Link href="/#setup-prompt" className="nav-session nav-session-link" title={state.expiresAt ? `One-tap betting expires ${new Date(state.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Set up one-tap betting"}><i className={state.delegated ? "live-dot" : "schedule-dot"} /> {state.delegated ? "One-tap on" : "One-tap setup"}</Link>
       <div className="nav-wallet"><WalletMultiButton /></div>
     </header>
   );
