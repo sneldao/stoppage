@@ -106,6 +106,7 @@ function MatchFace({
   recentFixtures,
   matchId,
   replay = false,
+  preview = false,
   onPhase,
   onNewEvent,
   onEvents,
@@ -116,6 +117,7 @@ function MatchFace({
   recentFixtures: Fixture[];
   matchId?: string;
   replay?: boolean;
+  preview?: boolean;
   onPhase?: (phase: { score: { home: number; away: number }; phaseLabel?: string }) => void;
   onNewEvent?: (evt: LiveEvent) => void;
   onEvents: (evts: LiveEvent[]) => void;
@@ -124,8 +126,8 @@ function MatchFace({
   const fresh = snapshotIsFresh(snapshot);
   const kickoff = fixture && !live ? safeStartTime(fixture) : null;
   const countdown = useCountdown(kickoff);
-  // A replay is effectively live (score ticks) but badged honestly.
-  const showLive = live || replay;
+  // A replay/preview is effectively live (score ticks) but badged honestly.
+  const showLive = live || replay || preview;
 
   // Intercept events to bubble them up for the ticker
   const handleNewEvent = useCallback((evt: LiveEvent) => {
@@ -138,7 +140,7 @@ function MatchFace({
     : undefined);
 
   return (
-    <div className={`instrument-face-content instrument-match-content ${replay ? "instrument-match-content--replay" : ""}`}>
+    <div className={`instrument-face-content instrument-match-content ${(replay || preview) ? "instrument-match-content--replay" : ""}`}>
       <div className={`signal-grid ${!showLive ? "signal-grid--listening" : ""}`} aria-hidden="true">
         {Array.from({ length: 64 }, (_, i) => <i key={i} />)}
       </div>
@@ -151,12 +153,14 @@ function MatchFace({
       <div className="match-board-top">
         {replay ? (
           <span className="match-replay"><i /> Replay · live pipeline</span>
+        ) : preview ? (
+          <span className="match-preview"><i /> Preview · no live data</span>
         ) : (
           <span className={live ? "match-live" : "match-next"}>
             <i /> {live ? "Live" : "Next fixture"}
           </span>
         )}
-        <span>{showLive ? (fresh || replay ? "Feed current" : "Feed delayed") : "Live match data"}</span>
+        <span>{showLive ? (fresh || replay || preview ? "Feed current" : "Feed delayed") : "Live match data"}</span>
       </div>
 
       <div className="scoreline">
@@ -195,7 +199,7 @@ function MatchFace({
         </div>
       )}
 
-      {fixture && (
+      {fixture && !preview && (
         <LiveMatchBar
           matchId={resolvedMatchId}
           onNewEvent={handleNewEvent as any}
@@ -328,6 +332,9 @@ interface LiveInstrumentProps {
   matchId?: string;
   /** When true, the match face is a replay — badge honestly, treat score as live. */
   replay?: boolean;
+  /** When true, the match face is a client-side preview loop (no live data).
+   *  Badged honestly as PREVIEW. Suppresses the LiveMatchBar SSE connection. */
+  preview?: boolean;
   /** Lift SSE phase updates to the parent (drives the replay scoreline). */
   onPhase?: (phase: { score: { home: number; away: number }; phaseLabel?: string }) => void;
   signalVersion: number;
@@ -343,6 +350,7 @@ export function LiveInstrument({
   marketsLoading = false,
   matchId,
   replay = false,
+  preview = false,
   onPhase,
   signalVersion,
   lastSignalType,
@@ -457,6 +465,7 @@ export function LiveInstrument({
               recentFixtures={recentFixtures}
               matchId={matchId}
               replay={replay}
+              preview={preview}
               onPhase={onPhase}
               onNewEvent={handleNewEvent}
               onEvents={setEvents}

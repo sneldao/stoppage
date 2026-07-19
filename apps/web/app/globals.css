@@ -72,7 +72,11 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .electric-wrap > canvas.electric-canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
 .electric-wrap > .electric-glow-1 { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; border: 1.5px solid rgba(0,255,136,.4); filter: blur(2px); z-index: 1; }
 .electric-wrap > .electric-glow-2 { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; border: 1.5px solid rgba(0,255,136,.2); filter: blur(6px); z-index: 1; }
-.electric-wrap > .electric-bg-glow { position: absolute; inset: -20px; border-radius: inherit; filter: blur(40px); opacity: .15; z-index: -1; background: radial-gradient(ellipse at center, rgba(0,255,136,.4), transparent 70%); pointer-events: none; }
+.electric-wrap > .electric-bg-glow { position: absolute; inset: -20px; border-radius: inherit; filter: blur(40px); opacity: .15; z-index: -1; background: radial-gradient(ellipse at center, rgba(0,255,136,.4), transparent 70%); pointer-events: none; animation: app-heartbeat 3.6s infinite ease-in-out; }
+/* Non-contingent heartbeat: every ElectricBorder panel's ambient glow
+   gently breathes so the chrome feels alive even with zero data flowing.
+   Global prefers-reduced-motion rule suppresses it for those users. */
+@keyframes app-heartbeat { 0%, 100% { opacity: .12; } 50% { opacity: .22; } }
 .electric-wrap .electric-content { position: relative; z-index: 2; }
 .electric-wrap.electric-blue > .electric-glow-1 { border-color: rgba(59,130,246,.5); }
 .electric-wrap.electric-blue > .electric-glow-2 { border-color: rgba(59,130,246,.25); }
@@ -3420,6 +3424,8 @@ body {
 /* Replay badge on the match face */
 .match-replay { display: inline-flex; align-items: center; gap: 7px; color: var(--amber); font: 500 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
 .match-replay i { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px rgba(251,191,36,.6); animation: live-pulse 2s infinite; }
+.match-preview { display: inline-flex; align-items: center; gap: 7px; color: var(--violet); font: 500 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.match-preview i { width: 6px; height: 6px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 8px rgba(167,139,250,.6); animation: live-pulse 2s infinite; }
 .instrument-match-content--replay .match-board-top { color: var(--amber); }
 
 /* Home replay control strip */

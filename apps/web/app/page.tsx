@@ -19,6 +19,7 @@ import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { RightNowLine } from "@/components/RightNowLine";
 import { useAutoReplay, type ReplayStatus } from "@/lib/replay/useAutoReplay";
+import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,19 @@ export default function Home() {
     replayStatsRef.current = { corners: 0, cards: 0 };
   }, [replayMatchId]);
 
+  // Non-contingent baseline: when nothing is flowing (no live fixture, no
+  // active replay, not launching one), drive the hero from a canned,
+  // looping script so the scoreboard ticks and goal drama fires with zero
+  // external input. Badged honestly as PREVIEW by LiveInstrument.
+  const isPreview = !hasLive && !isReplay && !launchingReplay;
+  const { previewFixture } = usePreviewLoop({
+    active: isPreview,
+    setSnapshot: setLiveSnapshot as (s: LiveMatchSnapshot | null) => void,
+    setLastSignalType,
+    setSignalVersion,
+    setScoringTeam,
+  });
+
   const featuredMarket = useMemo(
     () => Object.values(markets).find((m) => m.status === "open") ?? null,
     [markets],
@@ -136,17 +150,18 @@ export default function Home() {
     () => fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null,
     [fixtures],
   );
-  // During a replay the hero shows the replay match; otherwise the live/next fixture.
-  const heroFixture = isReplay && replayFixture ? replayFixture : featuredFixture;
+  // During a replay the hero shows the replay match; during preview the
+  // synthetic preview fixture; otherwise the live/next fixture.
+  const heroFixture = isPreview ? previewFixture : (isReplay && replayFixture ? replayFixture : featuredFixture);
   const otherMarkets = useMemo(
     () => Object.values(markets).filter((m) => m.id !== featuredMarket?.id).slice(0, 3),
     [markets, featuredMarket],
   );
 
-  // Poll live score when a real match is live (skipped during replay — the
-  // SSE phase drives the snapshot there).
+  // Poll live score when a real match is live (skipped during replay and
+  // preview — the SSE phase / preview loop drives the snapshot there).
   useEffect(() => {
-    if (isReplay) return;
+    if (isReplay || isPreview) return;
     if (!featuredFixture || !isLive(featuredFixture)) {
       setLiveSnapshot(null);
       return;
@@ -164,10 +179,10 @@ export default function Home() {
   }, [featuredFixture]);
 
   // Detect score/stat changes → fire signal animations. Skipped during
-  // replay, where events drive signals directly (more responsive than
-  // polling the snapshot diff).
+  // replay (events drive signals directly) and preview (the loop drives
+  // signals directly).
   useEffect(() => {
-    if (isReplay) { previousSignal.current = null; return; }
+    if (isReplay || isPreview) { previousSignal.current = null; return; }
     if (!liveSnapshot) return;
     const next = `${liveSnapshot.score.home}:${liveSnapshot.score.away}:${liveSnapshot.stats.corners}:${liveSnapshot.stats.cards}`;
     if (previousSignal.current && previousSignal.current !== next) {
@@ -178,7 +193,7 @@ export default function Home() {
       setSignalVersion((v) => v + 1);
     }
     previousSignal.current = next;
-  }, [liveSnapshot, isReplay]);
+  }, [liveSnapshot, isReplay, isPreview]);
 
   // Auto-clear alert badge
   useEffect(() => {
@@ -293,6 +308,7 @@ export default function Home() {
             marketsLoading={marketsLoading}
             matchId={replayMatchId}
             replay={isReplay}
+            preview={isPreview}
             onPhase={onReplayPhase}
             signalVersion={signalVersion}
             lastSignalType={lastSignalType}
@@ -324,6 +340,13 @@ export default function Home() {
               >
                 Switch match →
               </button>
+            </div>
+          )}
+          {isPreview && (
+            <div className="replay-control-strip">
+              <span className="replay-control-status">
+                Preview mode · no live feed — showing a canned demo
+              </span>
             </div>
           )}
         </div>

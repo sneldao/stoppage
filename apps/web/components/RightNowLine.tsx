@@ -3,22 +3,36 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStoppageStore } from "@/store";
+import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { relTime } from "@/lib/activity/useActivityFeed";
-import { formatSol as SOL } from "@/lib/format";
+import { formatSol as SOL, formatSigningSpeed } from "@/lib/format";
 
 /**
  * RightNowLine — a single rotating "right now" fact on the home hero.
  *
- * All derived from data already in the store (markets + feed + positions):
- * market counts, total locked liquidity (reactive to Helius odds ticks),
- * last keeper activity, and the user's own at-risk stake. Rotates every
- * ~4s. No extra polling — reads the same slices everything else does.
+ * Derived from data already in the store (markets + feed + positions +
+ * session) PLUS a set of always-true facts (a ticking UTC clock, the
+ * session expiry countdown, your record signing speed) so the line
+ * never collapses to nothing when no external data is flowing. The
+ * non-contingent baseline: even with zero markets, zero feed, and the
+ * agent down, there is always a rotating fact on screen.
  */
 export function RightNowLine() {
   const markets = useStoppageStore((s) => s.markets);
   const feed = useStoppageStore((s) => s.feed);
   const positions = useStoppageStore((s) => s.positions);
+  const lastSigningMs = useStoppageStore((s) => s.lastSigningMs);
+  const { state: sessionState } = useSessionKey();
+  const sessionExpiresAt = sessionState.expiresAt;
   const { publicKey } = useWallet();
+
+  // Tick every second so the UTC clock + session countdown stay live —
+  // this re-renders only this component (canvas/siblings are memoized).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const facts = useMemo(() => {
     const all = Object.values(markets);
@@ -39,10 +53,26 @@ export function RightNowLine() {
         out.push(`You hold ${mine.length} open · ${SOL(atRisk)} at risk`);
       }
     }
+    // — Always-true facts (non-contingent baseline) ————————
+    // Session expiry countdown (ticking, always when delegated).
+    if (sessionExpiresAt) {
+      const ms = sessionExpiresAt - now;
+      if (ms > 0) {
+        const h = Math.floor(ms / 3_600_000);
+        const m = Math.floor((ms % 3_600_000) / 60_000);
+        out.push(`Session ${h}h ${m}m until cool-off`);
+      }
+    }
+    // Record signing speed (personal stat, no external data).
+    if (lastSigningMs !== null) out.push(`Your record bet ${formatSigningSpeed(lastSigningMs)}`);
+    // A live UTC clock — always true, always moving.
+    const d = new Date(now);
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mm = String(d.getUTCMinutes()).padStart(2, "0");
+    const ss = String(d.getUTCSeconds()).padStart(2, "0");
+    out.push(`${hh}:${mm}:${ss} UTC · markets open with the match`);
     return out;
-  }, [markets, feed, positions, publicKey]);
-
-  const [idx, setIdx] = useState(0);
+  }, [markets, feed, positions, publicKey, sessionExpiresAt, lastSigningMs, now]);  const [idx, setIdx] = useState(0);
   useEffect(() => {
     if (facts.length <= 1) return;
     const id = window.setInterval(() => setIdx((i) => (i + 1) % facts.length), 4_200);

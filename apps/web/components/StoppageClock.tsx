@@ -44,6 +44,13 @@ export function StoppageClock({ size = 420, interactive = true, globalPointer = 
       const cy = size / 2;
       const faceR = size * 0.42;
       const numeralR = faceR * 0.78;
+      // Idle-wander is gated by prefers-reduced-motion — without it the
+      // springs settle to center and the centerpiece goes still whenever
+      // no pointer is active. The slow Lissajous keeps it breathing with
+      // zero external data (the non-contingent baseline).
+      const reduceMotion = typeof window !== "undefined" && window.matchMedia
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false;
 
       const numeralSprings: SpringPoint[] = [];
       const handSprings: SpringPoint[] = [];
@@ -71,6 +78,12 @@ export function StoppageClock({ size = 420, interactive = true, globalPointer = 
           const m = faceR * 0.5;
           targetX = Math.max(m, Math.min(size - m, pointer.x));
           targetY = Math.max(m, Math.min(size - m, pointer.y));
+        } else if (!reduceMotion) {
+          // Idle wander — slow Lissajous around center so the clock is
+          // always gently breathing even with no pointer and no data.
+          const t = p.millis();
+          targetX = cx + Math.cos(t * 0.00028) * faceR * 0.16;
+          targetY = cy + Math.sin(t * 0.00021) * faceR * 0.16;
         }
 
         // Update springs with increasing lag: numerals fast, hands slower
