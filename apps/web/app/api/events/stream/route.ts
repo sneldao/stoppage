@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 
-const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://144.202.117.160:8765";
+const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://144.202.117.160:18766";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

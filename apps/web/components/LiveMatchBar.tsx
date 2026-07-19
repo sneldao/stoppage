@@ -29,7 +29,7 @@ interface SSEMessage {
   recentEvents?: LiveEvent[];
 }
 
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://144.202.117.160:8765";
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://144.202.117.160:18766";
 
 /**
  * Resolve the SSE endpoint. In the browser we always go through the

@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 
-const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8765";
+const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:18766";
 
 export async function GET() {
   try {

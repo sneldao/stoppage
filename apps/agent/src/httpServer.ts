@@ -5,7 +5,7 @@ import type { ReplayManager } from "./replayManager";
 import type { OddsTracker } from "./oddsTracker";
 import type { Fixture } from "@stoppage/txline";
 
-const DEFAULT_PORT = 8765;
+const DEFAULT_PORT = 18766;
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
