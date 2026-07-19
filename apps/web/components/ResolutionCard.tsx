@@ -7,6 +7,7 @@ import type { Market, Position } from "@stoppage/sdk";
 import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 import { buildResolutionTweet, buildTweetIntent } from "@/lib/share/tweet";
 import { exportTicketAsPng } from "@/lib/share/exportTicketAsPng";
+import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
 import { useSnsName } from "@/lib/wallet/useSnsName";
 import { useStoppageStore } from "@/store";
 
@@ -26,6 +27,7 @@ export function ResolutionCard({ market, position, isWinner, pageUrl, signingMs 
   const referrer = useStoppageStore((state) => state.referrer);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [cardDownloading, setCardDownloading] = useState(false);
   const refTag = publicKey?.toBase58() ?? referrer;
   const snsName = useSnsName(publicKey?.toBase58());
   const resultUrl = `${pageUrl}?side=${position.side}${refTag ? `&ref=${encodeURIComponent(refTag)}` : ""}`;
@@ -59,6 +61,18 @@ export function ResolutionCard({ market, position, isWinner, pageUrl, signingMs 
       );
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const downloadWinCard = async () => {
+    setCardDownloading(true);
+    try {
+      await exportCardAsPng(
+        { kind: "win", market, payoutLamports },
+        `stoppage-win-${market.predicate.matchId}.png`
+      );
+    } finally {
+      setCardDownloading(false);
     }
   };
 
@@ -128,6 +142,14 @@ export function ResolutionCard({ market, position, isWinner, pageUrl, signingMs 
             title={`Downloading as PNG — verified receipt for ${snsName}`}
           >
             {downloading ? "Generating…" : "📸 Download ticket"}
+          </button>
+          <button
+            type="button"
+            className="ticket-download-btn"
+            onClick={() => void downloadWinCard()}
+            disabled={cardDownloading}
+          >
+            {cardDownloading ? "Generating…" : "🏆 Download win card"}
           </button>
           <Link href={`/match?match=${encodeURIComponent(market.predicate.matchId)}`}>Open match room</Link>
         </div>

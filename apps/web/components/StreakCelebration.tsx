@@ -6,6 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { computeHistoryStats } from "@/store/historySlice";
 import type { SettledPosition } from "@/store";
 import { buildTweetIntent } from "@/lib/share/tweet";
+import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
 
 interface StreakCelebrationProps {
   history: SettledPosition[];
@@ -37,6 +38,7 @@ function saveCelebrated(milestone: number) {
 export function StreakCelebration({ history }: StreakCelebrationProps) {
   const { publicKey } = useWallet();
   const [dismissedMilestone, setDismissedMilestone] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const { milestone, stats } = useMemo(() => {
     const stats = computeHistoryStats(history);
@@ -59,13 +61,25 @@ export function StreakCelebration({ history }: StreakCelebrationProps) {
     `🔥 ${milestone} wins in a row on Stoppage. Verified on Solana. Who wants the next challenge? stoppage.fun`
   );
 
+  const downloadCard = async () => {
+    setDownloading(true);
+    try {
+      await exportCardAsPng(
+        { kind: "streak", streak: stats.currentStreak, bestStreak: stats.bestStreak },
+        `stoppage-streak-${stats.currentStreak}.png`
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="streak-celebration" role="status" aria-live="polite">
       <div className="streak-celebration-content">
         <span className="streak-celebration-flames" aria-hidden="true">🔥🔥🔥</span>
         <h2>{milestone} in a row</h2>
         <p>
-          You&apos;re on a {stats.currentStreak}-win streak. {stats.bestStreak > stats.currentStreak ? `Best ever: ${stats.bestStreak}.` : "This is your best run yet."}
+          You&apos;re on a {stats.currentStreak}-win streak. {Math.abs(stats.bestStreak) > stats.currentStreak ? `Best ever: ${Math.abs(stats.bestStreak)}.` : "This is your best run yet."}
         </p>
         <div className="streak-celebration-actions">
           <Link href="/markets" className="setup-guide-cta">
@@ -74,6 +88,9 @@ export function StreakCelebration({ history }: StreakCelebrationProps) {
           <a href={tweet} target="_blank" rel="noopener noreferrer" className="returning-hero-link">
             Share on X
           </a>
+          <button type="button" onClick={() => void downloadCard()} disabled={downloading} className="returning-hero-link">
+            {downloading ? "Generating…" : "Download card"}
+          </button>
           <button type="button" onClick={handleDismiss} className="streak-celebration-dismiss">
             Dismiss
           </button>

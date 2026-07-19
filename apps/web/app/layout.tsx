@@ -5,6 +5,7 @@ import { InstrumentNav } from "@/components/InstrumentNav";
 import { RouteFrame } from "@/components/RouteFrame";
 import { LivePnLStrip } from "@/components/LivePnLStrip";
 import { ActivitySurfaces } from "@/components/ActivitySurfaces";
+import { OddsMovementAlerts } from "@/components/OddsMovementAlerts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -71,6 +72,7 @@ export default function RootLayout({
           <LivePnLStrip />
           <RouteFrame>{children}</RouteFrame>
           <ActivitySurfaces />
+          <OddsMovementAlerts />
         </WalletContextProvider>
       </body>
     </html>

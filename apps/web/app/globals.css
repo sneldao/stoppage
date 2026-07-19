@@ -150,6 +150,16 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .achievement-card strong { color: var(--ink); font-size: 12px; }
 .achievement-card span { color: var(--muted); font: 500 9px "DM Mono", monospace; line-height: 1.35; }
 
+/* === ODDS MOVEMENT ALERTS === */
+.odds-movement-alerts { position: fixed; z-index: 30; right: 18px; top: 90px; display: grid; gap: 10px; max-width: min(360px, calc(100% - 36px)); }
+@media (max-width: 800px) { .odds-movement-alerts { right: 12px; top: 72px; } }
+.odds-movement-alert { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 8px 22px rgba(17,26,34,.22); animation: route-enter-detail 280ms var(--ease) both; }
+.odds-movement-alert-badge { color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.odds-movement-alert--down .odds-movement-alert-badge { color: #ff958c; }
+.odds-movement-alert-text { color: var(--ink); font-size: 13px; line-height: 1.45; }
+.odds-movement-alert-link { justify-self: start; color: var(--blue); font: 500 10px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
+.odds-movement-alert-dismiss { position: absolute; top: 8px; right: 10px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+
 /* === VIBRANT THEME — colorful overrides === */
 .nav-route.active::after { background: var(--lime); box-shadow: 0 0 12px rgba(0,255,136,.6); }
 .nav-route:hover { color: var(--lime); }
