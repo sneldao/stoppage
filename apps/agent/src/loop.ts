@@ -109,7 +109,25 @@ export class Agent {
     if (!this.running) return;
     this.config.onEvent?.(event);
 
-    const actions = decideActions(event, this.openMarkets);
+    const { actions, notes } = decideActions(event, this.openMarkets);
+
+    // Surface the agent's decision-making. Every event the strategy
+    // considers produces either an action or an explicit note explaining
+    // why no action followed. Emitting these as `decision_logged` facts
+    // is what makes Matchkeeper's autonomy legible on the timeline:
+    // observe -> decide -> act (or consciously decline). This directly
+    // answers the "Autonomous Operation" criterion for the demo.
+    for (const note of notes) {
+      this.config.onMatchEvent?.({
+        occurredAt: Date.now(),
+        kind: "decision_logged",
+        label: note.label,
+        matchId: note.matchId,
+        fixtureId: note.fixtureId,
+        source: "matchkeeper",
+      });
+    }
+
     for (const action of actions) {
       await this.executeAction(action);
     }

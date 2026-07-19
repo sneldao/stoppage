@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { impliedProbability, type Market, type MatchEvent } from "@stoppage/sdk";
+import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
@@ -46,10 +46,9 @@ function MatchRoomContent() {
   useMyPositions();
   const { publicKey } = useWallet();
   const positions = useStoppageStore((state) => state.positions);
-  const activity = useStoppageStore((state) => state.activity);
+  const feed = useStoppageStore((state) => state.feed);
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
   const [snapshot, setSnapshot] = useState<LiveMatchSnapshot | null>(null);
-  const [events, setEvents] = useState<MatchEvent[]>([]);
   const orderedMarkets = useMemo(() => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)), [markets]);
   const requestedMatchId = searchParams.get("match");
   const selectedMatchId = requestedMatchId && orderedMarkets.some((market) => String(market.predicate.matchId) === requestedMatchId)
@@ -91,23 +90,12 @@ function MatchRoomContent() {
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [fixture]);
 
-  useEffect(() => {
-    const query = selectedMatchId ? `?matchId=${encodeURIComponent(selectedMatchId)}` : "";
-    let cancelled = false;
-    const refresh = () => {
-      void fetch(`/api/match-events${query}`)
-        .then((response) => response.ok ? response.json() : Promise.reject(new Error("Matchkeeper activity unavailable")))
-        .then((data: { events?: MatchEvent[] }) => { if (!cancelled) setEvents(data.events ?? []); })
-        .catch(() => { if (!cancelled) setEvents([]); });
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 15_000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [selectedMatchId]);
-
   const matchActivity = useMemo(() => {
+    if (!selectedMatchId) return [];
     const seen = new Set<string>();
-    return [...events, ...activity]
+    // Reads from the single store feed (SSE-backed via useActivityFeedMonitor)
+    // instead of a per-page poll — one subscription over polling.
+    return feed
       .filter((event) => event.matchId === selectedMatchId)
       .filter((event) => {
         const key = event.signature ?? event.id;
@@ -116,7 +104,7 @@ function MatchRoomContent() {
         return true;
       })
       .sort((a, b) => b.occurredAt - a.occurredAt);
-  }, [activity, events, selectedMatchId]);
+  }, [feed, selectedMatchId]);
 
   const live = isLive(fixture);
   const fresh = snapshotIsFresh(snapshot);

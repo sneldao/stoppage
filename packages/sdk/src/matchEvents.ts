@@ -10,7 +10,8 @@ export type MatchEventKind =
   | "settlement_confirmed"
   | "market_voided"
   | "action_failed"
-  | "position_submitted";
+  | "position_submitted"
+  | "decision_logged";
 
 export interface MatchEvent {
   id: string;

@@ -111,6 +111,35 @@ export function startEventHttpServer(ledger: MatchEventLedger, liveStore?: LiveS
       return;
     }
 
+    // ── Activity feed SSE ──────────────────────────────────────────
+    // Streams MatchEvent ledger facts (market_created, settlement_confirmed,
+    // decision_logged, etc.) to the web app as they are appended. This is the
+    // real-time backbone for the activity ticker + Matchkeeper timeline.
+    // Distinct from /events/stream, which carries LiveStore phase events
+    // (goals/corners) for the match bar — different concern, different shape.
+    if (path === "/events/feed/stream") {
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        ...CORS_HEADERS,
+      });
+      // Replay recent history so a freshly connected client isn't blank.
+      const recent = ledger.readEvents();
+      res.write(`data: ${JSON.stringify({ type: "init", events: recent, updatedAt: Date.now() })}\n\n`);
+      const unsubscribe = ledger.subscribe((event) => {
+        try {
+          res.write(`data: ${JSON.stringify({ type: "event", event })}\n\n`);
+        } catch {
+          // client gone — the close handler will unsubscribe
+        }
+      });
+      req.on("close", () => {
+        unsubscribe();
+      });
+      return;
+    }
+
     if (path === "/match/phase" && liveStore) {
       const matchId = url.searchParams.get("matchId");
       if (!matchId) { writeJson(res, 400, { error: "matchId required" }); return; }

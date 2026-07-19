@@ -11,7 +11,15 @@ const MAX_RETURNED_EVENTS = 60;
  * and stays inspectable without a database dependency.
  */
 export class MatchEventLedger {
+  private subscribers = new Set<(event: MatchEvent) => void>();
+
   constructor(private readonly filePath: string) {}
+
+  /** Subscribe to live appends. Returns an unsubscribe function. */
+  subscribe(cb: (event: MatchEvent) => void): () => void {
+    this.subscribers.add(cb);
+    return () => this.subscribers.delete(cb);
+  }
 
   append(event: Omit<MatchEvent, "id">) {
     mkdirSync(dirname(this.filePath), { recursive: true });
@@ -21,6 +29,15 @@ export class MatchEventLedger {
       id: `${event.occurredAt}-${Math.random().toString(36).slice(2, 8)}`,
     };
     appendFileSync(this.filePath, `${JSON.stringify(entry)}\n`, { encoding: "utf8", mode: 0o644 });
+    // Push to live SSE subscribers. Isolated try/catch so a slow/dead
+    // client never blocks the single writer or corrupts the file.
+    for (const sub of this.subscribers) {
+      try {
+        sub(entry);
+      } catch {
+        this.subscribers.delete(sub);
+      }
+    }
   }
 
   readEvents(): MatchEvent[] {

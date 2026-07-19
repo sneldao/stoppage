@@ -36,23 +36,42 @@ export type AgentAction =
       label: string;
     };
 
+/**
+ * A decision note — the strategy's explanation of *why* it took no action
+ * on an event it observed. The agent loop emits these as `decision_logged`
+ * ledger facts so the timeline shows Matchkeeper deciding, not just
+ * observing and acting. This is what makes the agent's autonomy legible:
+ * "considered the event, here is why no market action followed."
+ */
+export interface DecisionNote {
+  label: string;
+  matchId: string;
+  fixtureId?: number;
+}
+
+export interface StrategyResult {
+  actions: AgentAction[];
+  notes: DecisionNote[];
+}
+
 // ── Strategy config ─────────────────────────────────────────────────
 
 // ── Strategy ────────────────────────────────────────────────────────
 
 /**
  * Given a normalized event and the current open markets, decide what
- * actions to take.
+ * actions to take, and explain any decision to take no action.
  *
  * @param event - The normalized TxLINE event
  * @param openMarkets - Currently open markets (predicates + metadata)
- * @returns Actions to execute
+ * @returns Actions to execute + decision notes to log
  */
 export function decideActions(
   event: NormalizedEvent,
   openMarkets: OpenMarket[]
-): AgentAction[] {
+): StrategyResult {
   const actions: AgentAction[] = [];
+  const notes: DecisionNote[] = [];
 
   switch (event.type) {
     case "match_started":
@@ -64,9 +83,21 @@ export function decideActions(
       break;
 
     case "goal_scored":
+      notes.push(
+        noActionNote(event.matchId, event.fixtureId, "Goal scored; over/under goals settles at match end")
+      );
+      break;
+
     case "halftime":
+      notes.push(
+        noActionNote(event.matchId, event.fixtureId, "Halftime; no active template maps to this event")
+      );
+      break;
+
     case "second_half_started":
-      // These events do not have a settlement mapping to a TxLINE stat proof.
+      notes.push(
+        noActionNote(event.matchId, event.fixtureId, "Second half started; no active template maps to this event")
+      );
       break;
 
     case "match_ended":
@@ -104,11 +135,26 @@ export function decideActions(
       }
       break;
 
-    // corner_awarded, card_shown — no immediate market actions
-    // (these feed into the over/under markets which settle at match end)
+    case "corner_awarded":
+      notes.push(
+        noActionNote(event.matchId, event.fixtureId, "Corner awarded; over/under corners settles at match end")
+      );
+      break;
+
+    case "card_shown":
+      notes.push(
+        noActionNote(event.matchId, event.fixtureId, "Card shown; no active template maps to this event")
+      );
+      break;
+
+    // Unknown event types carry no opinion — no actions, no note.
   }
 
-  return actions;
+  return { actions, notes };
+}
+
+function noActionNote(matchId: string, fixtureId: number, reason: string): DecisionNote {
+  return { label: reason, matchId, fixtureId };
 }
 
 // ── Open market tracking ────────────────────────────────────────────

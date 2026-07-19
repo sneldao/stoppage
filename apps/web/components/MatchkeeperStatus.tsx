@@ -27,6 +27,7 @@ function eventLabel(event: MatchEvent) {
     market_voided: "Market",
     action_failed: "Attention",
     position_submitted: "Your position",
+    decision_logged: "Decision",
   };
   return `${prefix[event.kind]} · ${event.label}`;
 }
