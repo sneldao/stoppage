@@ -104,6 +104,9 @@ function MatchFace({
   snapshot,
   signalVersion,
   recentFixtures,
+  matchId,
+  replay = false,
+  onPhase,
   onNewEvent,
   onEvents,
 }: {
@@ -111,6 +114,9 @@ function MatchFace({
   snapshot: LiveMatchSnapshot | null;
   signalVersion: number;
   recentFixtures: Fixture[];
+  matchId?: string;
+  replay?: boolean;
+  onPhase?: (phase: { score: { home: number; away: number }; phaseLabel?: string }) => void;
   onNewEvent?: (evt: LiveEvent) => void;
   onEvents: (evts: LiveEvent[]) => void;
 }) {
@@ -118,15 +124,22 @@ function MatchFace({
   const fresh = snapshotIsFresh(snapshot);
   const kickoff = fixture && !live ? safeStartTime(fixture) : null;
   const countdown = useCountdown(kickoff);
+  // A replay is effectively live (score ticks) but badged honestly.
+  const showLive = live || replay;
 
   // Intercept events to bubble them up for the ticker
   const handleNewEvent = useCallback((evt: LiveEvent) => {
     onNewEvent?.(evt);
   }, [onNewEvent]);
 
+  // Derive the SSE matchId: explicit override for replays, else from fixture names.
+  const resolvedMatchId = matchId ?? (fixture
+    ? `${fixture.Participant1.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}-${fixture.Participant2.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}`
+    : undefined);
+
   return (
-    <div className="instrument-face-content instrument-match-content">
-      <div className="signal-grid" aria-hidden="true">
+    <div className={`instrument-face-content instrument-match-content ${replay ? "instrument-match-content--replay" : ""}`}>
+      <div className={`signal-grid ${!showLive ? "signal-grid--listening" : ""}`} aria-hidden="true">
         {Array.from({ length: 64 }, (_, i) => <i key={i} />)}
       </div>
       {signalVersion > 0 && (
@@ -136,16 +149,20 @@ function MatchFace({
       )}
 
       <div className="match-board-top">
-        <span className={live ? "match-live" : "match-next"}>
-          <i /> {live ? "Live" : "Next fixture"}
-        </span>
-        <span>{live ? (fresh ? "Feed current" : "Feed delayed") : "Live match data"}</span>
+        {replay ? (
+          <span className="match-replay"><i /> Replay · live pipeline</span>
+        ) : (
+          <span className={live ? "match-live" : "match-next"}>
+            <i /> {live ? "Live" : "Next fixture"}
+          </span>
+        )}
+        <span>{showLive ? (fresh || replay ? "Feed current" : "Feed delayed") : "Live match data"}</span>
       </div>
 
       <div className="scoreline">
         <strong>{fixture?.Participant1 ?? "—"}</strong>
         <span className={`score ${signalVersion > 0 ? "score-flash" : ""}`} key={signalVersion}>
-          {live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}
+          {showLive && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}
         </span>
         <strong>{fixture?.Participant2 ?? "—"}</strong>
       </div>
@@ -156,16 +173,16 @@ function MatchFace({
           {fixture?.Country ?? "World Cup"}
         </span>
         <span>
-          {live && snapshot
+          {showLive && snapshot
             ? `Corners ${snapshot.stats.corners} · Cards ${snapshot.stats.cards}`
             : kickoff && countdown
             ? `Kicks off in ${countdown}`
-            : "Waiting for fixture"}
+            : "Listening for the next match"}
         </span>
       </div>
 
-      {/* Recent results strip — shown when no live match */}
-      {!live && recentFixtures.length > 0 && (
+      {/* Recent results strip — shown when no live match and no replay */}
+      {!showLive && recentFixtures.length > 0 && (
         <div className="recent-results">
           {recentFixtures.slice(0, 2).map((f) => (
             <div key={f.FixtureId} className="recent-result-row">
@@ -180,8 +197,9 @@ function MatchFace({
 
       {fixture && (
         <LiveMatchBar
-          matchId={`${fixture.Participant1.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}-${fixture.Participant2.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}`}
+          matchId={resolvedMatchId}
           onNewEvent={handleNewEvent as any}
+          onPhase={onPhase as any}
         />
       )}
     </div>
@@ -304,6 +322,14 @@ interface LiveInstrumentProps {
   /** True during the first markets fetch — the empty face shows a loading
    *  label instead of implying no markets exist. */
   marketsLoading?: boolean;
+  /** Override the matchId passed to the internal LiveMatchBar. Used during
+   *  replay so the SSE stream connects to the replay's real matchId instead
+   *  of the fixture-name-derived one. */
+  matchId?: string;
+  /** When true, the match face is a replay — badge honestly, treat score as live. */
+  replay?: boolean;
+  /** Lift SSE phase updates to the parent (drives the replay scoreline). */
+  onPhase?: (phase: { score: { home: number; away: number }; phaseLabel?: string }) => void;
   signalVersion: number;
   lastSignalType: "goal" | "corner" | "card" | null;
   allFixtures: Fixture[];
@@ -315,6 +341,9 @@ export function LiveInstrument({
   snapshot,
   market,
   marketsLoading = false,
+  matchId,
+  replay = false,
+  onPhase,
   signalVersion,
   lastSignalType,
   allFixtures,
@@ -426,6 +455,9 @@ export function LiveInstrument({
               snapshot={snapshot}
               signalVersion={signalVersion}
               recentFixtures={recentFixtures}
+              matchId={matchId}
+              replay={replay}
+              onPhase={onPhase}
               onNewEvent={handleNewEvent}
               onEvents={setEvents}
             />

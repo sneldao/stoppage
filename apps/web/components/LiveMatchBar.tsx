@@ -124,7 +124,7 @@ function playEventSound(type: string) {
   }
 }
 
-export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewEvent?: (event: LiveEvent) => void }) {
+export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: string; onNewEvent?: (event: LiveEvent) => void; onPhase?: (phase: MatchPhaseState) => void }) {
   const [phase, setPhase] = useState<MatchPhaseState | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -147,9 +147,10 @@ export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewE
         const data: SSEMessage = JSON.parse(msg.data);
         if (data.type === "init" && data.phase) {
           setPhase(data.phase);
+          onPhase?.(data.phase);
           if (data.recentEvents) setEvents(data.recentEvents);
         } else if (data.type === "event") {
-          if (data.phase) setPhase(data.phase);
+          if (data.phase) { setPhase(data.phase); onPhase?.(data.phase); }
           if (data.event) {
             setEvents((prev) => [data.event!, ...prev].slice(0, 30));
             playEventSound(data.event.type);
@@ -164,7 +165,7 @@ export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewE
       esRef.current = null;
       setConnected(false);
     };
-  }, [matchId, onNewEvent]);
+  }, [matchId, onNewEvent, onPhase]);
 
   useEffect(() => {
     if (phase?.phaseLabel && prevPhaseRef.current !== null && prevPhaseRef.current !== phase.phaseLabel) {
@@ -230,13 +231,13 @@ export function LiveMatchBar({ matchId, onNewEvent }: { matchId?: string; onNewE
           </div>
           <div className="live-bar-meta">
             <span className={`live-bar-dot ${connected ? "live" : "dead"}`} title={connected ? "Connected" : "Disconnected"} />
-            <span className="live-bar-events-count">{events.length} event{events.length !== 1 ? "s" : ""}</span>
+            <span className="live-bar-events-count">{events.length === 0 ? "Listening" : `${events.length} event${events.length !== 1 ? "s" : ""}`}</span>
           </div>
         </div>
       </div>
       <div className="live-bar-feed" ref={listRef}>
         {events.length === 0 ? (
-          <div className="live-bar-empty">Waiting for match events...</div>
+          <div className="live-bar-empty live-bar-empty--listening">Listening for the next match…</div>
         ) : (
           events.map((evt) => (
             <div className={`live-bar-event live-bar-event--${evt.type}`} key={evt.id}>

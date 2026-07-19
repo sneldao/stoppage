@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
@@ -17,6 +17,7 @@ import { StoppageClock } from "@/components/StoppageClock";
 import { SharpMoves } from "@/components/SharpMoves";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
+import { useAutoReplay, type ReplayStatus } from "@/lib/replay/useAutoReplay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,9 @@ export default function Home() {
   const [signalVersion, setSignalVersion] = useState(0);
   const [lastSignalType, setLastSignalType] = useState<"goal" | "corner" | "card" | null>(null);
   const previousSignal = useRef<string | null>(null);
+  // Counters for the replay scoreline (corner/card stats come from events,
+  // not the SSE phase, so we accumulate them as events stream in).
+  const replayStatsRef = useRef({ corners: 0, cards: 0 });
 
   // Fetch fixtures once on mount
   useEffect(() => {
@@ -91,6 +95,36 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
+  const hasLive = useMemo(() => fixtures.some((f) => isLive(f)), [fixtures]);
+  // Dead time → auto-run a featured replay through the live pipeline.
+  const { status: replayStatus, isReplay, launch: launchReplay, launching: launchingReplay } = useAutoReplay({
+    hasLive,
+    fixtures,
+    preferTeams: ["france", "spain"],
+  });
+
+  // Build a synthetic fixture for the replay so LiveInstrument's match face
+  // has teams + a live GameState to drive the scoreline.
+  const replayFixture = useMemo<Fixture | null>(() => {
+    if (!replayStatus?.active || !replayStatus.matchId) return null;
+    return {
+      FixtureId: replayStatus.fixtureId ?? 0,
+      Participant1: replayStatus.homeTeam ?? "Home",
+      Participant2: replayStatus.awayTeam ?? "Away",
+      Country: "Replay",
+      GameState: 3, // finished — we drive "live" via the `replay` prop, not GameState
+      StartTime: replayStatus.startedAt ? new Date(replayStatus.startedAt).toISOString() : new Date().toISOString(),
+      matchId: replayStatus.matchId,
+    } as unknown as Fixture;
+  }, [replayStatus]);
+
+  const replayMatchId = replayStatus?.active ? replayStatus.matchId : undefined;
+
+  // Reset replay stat counters when a new replay match begins.
+  useEffect(() => {
+    replayStatsRef.current = { corners: 0, cards: 0 };
+  }, [replayMatchId]);
+
   const featuredMarket = useMemo(
     () => Object.values(markets).find((m) => m.status === "open") ?? null,
     [markets],
@@ -99,13 +133,17 @@ export default function Home() {
     () => fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null,
     [fixtures],
   );
+  // During a replay the hero shows the replay match; otherwise the live/next fixture.
+  const heroFixture = isReplay && replayFixture ? replayFixture : featuredFixture;
   const otherMarkets = useMemo(
     () => Object.values(markets).filter((m) => m.id !== featuredMarket?.id).slice(0, 3),
     [markets, featuredMarket],
   );
 
-  // Poll live score when a match is live
+  // Poll live score when a real match is live (skipped during replay — the
+  // SSE phase drives the snapshot there).
   useEffect(() => {
+    if (isReplay) return;
     if (!featuredFixture || !isLive(featuredFixture)) {
       setLiveSnapshot(null);
       return;
@@ -122,8 +160,11 @@ export default function Home() {
     return () => { cancelled = true; window.clearInterval(id); };
   }, [featuredFixture]);
 
-  // Detect score/stat changes → fire signal animations
+  // Detect score/stat changes → fire signal animations. Skipped during
+  // replay, where events drive signals directly (more responsive than
+  // polling the snapshot diff).
   useEffect(() => {
+    if (isReplay) { previousSignal.current = null; return; }
     if (!liveSnapshot) return;
     const next = `${liveSnapshot.score.home}:${liveSnapshot.score.away}:${liveSnapshot.stats.corners}:${liveSnapshot.stats.cards}`;
     if (previousSignal.current && previousSignal.current !== next) {
@@ -134,7 +175,7 @@ export default function Home() {
       setSignalVersion((v) => v + 1);
     }
     previousSignal.current = next;
-  }, [liveSnapshot]);
+  }, [liveSnapshot, isReplay]);
 
   // Auto-clear alert badge
   useEffect(() => {
@@ -143,6 +184,17 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [lastSignalType]);
 
+  // Lift the replay's SSE phase into the hero snapshot. Score comes from
+  // phase; corners/cards are accumulated from the event stream (the phase
+  // payload doesn't carry stats).
+  const onReplayPhase = useCallback((phase: { score: { home: number; away: number } }) => {
+    setLiveSnapshot({
+      updatedAt: Date.now(),
+      score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
+      stats: { ...replayStatsRef.current },
+    });
+  }, []);
+
   const handleNewEvent = (evt: any) => {
     const map: Record<string, "goal" | "card" | "corner"> = {
       goal_scored: "goal", own_goal: "goal",
@@ -150,6 +202,9 @@ export default function Home() {
     };
     const type = map[evt.type as string];
     if (type) { setLastSignalType(type); setSignalVersion((v) => v + 1); }
+    // Accumulate replay stats as events stream in.
+    if (evt.type === "corner_awarded") replayStatsRef.current = { ...replayStatsRef.current, corners: replayStatsRef.current.corners + 1 };
+    if (evt.type === "card_shown" || evt.type === "yellow_card" || evt.type === "red_card") replayStatsRef.current = { ...replayStatsRef.current, cards: replayStatsRef.current.cards + 1 };
   };
 
   const marketHref = featuredMarket ? `/markets/${featuredMarket.id}` : "/markets";
@@ -209,15 +264,45 @@ export default function Home() {
         {/* Centre: single live instrument (match ↔ market) */}
         <div className="live-stage" id="live-stage">
           <LiveInstrument
-            fixture={featuredFixture}
+            fixture={heroFixture}
             snapshot={liveSnapshot}
             market={featuredMarket}
             marketsLoading={marketsLoading}
+            matchId={replayMatchId}
+            replay={isReplay}
+            onPhase={onReplayPhase}
             signalVersion={signalVersion}
             lastSignalType={lastSignalType}
             allFixtures={fixtures}
             onNewEvent={handleNewEvent}
           />
+          {isReplay && (
+            <div className="replay-control-strip">
+              <span className="replay-control-status">
+                {launchingReplay ? "Starting replay…" : replayStatus?.finished ? "Replay settling…" : "Replay running · live pipeline"}
+              </span>
+              <button
+                type="button"
+                className="replay-control-switch"
+                disabled={launchingReplay}
+                onClick={() => {
+                  // Pick the next-most-recent completed fixture that isn't the current replay.
+                  const currentId = replayStatus?.fixtureId;
+                  const completed = fixtures
+                    .filter((f) => { const s = f.GameState as unknown; return s !== 1 && s !== 2 && s !== 4; })
+                    .filter((f) => f.FixtureId !== currentId)
+                    .sort((a, b) => {
+                      const ta = typeof a.StartTime === "string" ? new Date(a.StartTime).getTime() : (a.StartTime as unknown as number) * 1000;
+                      const tb = typeof b.StartTime === "string" ? new Date(b.StartTime).getTime() : (b.StartTime as unknown as number) * 1000;
+                      return tb - ta;
+                    });
+                  if (completed[0]) void launchReplay(completed[0].FixtureId);
+                }}
+              >
+                Switch match →
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right sidecar: sharp signals + additional markets — only after connect */}

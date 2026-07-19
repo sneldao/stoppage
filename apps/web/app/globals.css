@@ -3401,6 +3401,42 @@ body {
 .skeleton-line--inline { width: 160px; height: 10px; display: inline-block; }
 @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+/* === DEAD-TIME / REPLAY PASS === */
+
+/* Honest "listening" signal-grid — a slow ambient sweep so the match face
+   reads as alive while no live match is on, instead of a frozen grid. */
+.signal-grid--listening i {
+  background: transparent;
+  animation: signal-listen 3.2s var(--ease) infinite;
+}
+.signal-grid--listening i:nth-child(7n+3) { animation-delay: .2s; }
+.signal-grid--listening i:nth-child(7n+5) { animation-delay: .6s; }
+.signal-grid--listening i:nth-child(7n+1) { animation-delay: 1.1s; }
+@keyframes signal-listen {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(0,255,136,.08); }
+}
+
+/* Replay badge on the match face */
+.match-replay { display: inline-flex; align-items: center; gap: 7px; color: var(--amber); font: 500 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.match-replay i { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px rgba(251,191,36,.6); animation: live-pulse 2s infinite; }
+.instrument-match-content--replay .match-board-top { color: var(--amber); }
+
+/* Home replay control strip */
+.replay-control-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 9px 12px; border: 1px dashed var(--line); border-radius: 3px; background: rgba(251,191,36,.04); }
+.replay-control-status { font: 500 9px "DM Mono", monospace; color: var(--amber); letter-spacing: .04em; text-transform: uppercase; }
+.replay-control-switch { padding: 6px 10px; border: 1px solid var(--amber); border-radius: 3px; background: transparent; color: var(--amber); font: 700 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transition: background 160ms var(--ease); }
+.replay-control-switch:hover:not(:disabled) { background: rgba(251,191,36,.1); }
+.replay-control-switch:disabled { opacity: .5; cursor: wait; }
+
+/* LiveMatchBar listening empty state */
+.live-bar-empty--listening { position: relative; overflow: hidden; }
+.live-bar-empty--listening::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(0,255,136,.06), transparent); background-size: 200% 100%; animation: skeleton-shimmer 2.4s infinite; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line, .slip-celebration, .signal-grid--listening i, .live-bar-empty--listening::after { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line, .slip-celebration { animation: none; }
 }

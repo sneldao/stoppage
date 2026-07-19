@@ -77,10 +77,8 @@ function MatchRoomContent() {
   }, []);
 
   useEffect(() => {
-    if (!fixture || !isLive(fixture)) {
-      setSnapshot(null);
-      return;
-    }
+    if (!fixture) { setSnapshot(null); return; }
+    if (!isLive(fixture)) return; // skip poll for non-live; the SSE phase drives the snapshot during replays
     let cancelled = false;
     const refresh = () => {
       void fetch(`/api/fixtures/${fixture.FixtureId}/score`)
@@ -132,10 +130,10 @@ function MatchRoomContent() {
         </header>
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
-          <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Fixture feed" : "Fixture mapping pending"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
+          <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Awaiting kickoff" : "No live match right now"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
           <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
-          <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Score state pending"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Fixture context"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Match context pending"}</span></div>
-          {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} />}
+          <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Listening"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Listening for the next match"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Listening for the next match"}</span></div>
+          {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} onPhase={(phase) => setSnapshot({ updatedAt: Date.now(), score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 }, stats: { corners: 0, cards: 0 } })} />}
           <ReplayLauncher
             fixtures={fixtures.filter((f) => !isLive(f)).slice().sort((a, b) => {
               // StartTime may arrive as string ISO or numeric epoch — normalise both
