@@ -56,6 +56,14 @@ export default function MarketDetailPage() {
   const [amountSol, setAmountSol] = useState("0.05");
   const initialSide = searchParams.get("side");
   const [selectedSide, setSelectedSide] = useState<Side | null>(initialSide === "yes" || initialSide === "no" ? initialSide : null);
+  // Pre-fill stake from homepage quick-select (?stake=0.05)
+  const initialStake = searchParams.get("stake");
+  useEffect(() => {
+    if (initialStake && stakePresets.includes(initialStake)) {
+      setAmountSol(initialStake);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [submittedWithSession, setSubmittedWithSession] = useState(false);
   const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
   const [lockedCall, setLockedCall] = useState<LockedCall | null>(null);

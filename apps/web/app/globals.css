@@ -1543,3 +1543,152 @@ body { background: var(--paper); }
   margin-top: 8px;
   opacity: .7;
 }
+
+/* ================================================================
+   SETUP PROMPT — single-line contextual CTA (replaces FirstRunGuide
+   in the hero). State-driven: connect → delegate → ready.
+   ================================================================ */
+
+.setup-prompt {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.setup-prompt-hint {
+  color: var(--muted);
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.setup-prompt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lime);
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.setup-prompt-error {
+  width: 100%;
+  color: #ff9c91;
+  font: 500 9px "DM Mono", monospace;
+}
+
+/* The action button/link */
+.setup-prompt-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border: 1px solid var(--lime);
+  background: var(--lime);
+  color: var(--ink);
+  font: 700 11px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+  white-space: nowrap;
+}
+.setup-prompt-cta span { color: inherit; font-size: 14px; }
+.setup-prompt-cta:hover {
+  background: #00e87a;
+  border-color: #00e87a;
+}
+.setup-prompt-cta:disabled {
+  opacity: .56;
+  cursor: not-allowed;
+}
+
+/* Speed note shown after first successful session-key bet */
+.hero-speed-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   KEEPER STRIP — compact Matchkeeper badge row between hero and footer
+   ================================================================ */
+
+.keeper-strip {
+  width: min(1200px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+/* ================================================================
+   STAKE HINT — interactive quick-stake buttons on featured market card
+   ================================================================ */
+
+.stake-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 13px;
+}
+
+.stake-hint-btn {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: 500 10px "DM Mono", monospace;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+}
+.stake-hint-btn:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+.stake-hint-btn--active {
+  border-color: var(--lime);
+  background: rgba(0,255,136,.1);
+  color: var(--lime);
+}
+
+.stake-hint-label {
+  margin-left: 4px;
+  color: var(--muted-dim);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   HERO MARKET RAIL — only shown when ≥ 2 other markets exist
+   ================================================================ */
+
+.hero-rail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.hero-rail-head .eyebrow { margin: 0; }
+.hero-rail-head a {
+  color: var(--blue);
+  font: 500 10px "DM Mono", monospace;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+@media (max-width: 800px) {
+  .setup-prompt { gap: 10px; }
+  .keeper-strip { padding-top: 8px; }
+}

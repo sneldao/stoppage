@@ -32,7 +32,15 @@ vault.
    accounts, not local browser history.
 7. Open Solana Explorer for the settlement transaction and market account.
 
-## TxLINE Usage
+## TxLINE Endpoints Used
+
+| Endpoint | Used for |
+|---|---|
+| `GET /fixtures` | Match discovery, home scoreboard, agent fixture polling |
+| `GET /fixtures/{id}/score` | Live score, corners, cards for the featured match |
+| `GET /fixtures/{id}/validation-proof` | Merkle proof fetched by settlement agent, verified on-chain via CPI |
+| TxLINE on-chain `validate_stat` CPI | Called by `settlement` program's `resolve_market` instruction to gate fund release |
+| SSE event stream | Agent loop (`apps/agent`) for real-time match events → market creation triggers |
 
 - Fixtures snapshot: powers match discovery and the home scoreboard.
 - Scores snapshot: powers fixture-level score, corner, and card state.
