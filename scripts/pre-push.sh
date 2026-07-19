@@ -31,6 +31,15 @@ cd "$(git rev-parse --show-toplevel)"
 echo "pre-push: deciding which checks to run based on push diff..."
 echo "  (bypass with: git push --no-verify)"
 
+# If GNU 'timeout' isn't on PATH (stock macOS), timed checks
+# (typecheck, build) will run without their 10-min cap. Surface this
+# once at the top so the operator knows rather than discovering it
+# after a hung build.
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "  (note: GNU 'timeout' not on PATH \u2014 timed checks run uncapped."
+  echo "   install with 'brew install coreutils' to enable the 10-min safety net.)"
+fi
+
 # ── 1. Compute the push diff from git's stdin ──────────────────────
 #
 # git invokes pre-push with one line per ref being pushed:
@@ -95,13 +104,30 @@ echo "  - build:            $([ "$run_build" = true ] && echo YES || echo 'no (n
 
 run_npm_script() {
   local script=$1
-  local start
+  local timeout_secs=${2:-}
+  local start cmd
   start=$(date +%s)
   echo ""
-  echo "▶ npm run ${script}"
-  if ! npm run "$script"; then
+
+  if [ -n "$timeout_secs" ] && command -v timeout >/dev/null 2>&1; then
+    echo "▶ timeout ${timeout_secs}s npm run ${script}"
+    cmd=(timeout "$timeout_secs" npm run "$script")
+  else
+    echo "▶ npm run ${script}"
+    cmd=(npm run "$script")
+  fi
+
+  if ! "${cmd[@]}"; then
+    local rc=$?
     echo ""
-    echo "✖ pre-push FAILED on: npm run ${script}"
+    # GNU timeout exits 124 when it kills the process for exceeding the
+    # time limit. Surface that distinctly so the user can tell apart a
+    # genuine build failure from a hung build.
+    if [ "${cmd[0]}" = "timeout" ] && [ "$rc" -eq 124 ]; then
+      echo "✖ pre-push FAILED: npm run ${script} exceeded ${timeout_secs}s timeout"
+    else
+      echo "✖ pre-push FAILED on: npm run ${script}"
+    fi
     echo "  Bypass this hook with: git push --no-verify"
     exit 1
   fi
@@ -112,16 +138,18 @@ run_npm_script() {
 # ── 4. Fast checks (always) ────────────────────────────────────────
 
 run_npm_script "check:ids"
-run_npm_script "typecheck"
+run_npm_script "typecheck" 600
 
 # ── 5. Slow checks (conditional) ───────────────────────────────────
 
 if [ "$run_anchor" = true ]; then
+  # anchor:build legitimately takes minutes (cold IDL + program
+  # rebuilds); deliberately left un-timed.
   run_npm_script "anchor:build"
 fi
 
 if [ "$run_build" = true ]; then
-  run_npm_script "build"
+  run_npm_script "build" 600
 fi
 
 echo ""
