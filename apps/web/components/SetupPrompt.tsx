@@ -29,6 +29,9 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
   const positions = useStoppageStore((s) => s.positions);
   const [busy, setBusy] = useState<"delegate" | "resume" | "revoke" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Rule 9 nudge: default to the suggested cap, but let the user opt out
+  // to "no limit" (maxTotalStake: 0). The default is a nudge, not a mandate.
+  const [noLimit, setNoLimit] = useState(false);
 
   const hasPlacedBet = publicKey ? Object.keys(positions).length > 0 : false;
 
@@ -44,7 +47,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
     setBusy(action);
     setError(null);
     try {
-      if (action === "delegate") await delegate();
+      if (action === "delegate") await delegate({ maxTotalStake: noLimit ? 0 : undefined });
       else if (action === "resume") await resume();
       else await revoke();
     } catch (cause) {
@@ -111,6 +114,28 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
             <span className="setup-guide-hint">
               Want future bets without wallet popups? Enable one-tap betting.
             </span>
+            <span className="setup-guide-hint setup-guide-hint--disclose">
+              Activating moves 0.1 SOL from your wallet into the session key — that fund covers stakes + fees. Reclaim it any time with End session.
+            </span>
+            <div className="setup-guide-cap" role="group" aria-label="Session spend cap">
+              <span className="setup-guide-cap-label">Self-imposed cap</span>
+              <button
+                type="button"
+                className={`setup-guide-cap-pill ${!noLimit ? "selected" : ""}`}
+                aria-pressed={!noLimit}
+                onClick={() => setNoLimit(false)}
+              >
+                0.1 SOL <small>suggested</small>
+              </button>
+              <button
+                type="button"
+                className={`setup-guide-cap-pill ${noLimit ? "selected" : ""}`}
+                aria-pressed={noLimit}
+                onClick={() => setNoLimit(true)}
+              >
+                No limit
+              </button>
+            </div>
             {error && <span className="setup-guide-error">{error}</span>}
             <button
               type="button"
@@ -138,7 +163,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
                 className="setup-guide-revoke"
                 disabled={busy !== null}
                 onClick={pause}
-                title="Temporarily turn off one-tap. No popup, nothing revoked on-chain — resume anytime."
+                title="Temporarily turn off one-tap. No popup, nothing revoked on-chain — resume anytime. Your 0.1 SOL session fund stays locked until you End session."
               >
                 Pause one-tap
               </button>
@@ -147,7 +172,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
                 className="setup-guide-revoke setup-guide-revoke--destructive"
                 disabled={busy !== null}
                 onClick={() => void run("revoke")}
-                title="Revoke the grant on-chain and refund rent. Self-exclude path — irreversible without a fresh delegation."
+                title="Revoke the grant on-chain and refund the 0.1 SOL session fund + rent. Self-exclude path — irreversible without a fresh delegation."
               >
                 {busy === "revoke" ? "Ending…" : "End session"}
               </button>
@@ -156,10 +181,17 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
           </>
         )}
 
-        {/* Paused — one wallet signature brings one-tap back */}
+        {/* Paused — one wallet signature brings one-tap back, or End
+            session to reclaim the locked fund (revoke now works from
+            the paused state because pause keeps the keypair persisted). */}
         {step1Done && state.paused && (
           <>
-            <span className="setup-guide-hint">One-tap is paused. Resume with one wallet signature.</span>
+            <span className="setup-guide-hint">
+              One-tap is paused. Resume with one wallet signature (a fresh 6h grant + 0.1 SOL fund).
+            </span>
+            <span className="setup-guide-hint setup-guide-hint--disclose">
+              The previous grant's 0.1 SOL fund is still locked on-chain. End session to reclaim it now, or wait out the ~6h expiry.
+            </span>
             {error && <span className="setup-guide-error">{error}</span>}
             <button
               type="button"
@@ -169,6 +201,17 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
             >
               {busy === "resume" ? "Resuming…" : "Resume one-tap betting"} <span>→</span>
             </button>
+            <div className="setup-guide-session-controls">
+              <button
+                type="button"
+                className="setup-guide-revoke setup-guide-revoke--destructive"
+                disabled={busy !== null}
+                onClick={() => void run("revoke")}
+                title="Revoke the paused grant on-chain and refund the 0.1 SOL session fund + rent. Irreversible without a fresh delegation."
+              >
+                {busy === "revoke" ? "Ending…" : "End session & reclaim"}
+              </button>
+            </div>
           </>
         )}
       </div>

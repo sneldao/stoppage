@@ -84,6 +84,9 @@ export default function MarketDetailPage() {
     return localStorage.getItem(LAST_STAKE_KEY) ?? "0.05";
   });
   const [wantsOneTap, setWantsOneTap] = useState(true);
+  // Rule 9 nudge: default to the suggested cap, but let the user opt out
+  // to "no limit" (maxTotalStake: 0). The default is a nudge, not a mandate.
+  const [noLimit, setNoLimit] = useState(false);
   const [justOnboarded, setJustOnboarded] = useState(false);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
@@ -199,7 +202,7 @@ export default function MarketDetailPage() {
     // This collapses onboarding from 3 popups to 2 (connect, this one).
     if (wantsOneTap && !state.paused && !state.delegated) {
       void run(`join-${selectedSide}-delegate`, async () => {
-        await delegate();
+        await delegate({ maxTotalStake: noLimit ? 0 : undefined });
         // Read the freshly-created keypair from storage (state hasn't flushed yet)
         const stored = localStorage.getItem("stoppage_session_key");
         if (!stored) throw new Error("Delegation succeeded but no session key was stored");
@@ -325,20 +328,28 @@ export default function MarketDetailPage() {
                 {state.delegated && (
                   <div className="slip-session-actions">
                     <button type="button" className="session-revoke" onClick={onPauseSession} disabled={busy !== null}
-                      title="Temporarily drop the local key. No popup, no on-chain revoke — resume later with one signature.">
+                      title="Temporarily drop the local key. No popup, no on-chain revoke — resume later with one signature. Your 0.1 SOL session fund stays locked until you End session.">
                       Pause one-tap
                     </button>
                     <button type="button" className="session-revoke session-revoke--destructive" onClick={onEndSession}
                       disabled={busy !== null}
-                      title="Revoke the grant on-chain and refund rent. Irreversible without a fresh delegation.">
+                      title="Revoke the grant on-chain and refund the 0.1 SOL session fund + rent. Irreversible without a fresh delegation.">
                       {busy === "revoke" ? "Ending…" : "End session"}
                     </button>
                   </div>
                 )}
                 {state.paused && (
-                  <button type="button" className="session-revoke" onClick={onResumeSession} disabled={busy !== null}>
-                    {busy === "resume" ? "Resuming…" : "Resume one-tap"}
-                  </button>
+                  <div className="slip-session-actions">
+                    <button type="button" className="session-revoke" onClick={onResumeSession} disabled={busy !== null}
+                      title="Resume with one wallet signature — a fresh 6h grant + 0.1 SOL fund.">
+                      {busy === "resume" ? "Resuming…" : "Resume one-tap"}
+                    </button>
+                    <button type="button" className="session-revoke session-revoke--destructive" onClick={onEndSession}
+                      disabled={busy !== null}
+                      title="Revoke the paused grant on-chain and refund the 0.1 SOL session fund + rent. Irreversible without a fresh delegation.">
+                      {busy === "revoke" ? "Ending…" : "End session & reclaim"}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -436,8 +447,31 @@ export default function MarketDetailPage() {
                   />
                   <span>
                     <strong>Enable one-tap betting</strong> — this bet signs once in your
-                    wallet; every bet after is instant, no popup. Session is capped and expires in 6h.
+                    wallet; every bet after is instant, no popup. Activating moves 0.1 SOL
+                    from your wallet into the session key (covers stakes + fees; reclaim via
+                    End session). Session expires in 6h.
                   </span>
+                  {wantsOneTap && (
+                    <span className="slip-onetap-cap">
+                      <span className="slip-onetap-cap-label">Self-imposed cap</span>
+                      <button
+                        type="button"
+                        className={`slip-onetap-cap-pill ${!noLimit ? "selected" : ""}`}
+                        aria-pressed={!noLimit}
+                        onClick={(e) => { e.preventDefault(); setNoLimit(false); }}
+                      >
+                        0.1 SOL <small>suggested</small>
+                      </button>
+                      <button
+                        type="button"
+                        className={`slip-onetap-cap-pill ${noLimit ? "selected" : ""}`}
+                        aria-pressed={noLimit}
+                        onClick={(e) => { e.preventDefault(); setNoLimit(true); }}
+                      >
+                        No limit
+                      </button>
+                    </span>
+                  )}
                 </label>
               )}
 

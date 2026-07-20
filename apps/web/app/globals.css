@@ -1829,6 +1829,42 @@ body { background: var(--paper); }
   font: 500 9px "DM Mono", monospace;
 }
 
+.setup-guide-hint--disclose {
+  width: 100%;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: .85;
+}
+
+.setup-guide-cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.setup-guide-cap-label {
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.setup-guide-cap-pill {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: 600 10px "DM Mono", monospace;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+}
+.setup-guide-cap-pill small { color: inherit; opacity: .7; font-size: 8px; margin-left: 4px; }
+.setup-guide-cap-pill.selected { border-color: var(--lime); color: var(--lime); background: rgba(0,255,136,.08); }
+.setup-guide-cap-pill:hover { color: var(--ink); }
+
 .setup-guide-cta {
   display: inline-flex;
   align-items: center;
@@ -3540,6 +3576,12 @@ body {
 .slip-onetap-optin input { margin-top: 2px; accent-color: var(--lime); cursor: pointer; }
 .slip-onetap-optin span { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .slip-onetap-optin strong { color: var(--ink); }
+.slip-onetap-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.slip-onetap-cap-label { color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.slip-onetap-cap-pill { padding: 5px 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 10px "DM Mono", monospace; letter-spacing: .03em; cursor: pointer; transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease); }
+.slip-onetap-cap-pill small { color: inherit; opacity: .7; font-size: 8px; margin-left: 4px; }
+.slip-onetap-cap-pill.selected { border-color: var(--lime); color: var(--lime); background: rgba(0,255,136,.08); }
+.slip-onetap-cap-pill:hover { color: var(--ink); }
 .slip-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0; padding: 10px 12px; border: 1px solid rgba(255,85,85,.4); border-radius: 3px; background: rgba(255,85,85,.08); color: #ff9c91; font-size: 11px; line-height: 1.4; }
 .slip-error-retry { flex-shrink: 0; padding: 5px 10px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: inherit; font: 700 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
 .slip-error-retry:hover { background: rgba(255,85,85,.15); }

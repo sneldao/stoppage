@@ -352,23 +352,45 @@ export function useSessionKey() {
   }, [publicKey, connection, sendTransaction, state.keypair, clearSession]);
 
   /**
-   * Pause one-tap betting WITHOUT an on-chain revoke: drop the local
-   * keypair but leave the grant on-chain. No wallet popup. The user can
-   * resume later with one wallet signature (a fresh delegate tx) instead
-   * of paying for a full re-delegation.
+   * Pause one-tap betting WITHOUT an on-chain revoke: keep the keypair
+   * persisted (so revoke can still build the revoke ix later) but flip
+   * `isActive: false` so `getSessionSigner()` returns null and one-tap
+   * is effectively off. No wallet popup. The user can resume later with
+   * one wallet signature (a fresh delegate tx) or fully exit via
+   * `revoke()` to reclaim the session fund + rent.
+   *
+   * Earlier versions dropped the local keypair on pause, which orphaned
+   * the on-chain grant — `revoke()` needs `state.keypair.publicKey` to
+   * build the ix, so a paused user couldn't reclaim their 0.1 SOL fund
+   * until the 6h expiry. Keeping the key locally is safe: the on-chain
+   * grant is the real security boundary, and `getSessionSigner` is
+   * disabled while paused.
    */
   const pause = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setState((s) => ({
-      ...EMPTY_STATE,
-      paused: true,
-      expiresAt: s.expiresAt,
-    }));
+    setState((s) => {
+      if (!s.keypair) return s;
+      // Re-serialize with paused: true so the reload path also keeps
+      // the keypair and can revoke.
+      localStorage.setItem(
+        STORAGE_KEY,
+        serialize(s.keypair, s.createdAt ?? Date.now(), s.expiresAt ?? Date.now(), s.owner ?? undefined, true)
+      );
+      return {
+        ...s,
+        isActive: false,
+        delegated: false,
+        paused: true,
+        restoring: false,
+      };
+    });
   }, []);
 
   /**
    * Resume a paused session: generate a fresh keypair and delegate to it
-   * on-chain (one wallet popup). The grant's expiry is preserved.
+   * on-chain (one wallet popup). This is a fresh delegation — a new
+   * keypair, a new 6h expiry, and a new fund transfer — not a pickup of
+   * the old grant. The previous on-chain grant (if still live) is left
+   * in place; only `revoke` reclaims its rent + fund.
    */
   const resume = useCallback(async (): Promise<string> => {
     return delegate();

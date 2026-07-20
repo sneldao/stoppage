@@ -110,8 +110,15 @@ or descoped, it's recorded here and nowhere else.
   resumes a live on-chain `SessionGrant` with zero popups. Onboarding
   collapses from three popups to two by bundling delegation with the first
   wallet-signed bet (opt-in checkbox on the slip). Two distinct opt-outs:
-  **Pause** (drop local key, no popup, reversible) and **End session**
-  (on-chain `revoke_session_key`, self-exclude — rule 9). Bet-slip errors
+  **Pause** (disable one-tap locally, no popup, reversible) and **End
+  session** (on-chain `revoke_session_key`, self-exclude — rule 9). The
+  0.1 SOL session fund transfer is disclosed inline on both the bet-slip
+  opt-in and the homepage step-3 prompt; the suggested `max_total_stake`
+  cap (rule 9) is surfaced as a real nudge with an explicit "No limit"
+  opt-out pill, not a silent default. Pause keeps the keypair persisted
+  so `revoke` remains reachable from the paused state — the self-exclude
+  path is no longer orphaned when one-tap is paused (the previous
+  behavior locked the 0.1 SOL fund until the 6h expiry). Bet-slip errors
   moved inline with Retry; claim carries an honest "owner-signed" note
   (the deployed program has no session-claim instruction and the toolchain
   is pinned). Live feed replaces polling for the moments that matter —
