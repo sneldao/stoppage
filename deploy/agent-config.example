@@ -4,4 +4,4 @@ TXLINE_JWT=replace-me
 TXLINE_API_TOKEN=replace-me
 SOLANA_KEYPAIR_PATH=/home/linuxuser/stoppage/secrets/agent-devnet.json
 MATCH_EVENTS_PATH=/home/linuxuser/stoppage/.runtime/match-events.ndjson
-AGENT_HTTP_PORT=8765
+AGENT_HTTP_PORT=18766

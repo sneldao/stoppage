@@ -29,22 +29,16 @@ interface SSEMessage {
   recentEvents?: LiveEvent[];
 }
 
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://144.202.117.160:18766";
-
 /**
- * Resolve the SSE endpoint. In the browser we always go through the
- * Next.js proxy (/api/events/stream) so we're never blocked by Mixed
- * Content restrictions on HTTPS deployments. The raw agent URL is only
- * used server-side or in local dev where the page is already HTTP.
+ * Resolve the SSE endpoint. The browser always goes through the
+ * Next.js same-origin proxy (/api/events/stream) so we're never
+ * blocked by Mixed Content restrictions on HTTPS deployments and
+ * the VPS IP is never exposed to the client. The proxy resolves
+ * AGENT_API_URL server-side.
  */
 function sseUrl(matchId: string): string {
   const params = new URLSearchParams({ matchId });
-  if (typeof window !== "undefined") {
-    // Browser — use the same-origin HTTPS proxy
-    return `/api/events/stream?${params}`;
-  }
-  // Server-side (shouldn't happen for an EventSource, but be safe)
-  return `${AGENT_URL}/events/stream?${params}`;
+  return `/api/events/stream?${params}`;
 }
 
 const PHASE_COLORS: Record<string, string> = {

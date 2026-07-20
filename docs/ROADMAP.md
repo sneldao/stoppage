@@ -87,9 +87,9 @@ or descoped, it's recorded here and nowhere else.
   `https://stoppage.sportwarren.com`, served by Vercel (auto-deploys from
   `git push` to `main`). `/api/fixtures` returns TxLINE fixture data
   publicly. The autonomous keeper runs as PM2 process `stoppage-agent` on
-  the VPS `nuncio-vultr` (`144.202.117.160`), using a dedicated funded
+  the VPS `nuncio-vultr`, using a dedicated funded
   devnet wallet, and is connected to live TxLINE SSE with `--live-tx`. The
-  agent exposes an internal HTTP API on port 8765 that Vercel serverless
+  agent exposes an internal HTTP API on port 18766 that Vercel serverless
   functions reach over the public internet.
 - **Viral mechanics complete**: ShareBar component (tweet generation,
   Blink URL copy, direct link copy), referral tracking via URL params

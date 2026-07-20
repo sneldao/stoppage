@@ -67,7 +67,7 @@ an embedded HTTP server so the web app never needs shared filesystem access.
 ### Current devnet deployment
 
 - Public URL: `https://stoppage.sportwarren.com` (Vercel)
-- Agent API: `http://144.202.117.160:8765` (VPS, internal — Vercel serverless
+- Agent API: `http://<VPS_IP>:18766` (VPS, internal — Vercel serverless
   functions reach it over the public internet)
 - Agent service: PM2 process `stoppage-agent`
 
@@ -79,7 +79,7 @@ an embedded HTTP server so the web app never needs shared filesystem access.
    - `NEXT_PUBLIC_HELIUS_RPC_URL` — Helius RPC endpoint
    - `TXLINE_NETWORK`, `TXLINE_JWT`, `TXLINE_API_TOKEN` — server-only TxLINE
      credentials for the `/api/fixtures` proxy
-   - `AGENT_API_URL` — `http://144.202.117.160:8765`
+   - `AGENT_API_URL` — `http://<VPS_IP>:18766` (the VPS IP, not the SSH alias — Vercel serverless can't resolve `nuncio-vultr`)
 3. DNS: update the GoDaddy `A` record for `stoppage` to point to Vercel's edge
    network (follow Vercel's provided DNS target after adding the domain).
 
@@ -98,10 +98,26 @@ an embedded HTTP server so the web app never needs shared filesystem access.
    pm2 save
    ```
 
-   The agent starts an internal HTTP server on port 8765 serving `GET /events`
-   and `GET /health`. Port 8765 should allow inbound from Vercel's IP range.
+   The agent starts an internal HTTP server on port 18766 serving `GET /events`
+   and `GET /health`. Port 18766 should allow inbound from Vercel's IP range.
 
 4. Verify with `pm2 logs stoppage-agent` and check `GET /health`.
+
+### Redeploying the agent
+
+The web app auto-deploys on `git push` via Vercel. The agent does not —
+use the one-command script from your laptop:
+
+```bash
+./scripts/agent-deploy.sh           # pull + reinstall + restart
+./scripts/agent-deploy.sh --logs    # same, then tail pm2 logs
+./scripts/agent-deploy.sh --no-pull # restart without git pull
+```
+
+The script SSHes to `nuncio-vultr`, pulls `origin/main` into
+`/home/linuxuser/stoppage`, runs `npm ci`, restarts the PM2 process
+with `--update-env`, and curls the health endpoint. Override the SSH
+host or remote dir with `SSH_HOST=...` / `REMOTE_DIR=...` env vars.
 
 `TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
 runtime. The legacy `.txline-credentials.json` file remains supported for
