@@ -255,10 +255,14 @@ The differentiator. Built first because the demo lives or dies on it.
 - [x] SDK instruction builders for all 12 market instructions; `getMarket`
       fetches + parses on-chain account; `impliedProbability` derives
       odds from vault balances.
-- [x] Program tests covering: payout math, double-claim, claim-before-
+- [ ] Program tests covering: payout math, double-claim, claim-before-
       settle, join-after-close, session-key join with expired/revoked
-      grant, cumulative-spend-cap breach, side-mismatch guard. (Void
-      refund path pending — needs a clock-warp harness; see test note.)
+      grant, cumulative-spend-cap breach, side-mismatch guard, void
+      refund path (needs a clock-warp harness). Not yet written — the
+      Anchor.toml `test = "npx mocha"` script is configured but no test
+      files exist. CLAUDE.md verification bar acknowledges this ("program
+      tests once they exist (M2+)"); demo-critical paths are exercised
+      end-to-end on devnet instead.
 - [x] Blinks POST returns a real unsigned join transaction.
 - [ ] **Acceptance:** two wallets join opposite sides on devnet; market is
   settled from a TxLINE proof receipt; winner claims; vault drains to zero;
