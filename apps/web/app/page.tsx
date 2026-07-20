@@ -276,11 +276,6 @@ export default function Home() {
               <i className="live-dot" /> Last bet {formatSigningSpeed(lastSigningMs)}
             </p>
           )}
-          {!publicKey && (
-            <p className="hero-watch-hint">
-              <a href="#live-stage">↓ Watch the live demo below</a>
-            </p>
-          )}
         </div>
 
         {/* Centre: single live instrument (match ↔ market) */}
