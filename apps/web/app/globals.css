@@ -34,8 +34,8 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 
 /* Spinning grooves background decoration */
 .spinning-grooves { position: absolute; inset: auto; right: -80px; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 0; opacity: .55; }
-.hero-groves { position: absolute; right: -120px; top: 50%; transform: translateY(-50%); width: 520px; height: 520px; pointer-events: none; z-index: 0; }
-.hero-groves .spinning-grooves { position: static; width: 100%; height: 100%; opacity: .45; }
+.hero-grooves { position: absolute; right: -120px; top: 50%; transform: translateY(-50%); width: 520px; height: 520px; pointer-events: none; z-index: 0; }
+.hero-grooves .spinning-grooves { position: static; width: 100%; height: 100%; opacity: .45; }
 
 /* Page shells with alive backdrops */
 .page-shell { position: relative; min-height: 100vh; overflow: hidden; }
