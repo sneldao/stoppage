@@ -115,7 +115,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
               Want future bets without wallet popups? Enable one-tap betting.
             </span>
             <span className="setup-guide-hint setup-guide-hint--disclose">
-              Activating moves 0.1 SOL from your wallet into the session key — that fund covers stakes + fees. Reclaim it any time with End session.
+              Activating moves 0.1 SOL from your wallet into the session key — that fund covers stakes + fees. End session revokes the grant and refunds its rent; the session fund itself stays in the session key's account (a UI sweep is a follow-up, trivial on devnet).
             </span>
             <div className="setup-guide-cap" role="group" aria-label="Session spend cap">
               <span className="setup-guide-cap-label">Self-imposed cap</span>
@@ -163,7 +163,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
                 className="setup-guide-revoke"
                 disabled={busy !== null}
                 onClick={pause}
-                title="Temporarily turn off one-tap. No popup, nothing revoked on-chain — resume anytime. Your 0.1 SOL session fund stays locked until you End session."
+                title="Temporarily turn off one-tap. No popup, nothing revoked on-chain — resume anytime. The 0.1 SOL session fund stays in the session key's account regardless."
               >
                 Pause one-tap
               </button>
@@ -172,7 +172,7 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
                 className="setup-guide-revoke setup-guide-revoke--destructive"
                 disabled={busy !== null}
                 onClick={() => void run("revoke")}
-                title="Revoke the grant on-chain and refund the 0.1 SOL session fund + rent. Self-exclude path — irreversible without a fresh delegation."
+                title="Revoke the grant on-chain and refund its rent. The 0.1 SOL session fund stays in the session key's account (not yet sweepable via the UI — follow-up). Self-exclude path — irreversible without a fresh delegation."
               >
                 {busy === "revoke" ? "Ending…" : "End session"}
               </button>
@@ -182,15 +182,15 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
         )}
 
         {/* Paused — one wallet signature brings one-tap back, or End
-            session to reclaim the locked fund (revoke now works from
-            the paused state because pause keeps the keypair persisted). */}
+            session to revoke the grant (revoke now works from the
+            paused state because pause keeps the keypair persisted). */}
         {step1Done && state.paused && (
           <>
             <span className="setup-guide-hint">
               One-tap is paused. Resume with one wallet signature (a fresh 6h grant + 0.1 SOL fund).
             </span>
             <span className="setup-guide-hint setup-guide-hint--disclose">
-              The previous grant's 0.1 SOL fund is still locked on-chain. End session to reclaim it now, or wait out the ~6h expiry.
+              The previous grant is still on-chain. End session to revoke it and refund its rent — the 0.1 SOL session fund stays in the session key's account (not yet sweepable via the UI).
             </span>
             {error && <span className="setup-guide-error">{error}</span>}
             <button
@@ -207,9 +207,9 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
                 className="setup-guide-revoke setup-guide-revoke--destructive"
                 disabled={busy !== null}
                 onClick={() => void run("revoke")}
-                title="Revoke the paused grant on-chain and refund the 0.1 SOL session fund + rent. Irreversible without a fresh delegation."
+                title="Revoke the paused grant on-chain and refund its rent. The 0.1 SOL session fund stays in the session key's account (not yet sweepable via the UI — follow-up). Irreversible without a fresh delegation."
               >
-                {busy === "revoke" ? "Ending…" : "End session & reclaim"}
+                {busy === "revoke" ? "Ending…" : "End session"}
               </button>
             </div>
           </>

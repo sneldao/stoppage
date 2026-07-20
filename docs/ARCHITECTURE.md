@@ -125,16 +125,20 @@ last two steps from the immutable receipt after a transient failure.
     reachable. No wallet popup, no on-chain revoke. Resume later with one
     signature (a fresh delegation). Caps and expiry stay enforced on the
     untouched grant.
-  - **End session** — on-chain `revoke_session_key`: closes the grant,
-    refunds the session fund + rent. The self-exclude path; irreversible
-    without a fresh delegation. Reachable from both the active and paused
-    states. Onboarding collapses the connect / first-bet / delegate
-    sequence into two popups by optionally bundling delegation with the
-    first wallet-signed bet (a checkbox on the bet slip, on by default).
-    The 0.1 SOL session fund transfer and the suggested `max_total_stake`
-    cap (rule 9) are disclosed inline at the point of delegation, with an
-    explicit "No limit" opt-out so the cap is a nudge, not a silent
-    mandate.
+  - **End session** — on-chain `revoke_session_key`: closes the grant
+    account and refunds its **rent** to the owner. The self-exclude
+    path; irreversible without a fresh delegation. Reachable from both
+    the active and paused states. Note: the 0.1 SOL `fund_lamports`
+    lives in the session keypair's own System Program account, which the
+    market program cannot debit (rule 4) — `revoke` does **not** sweep
+    it back. On devnet the leftover is trivial; a client-side sweep
+    signed by the session key is a follow-up. Onboarding collapses the
+    connect / first-bet / delegate sequence into two popups by
+    optionally bundling delegation with the first wallet-signed bet (a
+    checkbox on the bet slip, on by default). The 0.1 SOL session fund
+    transfer and the suggested `max_total_stake` cap (rule 9) are
+    disclosed inline at the point of delegation, with an explicit "No
+    limit" opt-out so the cap is a nudge, not a silent mandate.
 
 This is the one piece worth NOT treating as boilerplate. A session key that
 is authorized on-chain but never actually signs anything (delegated-in-name-

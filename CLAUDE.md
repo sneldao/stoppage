@@ -62,7 +62,14 @@ Full context: docs/ARCHITECTURE.md (design), docs/DEVELOPMENT.md
    mechanism: re-delegation after expiry is a conscious
    re-commitment, not an automatic renewal. `revoke_session_key` is
    the self-exclude path and must remain prominent in the UI, not
-   buried. `pause` (disable one-tap locally, keep the keypair
+   buried. It closes the `SessionGrant` account and refunds its
+   **rent** to the owner; it does **not** sweep `fund_lamports` back
+   (the fund lives in the session keypair's own System Program
+   account, which the market program cannot debit — rule 4). UI copy
+   must not claim "End session reclaims your 0.1 SOL" — that is the
+   pir8 payout-bug shape in user-facing language. A client-side sweep
+   signed by the session key is a follow-up, trivial on devnet.
+   `pause` (disable one-tap locally, keep the keypair
    persisted so `revoke` stays reachable, no on-chain revoke, no
    popup) is a separate, non-destructive quick opt-out; it is NOT a
    substitute for `revoke_session_key`. Both must be reachable from

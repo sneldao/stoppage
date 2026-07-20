@@ -118,7 +118,12 @@ or descoped, it's recorded here and nowhere else.
   opt-out pill, not a silent default. Pause keeps the keypair persisted
   so `revoke` remains reachable from the paused state — the self-exclude
   path is no longer orphaned when one-tap is paused (the previous
-  behavior locked the 0.1 SOL fund until the 6h expiry). Bet-slip errors
+  behavior locked the grant's rent until the 6h expiry). `revoke` closes
+  the grant and refunds **rent**; the 0.1 SOL `fund_lamports` lives in
+  the session keypair's System Program account and is not swept back
+  (rule 4 — the market program cannot debit it); a client-side sweep
+  signed by the session key is a follow-up, trivial on devnet.
+  Bet-slip errors
   moved inline with Retry; claim carries an honest "owner-signed" note
   (the deployed program has no session-claim instruction and the toolchain
   is pinned). Live feed replaces polling for the moments that matter —
