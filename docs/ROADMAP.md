@@ -8,7 +8,7 @@ and executes a defined strategy. **Submissions close July 19, 2026 at
 This file is the single status ledger. If something is deployed, broken,
 or descoped, it's recorded here and nowhere else.
 
-## Current state (2026-07-18)
+## Current state (2026-07-20)
 
 - Monorepo builds end to end (web app, SDK, both Anchor programs).
 - Program-ID discipline tooling in place and green.
@@ -178,6 +178,23 @@ or descoped, it's recorded here and nowhere else.
   fixture/API walkthrough, record the new "Verify this price" quant flow,
   publish the demo video, confirm the public GitHub repository visibility,
   and complete the submission writeup/feedback.
+- **UI/UX consistency pass complete**: the home page's signal-detection
+  logic (score-diff → goal/card/corner → `signalVersion` /
+  `lastSignalType`) is extracted into a shared `useMatchSignals` hook and
+  `MomentAlert` component in `apps/web/lib/match` + `apps/web/components`,
+  and now drives event drama across every page that shows a live match.
+  `/match` gets real signals into `MatchPulse`, the moment-flash overlay,
+  and a compact `LiveInstrument` scoreboard. `/markets` renders odds via
+  `OddsNumber` + `OddsSparkline`, flashes rows on odds/pool delta, shows
+  live context in match-group headings, and drops the manual "Refresh"
+  button. `/markets/[market]` picks up live signals + event flashes.
+  `/positions` `OpenPositionCard` uses `OddsNumber` + `OddsSparkline` so
+  potential returns feel alive. `/calibration` subscribes to
+  `/api/quotes/stream` instead of fetching once, with a flash on fair-value
+  update. Also fixed a client-bundle leak where importing `GamePhase` from
+  `@stoppage/txline` dragged the node-only `fs` module into the browser —
+  `lib/match/fixtures.ts` now uses literal `"FIRST_HALF"` / `"SECOND_HALF"`
+  strings. `npm run build` + `npm run check:ids` green.
 
 ## Milestones
 

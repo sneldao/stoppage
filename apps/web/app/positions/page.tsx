@@ -11,6 +11,8 @@ import { PositionHistory } from "@/components/PositionHistory";
 import { MatchPulse } from "@/components/MatchPulse";
 import { PositionsEmptyState } from "@/components/PositionsEmptyState";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
+import { OddsNumber } from "@/components/OddsNumber";
+import { OddsSparkline } from "@/components/OddsSparkline";
 
 function positionPayout(market: Market, position: Position): number {
   if (position.side === "yes") {
@@ -27,7 +29,6 @@ function positionPayout(market: Market, position: Position): number {
 
 function OpenPositionCard({ market, position }: { market: Market; position: Position }) {
   const odds = impliedProbability(market);
-  const currentOdds = Math.round(odds[position.side] * 100);
   const potentialReturn = positionPayout(market, position);
   const isSettling = market.status === "awaiting_settlement";
 
@@ -52,12 +53,16 @@ function OpenPositionCard({ market, position }: { market: Market; position: Posi
         </div>
         <div>
           <span>Odds</span>
-          <strong>{currentOdds}%</strong>
+          <strong><OddsNumber value={odds[position.side]} /></strong>
         </div>
         <div>
           <span>Potential return</span>
           <strong>{SOL(potentialReturn)}</strong>
         </div>
+      </div>
+      <div className="open-position-card-spark" aria-label="Odds movement">
+        <span>YES odds</span>
+        <OddsSparkline marketId={market.id} currentYes={odds.yes} width={180} height={26} />
       </div>
       <div className="open-position-card-actions">
         <Link href={`/markets/${market.id}`} className="setup-guide-cta">
@@ -96,10 +101,12 @@ export default function PositionsPage() {
       });
   }, [publicKey, positions, markets]);
 
+  const hasOpenAction = open.some(({ market }) => market.status === "open");
+
   return (
     <main className="app-shell">
       <div className="market-explorer">
-        <MatchPulse live={false} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
+        <MatchPulse live={hasOpenAction} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
         <div className="explorer-heading">
           <div>
             <p className="eyebrow">Positions</p>

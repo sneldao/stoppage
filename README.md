@@ -115,12 +115,14 @@ stoppage/
 │       │   └── api/fixtures/           TxLINE fixtures + score proxies
 │       ├── components/                 WalletProvider, ShareBar, StatsPanel,
 │       │                               ProofBoard, PositionHistory, MatchCalendar,
-│       │                               ReferralInit
+│       │                               ReferralInit, MomentAlert (event overlay)
 │       ├── lib/
 │       │   ├── wallet/                 Wallet adapters (web + Solana Mobile)
 │       │   ├── session-key/            useSessionKey hook (local keypair lifecycle)
 │       │   ├── helius/                 HeliusMonitor (live settlement/odds ticks)
 │       │   ├── markets/                useMarkets, useMarketActions, useMyPositions
+│       │   ├── match/                  useMatchSignals hook + fixtures (shared
+│       │   │                           score-diff → signal detection across pages)
 │       │   ├── share/                  Tweet generation (buildMarketTweet, buildTweetIntent)
 │       │   ├── actions/                Blinks CORS helpers
 │       │   └── format.ts               Shared formatters (formatSol, LAMPORTS_PER_SOL)

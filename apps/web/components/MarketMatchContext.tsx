@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Fixture } from "@stoppage/txline";
 import { countryFlag } from "@/lib/format";
+import { isFixtureLive } from "@/lib/match/fixtures";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -10,10 +11,6 @@ interface MatchSnapshot {
   updatedAt: number | null;
   score: { home: number; away: number };
   stats: { corners: number; cards: number };
-}
-
-function isLive(fixture: Fixture | null) {
-  return fixture?.GameState === 2 || fixture?.GameState === 4;
 }
 
 function asMilliseconds(ts: number) {
@@ -46,7 +43,7 @@ function useCountdown(target: Date | null): string {
   return label;
 }
 
-export function MarketMatchContext({ matchId }: { matchId: string | number }) {
+export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | number; onSnapshot?: (snapshot: MatchSnapshot | null) => void }) {
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +66,7 @@ export function MarketMatchContext({ matchId }: { matchId: string | number }) {
     ) ?? null;
   }, [fixtures, matchId]);
 
-  const live = isLive(fixture);
+  const live = isFixtureLive(fixture);
   const fresh = snapshot?.updatedAt
     ? Date.now() - asMilliseconds(snapshot.updatedAt) <= 45_000
     : false;
@@ -90,7 +87,7 @@ export function MarketMatchContext({ matchId }: { matchId: string | number }) {
   }, []);
 
   useEffect(() => {
-    if (!fixture || !live) { setSnapshot(null); return; }
+    if (!fixture || !live) { setSnapshot(null); onSnapshot?.(null); return; }
     let cancelled = false;
     const refresh = () => {
       void fetch(`/api/fixtures/${fixture.FixtureId}/score`)
@@ -107,13 +104,14 @@ export function MarketMatchContext({ matchId }: { matchId: string | number }) {
           prevScore.home = data.score.home;
           prevScore.away = data.score.away;
           setSnapshot(data);
+          onSnapshot?.(data);
         })
-        .catch(() => { if (!cancelled) setSnapshot(null); });
+        .catch(() => { if (!cancelled) { setSnapshot(null); onSnapshot?.(null); } });
     };
     refresh();
     const id = window.setInterval(refresh, 15_000);
     return () => { cancelled = true; window.clearInterval(id); };
-  }, [fixture, live, prevScore]);
+  }, [fixture, live, prevScore, onSnapshot]);
 
   if (loading) {
     return (

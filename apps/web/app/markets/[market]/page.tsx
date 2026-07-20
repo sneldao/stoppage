@@ -32,6 +32,8 @@ import { CallCard } from "@/components/CallCard";
 import { ResolutionCard } from "@/components/ResolutionCard";
 import { OdometerPool } from "@/components/OdometerPool";
 import { MatchPulse } from "@/components/MatchPulse";
+import { MomentAlert } from "@/components/MomentAlert";
+import { useMatchSignals, type SignalSnapshot } from "@/lib/match/useMatchSignals";
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 const LAST_STAKE_KEY = "stoppage:last_stake";
@@ -115,6 +117,17 @@ export default function MarketDetailPage() {
   const [submittedWithSession, setSubmittedWithSession] = useState(false);
   const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
   const [lockedCall, setLockedCall] = useState<LockedCall | null>(null);
+
+  // Live drama layer — MarketMatchContext already polls the match score;
+  // lift its snapshot here so goals/cards/corners ripple the pulse and fire
+  // the moment overlay on the market you're actually betting.
+  const [matchSnapshot, setMatchSnapshot] = useState<SignalSnapshot | null>(null);
+  const onMatchSnapshot = useCallback((snapshot: SignalSnapshot | null) => setMatchSnapshot(snapshot), []);
+  const marketOpen = (liveMarket ?? storeMarket)?.status === "open";
+  const { signalVersion, lastSignalType, scoringTeam } = useMatchSignals({
+    snapshot: matchSnapshot,
+    detect: marketOpen,
+  });
 
   useEffect(() => {
     if (storeMarket) { setLiveMarket(storeMarket); return; }
@@ -243,7 +256,8 @@ export default function MarketDetailPage() {
 
   return (
     <main className="market-shell">
-      <MatchPulse live={market.status === "open"} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--detail" />
+      <MatchPulse live={market.status === "open"} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--detail" />
+      <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={matchSnapshot} scoringTeam={scoringTeam} />
 
       {/* ── Nav ── */}
       <header className="market-nav">
@@ -267,7 +281,7 @@ export default function MarketDetailPage() {
           {/* Hero: score context + question */}
           <div className="market-instrument-hero">
             {/* Match context embedded at top of hero */}
-            <MarketMatchContext matchId={market.predicate.matchId} />
+            <MarketMatchContext matchId={market.predicate.matchId} onSnapshot={onMatchSnapshot} />
 
             <div className="market-instrument-meta">
               <span className={`market-status-badge market-status-badge--${market.status}`}>

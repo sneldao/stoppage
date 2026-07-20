@@ -31,14 +31,41 @@ interface QuotePayload {
 
 export default function CalibrationPage() {
   const [quotes, setQuotes] = useState<QuotePayload[]>([]);
+  const [streaming, setStreaming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    const apply = (quote: QuotePayload) => {
+      if (cancelled) return;
+      setQuotes((prev) => {
+        const next = prev.filter((q) => q.marketId !== quote.marketId);
+        next.push(quote);
+        return next.sort((a, b) => b.ts - a.ts);
+      });
+    };
+
+    // Initial snapshot, then live SSE so the board ticks as Matchkeeper
+    // re-prices — "live model lines" should actually be live.
     void fetch("/api/quotes")
       .then((r) => r.json())
-      .then((d: { quotes?: QuotePayload[] }) => { if (!cancelled && d.quotes) setQuotes(d.quotes); })
+      .then((d: { quotes?: QuotePayload[] }) => { if (!cancelled && d.quotes) d.quotes.forEach(apply); })
       .catch(() => {});
-    return () => { cancelled = true; };
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/quotes/stream");
+      es.onopen = () => { if (!cancelled) setStreaming(true); };
+      es.onerror = () => { if (!cancelled) setStreaming(false); };
+      es.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+          if (data.type === "init" && Array.isArray(data.quotes)) (data.quotes as QuotePayload[]).forEach(apply);
+          else if (data.type === "quote" && data.quote) apply(data.quote as QuotePayload);
+        } catch { /* skip malformed */ }
+      };
+    } catch { /* EventSource unavailable — snapshot only */ }
+
+    return () => { cancelled = true; es?.close(); };
   }, []);
 
   return (
@@ -86,7 +113,10 @@ export default function CalibrationPage() {
       <section className="cal-board">
         <div className="cal-board-head">
           <h2>Live model lines</h2>
-          <span className="cal-board-sub">feeding the calibration curve</span>
+          <span className="cal-board-sub">
+            {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
+            {streaming ? "streaming · feeding the calibration curve" : "feeding the calibration curve"}
+          </span>
         </div>
         {quotes.length === 0 ? (
           <p className="cal-empty">
@@ -104,7 +134,7 @@ export default function CalibrationPage() {
             {quotes.map((q) => (
               <div className="cal-row" key={q.marketId}>
                 <span className="cal-market">{q.label}</span>
-                <strong>{Math.round(q.result.fairValue * 100)}¢</strong>
+                <strong key={q.ts} className="score-flash">{Math.round(q.result.fairValue * 100)}¢</strong>
                 <span>±{Math.round(((q.result.ci[1] - q.result.ci[0]) / 2) * 100)}¢</span>
                 <span className="cal-model">{q.result.modelVersion}</span>
               </div>

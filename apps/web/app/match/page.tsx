@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
@@ -20,6 +20,9 @@ import { SharpMoves } from "@/components/SharpMoves";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MatchSignal } from "@/components/MatchSignal";
 import { MatchPulse } from "@/components/MatchPulse";
+import { MomentAlert } from "@/components/MomentAlert";
+import { useMatchSignals } from "@/lib/match/useMatchSignals";
+import { isFixtureLive } from "@/lib/match/fixtures";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -33,10 +36,6 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
   if (!snapshot?.updatedAt) return false;
   const timestamp = snapshot.updatedAt < 1_000_000_000_000 ? snapshot.updatedAt * 1_000 : snapshot.updatedAt;
   return Date.now() - timestamp <= 45_000;
-}
-
-function isLive(fixture: Fixture | null) {
-  return fixture?.GameState === 2 || fixture?.GameState === 4;
 }
 
 function MatchRoomContent() {
@@ -58,8 +57,32 @@ function MatchRoomContent() {
     : orderedMarkets[0] ? String(orderedMarkets[0].predicate.matchId) : null;
   const fixture = useMemo(() => {
     if (selectedMatchId) return fixtures.find((item) => item.matchId === selectedMatchId) ?? null;
-    return fixtures.find((item) => isLive(item)) ?? fixtures[0] ?? null;
+    return fixtures.find((item) => isFixtureLive(item)) ?? fixtures[0] ?? null;
   }, [fixtures, selectedMatchId]);
+  const live = isFixtureLive(fixture);
+
+  // Live drama layer — goal/card/corner detection drives MatchPulse ripples
+  // and the MomentAlert overlay. Snapshot diffs detect while the poll runs
+  // (real live matches); SSE events drive signals directly during replays.
+  const { signalVersion, lastSignalType, scoringTeam, handleMatchEvent } = useMatchSignals({
+    snapshot,
+    detect: live,
+  });
+
+  // During replays the score poll is off, so accumulate corner/card events
+  // into the scoreboard stats. When live, the poll stays authoritative.
+  const onMatchEvent = useCallback((evt: { type: string; team?: unknown }) => {
+    handleMatchEvent(evt);
+    if (!live && (evt.type === "corner_awarded" || evt.type === "card_shown")) {
+      setSnapshot((prev) => prev ? {
+        ...prev,
+        stats: {
+          corners: prev.stats.corners + (evt.type === "corner_awarded" ? 1 : 0),
+          cards: prev.stats.cards + (evt.type === "card_shown" ? 1 : 0),
+        },
+      } : prev);
+    }
+  }, [handleMatchEvent, live]);
   const matchMarkets = useMemo(() => selectedMatchId ? orderedMarkets.filter((market) => String(market.predicate.matchId) === selectedMatchId) : orderedMarkets, [orderedMarkets, selectedMatchId]);
   const ownedPositions = useMemo(() => {
     if (!publicKey) return [];
@@ -79,7 +102,7 @@ function MatchRoomContent() {
 
   useEffect(() => {
     if (!fixture) { setSnapshot(null); return; }
-    if (!isLive(fixture)) return; // skip poll for non-live; the SSE phase drives the snapshot during replays
+    if (!isFixtureLive(fixture)) return; // skip poll for non-live; the SSE phase drives the snapshot during replays
     let cancelled = false;
     const refresh = () => {
       void fetch(`/api/fixtures/${fixture.FixtureId}/score`)
@@ -108,7 +131,6 @@ function MatchRoomContent() {
       .sort((a, b) => b.occurredAt - a.occurredAt);
   }, [feed, selectedMatchId]);
 
-  const live = isLive(fixture);
   const fresh = snapshotIsFresh(snapshot);
 
   // Auto-cycle through previous-game replays when no live match is selected.
@@ -152,7 +174,8 @@ function MatchRoomContent() {
   return (
     <main className="app-shell">
       <div className="match-room">
-        <MatchPulse live={live} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--match" />
+        <MatchPulse live={live} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--match" />
+        <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={snapshot} scoringTeam={scoringTeam} />
         <header className="match-room-header">
           <div><p className="eyebrow">Match</p><h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1></div>
           <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>
@@ -160,9 +183,20 @@ function MatchRoomContent() {
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
           <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Awaiting kickoff" : "No live match right now"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
-          <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b>{live && snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
+          <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b key={snapshot ? `${snapshot.score.home}-${snapshot.score.away}` : "vs"} className={snapshot ? "score-flash" : ""}>{snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Listening"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Listening for the next match"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Listening for the next match"}</span></div>
-          {selectedMatchId && <LiveMatchBar matchId={selectedMatchId} onPhase={(phase) => setSnapshot({ updatedAt: Date.now(), score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 }, stats: { corners: 0, cards: 0 } })} />}
+          {selectedMatchId && (
+            <LiveMatchBar
+              matchId={selectedMatchId}
+              onNewEvent={onMatchEvent}
+              onPhase={(phase) => setSnapshot((prev) => ({
+                updatedAt: Date.now(),
+                score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
+                // Preserve running stats — the phase payload doesn't carry them.
+                stats: prev?.stats ?? { corners: 0, cards: 0 },
+              }))}
+            />
+          )}
           <ReplayLauncher
             fixtures={completedFixtures}
             autoLaunchFixtureId={autoReplayFixtureId}

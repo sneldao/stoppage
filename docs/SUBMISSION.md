@@ -115,7 +115,14 @@ Latest public board verification:
   as keeper actions.
 - Motion is bounded and semantic: the signal grid animates on live score/stat
   changes, odds and selected sides transition in place, and route changes use
-  short transform/opacity transitions.
+  short transform/opacity transitions. The same `useMatchSignals` hook and
+  `MomentAlert` overlay drive event drama (goal/card/corner flashes) on every
+  page that shows a live match — home, `/match`, `/markets`, and focused
+  markets — so the home page's energy is the product's baseline, not a
+  one-route novelty. `/markets` rows flash on odds/pool delta and render via
+  `OddsNumber` + `OddsSparkline`; `/positions` cards do the same so potential
+  returns feel alive; `/calibration` streams quotes and flashes on fair-value
+  update rather than fetching once.
 - The UX continues to frame Stoppage as a devnet protocol and verification
   demo. It avoids production sportsbook claims and keeps session state,
   proof status, and TxLINE connectivity visible.

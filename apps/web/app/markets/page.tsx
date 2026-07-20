@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
@@ -21,7 +21,9 @@ import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { MarketsEmptyState } from "@/components/MarketsEmptyState";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
+import { OddsNumber } from "@/components/OddsNumber";
 import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
+import { isFixtureLive } from "@/lib/match/fixtures";
 
 type FixtureWithMatchId = Fixture & { matchId: string };
 
@@ -46,6 +48,19 @@ function MarketRow({ market }: { market: Market }) {
   const total = market.yesPool + market.noPool;
   const isOpen = market.status === "open";
 
+  // Flash the row when odds or pool move between silent refreshes — the
+  // tape should visibly react to money, not just swap numbers.
+  const [flash, setFlash] = useState(false);
+  const prevRef = useRef<{ yes: number; total: number } | null>(null);
+  useEffect(() => {
+    const prev = prevRef.current;
+    prevRef.current = { yes: odds.yes, total };
+    if (!prev || (prev.yes === odds.yes && prev.total === total)) return;
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 900);
+    return () => clearTimeout(t);
+  }, [odds.yes, total]);
+
   const refTag = publicKey?.toBase58() ?? referrer ?? undefined;
   const pageUrl = typeof window !== "undefined"
     ? `${window.location.origin}/markets/${market.id}`
@@ -53,7 +68,7 @@ function MarketRow({ market }: { market: Market }) {
   const tweetIntent = buildTweetIntent(buildMarketTweet(market, pageUrl, refTag));
 
   return (
-    <div className={`explorer-market ${isOpen ? "explorer-market--open" : ""}`}>
+    <div className={`explorer-market ${isOpen ? "explorer-market--open" : ""} ${flash ? "explorer-market--flash" : ""}`}>
       <Link href={`/markets/${market.id}`} className="block">
         <div className="explorer-market-head">
           <div className="min-w-0">
@@ -71,11 +86,11 @@ function MarketRow({ market }: { market: Market }) {
         </div>
         {isOpen && (
           <div className="explorer-odds">
-            <span>YES <strong>{(odds.yes * 100).toFixed(0)}%</strong></span>
+            <span>YES <strong><OddsNumber value={odds.yes} /></strong></span>
             <span className="explorer-odds-track">
               <i style={{ width: `${odds.yes * 100}%`, transition: "width 600ms cubic-bezier(.2,.75,.25,1)" }} />
             </span>
-            <span>NO <strong>{(odds.no * 100).toFixed(0)}%</strong></span>
+            <span>NO <strong><OddsNumber value={odds.no} /></strong></span>
             <span className="explorer-live"><i className="live-dot" style={{ width: 5, height: 5 }} /> LIVE</span>
           </div>
         )}
@@ -151,10 +166,12 @@ export default function MarketsPage() {
     return [...groups.entries()];
   }, [visible]);
 
+  const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
+
   return (
     <main className="app-shell">
       <div className="market-explorer">
-        <MatchPulse live={false} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
+        <MatchPulse live={hasLive} signalVersion={0} lastSignalType={null} className="match-pulse match-pulse--tape" />
         <div className="market-hero-grooves" aria-hidden="true">
           <SpinningGrooves size={420} rings={5} color="var(--lime)" counterRotate speed={0.6} />
         </div>
@@ -164,9 +181,9 @@ export default function MarketsPage() {
             <h1>Every bet in play.</h1>
             <p>Peer-funded positions with results verified automatically.</p>
           </div>
-          <button onClick={() => void refresh()} className="explorer-refresh" aria-label="Refresh markets">
-            Refresh
-          </button>
+          <span className="explorer-live-note" aria-live="polite">
+            <i className={hasLive ? "live-dot" : "schedule-dot"} /> {hasLive ? "Match in play · tape updates live" : "Tape updates live"}
+          </span>
         </div>
 
         <div className="tape-controls" aria-label="Market state filters">
@@ -212,10 +229,16 @@ export default function MarketsPage() {
                   const label = fixture
                     ? `${fixture.Participant1} v ${fixture.Participant2}`
                     : `Match ${matchId}`;
+                  const fixtureLive = isFixtureLive(fixture);
                   return (
                     <section className="tape-match-group" key={matchId} aria-label={`${label} markets`}>
                       <div className="tape-match-heading">
-                        <span>{label}</span>
+                        <span>
+                          {label}
+                          {fixtureLive && (
+                            <em className="tape-match-live"><i className="live-dot" /> LIVE</em>
+                          )}
+                        </span>
                         <small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small>
                       </div>
                       {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}

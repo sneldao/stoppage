@@ -13,6 +13,7 @@ import { useStoppageStore } from "@/store";
 import { SetupPrompt } from "@/components/SetupPrompt";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { LiveInstrument } from "@/components/LiveInstrument";
+import { MomentAlert } from "@/components/MomentAlert";
 import { StoppageClock } from "@/components/StoppageClock";
 import { SharpMoves } from "@/components/SharpMoves";
 import { MatchPulse } from "@/components/MatchPulse";
@@ -24,6 +25,8 @@ import { Achievements } from "@/components/Achievements";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { useAutoReplay, type ReplayStatus } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
+import { useMatchSignals } from "@/lib/match/useMatchSignals";
+import { isFixtureLive } from "@/lib/match/fixtures";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,20 +37,6 @@ interface LiveMatchSnapshot {
 }
 
 type FixtureWithMatchId = Fixture & { matchId: string };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function isLive(fixture: Fixture | null) {
-  return fixture?.GameState === 2 || fixture?.GameState === 4;
-}
-
-function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
-  if (!snapshot?.updatedAt) return false;
-  const ts = snapshot.updatedAt < 1_000_000_000_000
-    ? snapshot.updatedAt * 1_000
-    : snapshot.updatedAt;
-  return Date.now() - ts <= 45_000;
-}
 
 // ─── Market Rail (sidecar) ────────────────────────────────────────────────────
 
@@ -88,10 +77,6 @@ export default function Home() {
 
   const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
   const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
-  const [signalVersion, setSignalVersion] = useState(0);
-  const [lastSignalType, setLastSignalType] = useState<"goal" | "corner" | "card" | null>(null);
-  const [scoringTeam, setScoringTeam] = useState<string | null>(null);
-  const previousSignal = useRef<string | null>(null);
   // Counters for the replay scoreline (corner/card stats come from events,
   // not the SSE phase, so we accumulate them as events stream in).
   const replayStatsRef = useRef({ corners: 0, cards: 0 });
@@ -106,7 +91,7 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
-  const hasLive = useMemo(() => fixtures.some((f) => isLive(f)), [fixtures]);
+  const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
   // Dead time → auto-run a featured replay through the live pipeline.
   const { status: replayStatus, isReplay, launch: launchReplay, launching: launchingReplay } = useAutoReplay({
     hasLive,
@@ -141,6 +126,20 @@ export default function Home() {
   // looping script so the scoreboard ticks and goal drama fires with zero
   // external input. Badged honestly as PREVIEW by LiveInstrument.
   const isPreview = !hasLive && !isReplay && !launchingReplay;
+
+  // Detect score/stat changes → fire signal animations. Detection is
+  // suspended during replay (events drive signals directly) and preview
+  // (the loop drives signals directly).
+  const {
+    signalVersion,
+    lastSignalType,
+    scoringTeam,
+    setSignalVersion,
+    setLastSignalType,
+    setScoringTeam,
+    handleMatchEvent,
+  } = useMatchSignals({ snapshot: liveSnapshot, detect: !isReplay && !isPreview });
+
   const { previewFixture } = usePreviewLoop({
     active: isPreview,
     setSnapshot: setLiveSnapshot as (s: LiveMatchSnapshot | null) => void,
@@ -160,9 +159,9 @@ export default function Home() {
     if (primaryMarket) {
       const matchId = String(primaryMarket.predicate.matchId);
       const matchFixture = fixtures.find((f) => String(f.matchId) === matchId);
-      return matchFixture ?? fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null;
+      return matchFixture ?? fixtures.find((f) => isFixtureLive(f)) ?? fixtures[0] ?? null;
     }
-    return fixtures.find((f) => isLive(f)) ?? fixtures[0] ?? null;
+    return fixtures.find((f) => isFixtureLive(f)) ?? fixtures[0] ?? null;
   }, [fixtures, primaryMarket]);
   // During a replay the hero shows the replay match; during preview the
   // synthetic preview fixture; otherwise the live/next fixture.
@@ -176,7 +175,7 @@ export default function Home() {
   // preview — the SSE phase / preview loop drives the snapshot there).
   useEffect(() => {
     if (isReplay || isPreview) return;
-    if (!featuredFixture || !isLive(featuredFixture)) {
+    if (!featuredFixture || !isFixtureLive(featuredFixture)) {
       setLiveSnapshot(null);
       return;
     }
@@ -192,30 +191,6 @@ export default function Home() {
     return () => { cancelled = true; window.clearInterval(id); };
   }, [featuredFixture]);
 
-  // Detect score/stat changes → fire signal animations. Skipped during
-  // replay (events drive signals directly) and preview (the loop drives
-  // signals directly).
-  useEffect(() => {
-    if (isReplay || isPreview) { previousSignal.current = null; return; }
-    if (!liveSnapshot) return;
-    const next = `${liveSnapshot.score.home}:${liveSnapshot.score.away}:${liveSnapshot.stats.corners}:${liveSnapshot.stats.cards}`;
-    if (previousSignal.current && previousSignal.current !== next) {
-      const [ph, pa, pc, pk] = previousSignal.current.split(":").map(Number);
-      if (liveSnapshot.score.home !== ph || liveSnapshot.score.away !== pa) setLastSignalType("goal");
-      else if (liveSnapshot.stats.cards !== pk) setLastSignalType("card");
-      else if (liveSnapshot.stats.corners !== pc) setLastSignalType("corner");
-      setSignalVersion((v) => v + 1);
-    }
-    previousSignal.current = next;
-  }, [liveSnapshot, isReplay, isPreview]);
-
-  // Auto-clear alert badge
-  useEffect(() => {
-    if (!lastSignalType) return;
-    const t = setTimeout(() => setLastSignalType(null), 5_000);
-    return () => clearTimeout(t);
-  }, [lastSignalType]);
-
   // Lift the replay's SSE phase into the hero snapshot. Score comes from
   // phase; corners/cards are accumulated from the event stream (the phase
   // payload doesn't carry stats).
@@ -228,13 +203,7 @@ export default function Home() {
   }, []);
 
   const handleNewEvent = (evt: any) => {
-    const map: Record<string, "goal" | "card" | "corner"> = {
-      goal_scored: "goal", own_goal: "goal",
-      card_shown: "card", corner_awarded: "corner",
-    };
-    const type = map[evt.type as string];
-    if (type) { setLastSignalType(type); setSignalVersion((v) => v + 1); }
-    if (evt.team) setScoringTeam(String(evt.team));
+    handleMatchEvent(evt);
     // Accumulate replay stats as events stream in.
     if (evt.type === "corner_awarded") replayStatsRef.current = { ...replayStatsRef.current, corners: replayStatsRef.current.corners + 1 };
     if (evt.type === "card_shown" || evt.type === "yellow_card" || evt.type === "red_card") replayStatsRef.current = { ...replayStatsRef.current, cards: replayStatsRef.current.cards + 1 };
@@ -246,49 +215,34 @@ export default function Home() {
     <main className="app-shell">
 
       {/* ── Live moment alert overlay ── */}
-      {lastSignalType && (
-        <>
-          {/* Full-bleed edge-glow flash in the signal colour */}
-          <div key={signalVersion} className={`moment-flash moment-flash--${lastSignalType}`} aria-hidden="true" />
-          <div className={`moment-alert moment-alert--${lastSignalType}`} role="alert" aria-live="assertive">
-            <div className="moment-alert-content">
-              <span className="moment-alert-badge">⚡ Live update</span>
-              <h2>
-                {lastSignalType === "goal" && (scoringTeam ? `GOAL — ${scoringTeam} ⚽` : "GOAL SCORED! ⚽")}
-                {lastSignalType === "card" && "CARD ISSUED! 🟨"}
-                {lastSignalType === "corner" && "CORNER KICK! 🚩"}
-              </h2>
-              <p>
-                {lastSignalType === "goal" && liveSnapshot ? `Score ${liveSnapshot.score.home} — ${liveSnapshot.score.away}` : null}
-                {lastSignalType === "card" && liveSnapshot ? `Total cards: ${liveSnapshot.stats.cards}` : null}
-                {lastSignalType === "corner" && liveSnapshot ? `Total corners: ${liveSnapshot.stats.corners}` : null}
-              </p>
-              {/* Your-position line — if you have a stake on the featured market */}
-              {lastSignalType === "goal" && publicKey && featuredMarket && (() => {
-                const pos = positions[`${featuredMarket.id}:${publicKey.toBase58()}`];
-                if (!pos || pos.amountLamports <= 0) return null;
-                const odds = impliedProbability(featuredMarket)[pos.side];
-                const yourPool = pos.side === "yes" ? featuredMarket.yesPool : featuredMarket.noPool;
-                const oppPool = pos.side === "yes" ? featuredMarket.noPool : featuredMarket.yesPool;
-                const payout = yourPool > 0 ? pos.amountLamports + Math.floor((pos.amountLamports * oppPool) / yourPool) : pos.amountLamports;
-                return (
-                  <p className="moment-alert-position">
-                    Your {pos.side.toUpperCase()} is now {Math.round(odds * 100)}% · if it wins {SOL(payout)}
-                  </p>
-                );
-              })()}
-              <div className="moment-alert-loading" />
-            </div>
-          </div>
-        </>
-      )}
+      <MomentAlert
+        signalType={lastSignalType}
+        signalVersion={signalVersion}
+        snapshot={liveSnapshot}
+        scoringTeam={scoringTeam}
+      >
+        {/* Your-position line — if you have a stake on the featured market */}
+        {lastSignalType === "goal" && publicKey && featuredMarket && (() => {
+          const pos = positions[`${featuredMarket.id}:${publicKey.toBase58()}`];
+          if (!pos || pos.amountLamports <= 0) return null;
+          const odds = impliedProbability(featuredMarket)[pos.side];
+          const yourPool = pos.side === "yes" ? featuredMarket.yesPool : featuredMarket.noPool;
+          const oppPool = pos.side === "yes" ? featuredMarket.noPool : featuredMarket.yesPool;
+          const payout = yourPool > 0 ? pos.amountLamports + Math.floor((pos.amountLamports * oppPool) / yourPool) : pos.amountLamports;
+          return (
+            <p className="moment-alert-position">
+              Your {pos.side.toUpperCase()} is now {Math.round(odds * 100)}% · if it wins {SOL(payout)}
+            </p>
+          );
+        })()}
+      </MomentAlert>
 
       {/* ── Streak celebration — global milestone moment ── */}
       <StreakCelebration history={history} />
 
       {/* ── Command centre ── */}
       <section className="command-center">
-        <MatchPulse live={isLive(featuredFixture)} signalVersion={signalVersion} lastSignalType={lastSignalType} />
+        <MatchPulse live={isFixtureLive(featuredFixture)} signalVersion={signalVersion} lastSignalType={lastSignalType} />
 
         <div className="hero-clock" aria-hidden="true">
           <StoppageClock size={560} globalPointer />
