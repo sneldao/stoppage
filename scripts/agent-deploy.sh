@@ -49,12 +49,12 @@ fi
 
 ssh "$SSH_HOST" "set -euo pipefail; cd $REMOTE_DIR && \
   $PULL_CMD \
-  npm ci --omit=dev && \
+  npm ci && \
   set -a && source .env.agent && set +a && \
   pm2 restart $PM2_NAME --update-env && \
   pm2 save && \
-  sleep 2 && \
-  curl -s --max-time 5 http://localhost:\${AGENT_HTTP_PORT:-18766}/health && \
+  sleep 5 && \
+  curl -s --max-time 10 http://localhost:\${AGENT_HTTP_PORT:-18766}/health && \
   echo"
 
 echo "── agent restarted. Health check above should show {\"ok\":true,...}"
