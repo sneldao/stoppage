@@ -335,17 +335,16 @@ export default function Home() {
           )}
         </div>
 
-        {/* Right side: grooves always visible; sidecar content only after connect */}
+        {/* Right side: grooves + public market activity always visible;
+            personal achievements gated behind wallet connect. */}
         <div className="hero-sidecar">
           <div className="hero-grooves" aria-hidden="true">
             <SpinningGrooves size={520} rings={6} color="var(--blue)" counterRotate speed={0.7} />
           </div>
+          <SharpMoves />
+          <HeroMarketRail markets={otherMarkets} />
           {publicKey && (
-            <>
-              <Achievements history={history} positions={positions} />
-              <SharpMoves />
-              <HeroMarketRail markets={otherMarkets} />
-            </>
+            <Achievements history={history} positions={positions} />
           )}
         </div>
       </section>

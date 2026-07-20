@@ -669,7 +669,7 @@ body { background: var(--paper); }
   display: grid;
   gap: 22px;
   align-self: stretch;
-  align-content: center;
+  align-content: start;
 }
 .hero-market-rail {
   display: grid;
