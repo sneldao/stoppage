@@ -1,0 +1,15 @@
+apiVersion: v1alpha1
+kind: Installation
+metadata:
+  name: signoz
+spec:
+  deployment:
+    flavor: compose
+    mode: docker
+  # coolify-proxy already binds host :8080 on the VPS — UI on :9090 instead.
+  patches:
+    - target: deployment/compose.yaml
+      operations:
+        - op: replace
+          path: /services/signoz-signoz-0/ports/0
+          value: "9090:8080"

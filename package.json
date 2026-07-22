@@ -17,7 +17,9 @@
     "test:quant": "mocha --config packages/quant/.mocharc.json",
     "check:ids": "node scripts/check-ids.js",
     "sync:ids": "node scripts/sync-ids.js",
-    "deploy:programs": "bash scripts/deploy.sh"
+    "deploy:programs": "bash scripts/deploy.sh",
+    "verify:otel": "npx tsx scripts/verify-otel-export.ts",
+    "provision:signoz": "npx tsx scripts/provision-signoz.ts"
   },
   "engines": {
     "node": ">=18"

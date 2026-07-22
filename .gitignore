@@ -11,6 +11,7 @@ target/
 .DS_Store
 .txline-credentials.json
 .env.agent
+.env.signoz
 .env.production
 secrets/
 *.pem

@@ -44,8 +44,10 @@ import { LiveStore } from "./liveStore";
 import { OddsTracker } from "./oddsTracker";
 import { ReplayManager } from "./replayManager";
 import { QuoteTracker } from "./quoteTracker";
+import { initTelemetry, logger } from "./telemetry";
 
 async function main() {
+  initTelemetry();
   const mode = process.argv[2] ?? "replay";
   const fixtureId = process.argv[3] ? Number(process.argv[3]) : 18237038; // France vs Spain semi-final
   const dryRun = !process.argv.includes("--live-tx");
@@ -318,6 +320,6 @@ function syntheticFixtureForId(fixtureId: number): Fixture | null {
 }
 
 main().catch((e) => {
-  console.error("Agent failed:", e);
+  logger.error("Agent failed", { error: String(e) });
   process.exit(1);
 });

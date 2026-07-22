@@ -53,6 +53,13 @@ import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket } fr
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
 import { QuoteTracker } from "./quoteTracker";
+import {
+  logger,
+  recordAction,
+  recordProofFetch,
+  recordTxlineEvent,
+  withSpan,
+} from "./telemetry";
 
 export interface AgentConfig {
   connection: Connection;
@@ -116,14 +123,14 @@ export class Agent {
 
   async start() {
     this.running = true;
-    console.log("[agent] Starting agent loop...");
+    logger.info("Starting agent loop");
     await this.config.source.start((event) => this.handleEvent(event));
   }
 
   stop() {
     this.running = false;
     this.config.source.stop();
-    console.log("[agent] Agent stopped.");
+    logger.info("Agent stopped");
   }
 
   getOpenMarkets(): OpenMarket[] {
@@ -200,86 +207,122 @@ export class Agent {
 
   private async handleEvent(event: NormalizedEvent) {
     if (!this.running) return;
-    this.config.onEvent?.(event);
 
-    // Maintain live match state for quote snapshots.
-    this.updateMatchState(event);
-
-    const { actions, notes } = decideActions(event, this.openMarkets);
-
-    // Surface the agent's decision-making. Every event the strategy
-    // considers produces either an action or an explicit note explaining
-    // why no action followed. Emitting these as `decision_logged` facts
-    // is what makes Matchkeeper's autonomy legible on the timeline:
-    // observe -> decide -> act (or consciously decline). This directly
-    // answers the "Autonomous Operation" criterion for the demo.
-    for (const note of notes) {
-      this.config.onMatchEvent?.({
-        occurredAt: Date.now(),
-        kind: "decision_logged",
-        label: note.label,
-        matchId: note.matchId,
-        fixtureId: note.fixtureId,
-        source: "matchkeeper",
-      });
+    if (event.type !== "heartbeat") {
+      recordTxlineEvent(event.type);
     }
 
-    // Phase 3A — verifiable quote oracle. On every TxLINE state change,
-    // re-price all open markets for this match. These run through the same
-    // pure quant model the web UI re-runs for the "Verify this price" check,
-    // so the published quote is reproducible from the anchored snapshot.
     const matchId = "matchId" in event ? event.matchId : undefined;
-    const state = matchId ? this.matchState.get(matchId) : undefined;
-    if (state && matchId && this.config.quoteTracker) {
-      const quoteActions = quoteOpenMarkets(
-        matchId,
-        state.fixtureId,
-        state.minute,
-        state.score,
-        state.corners,
-        state.cards,
-        state.seq,
-        event.ts,
-        this.openMarkets
-      );
-      for (const qa of quoteActions) {
-        await this.executeAction(qa);
-      }
-    }
+    const fixtureId = matchId ? this.matchToFixture.get(matchId) : undefined;
 
-    for (const action of actions) {
-      await this.executeAction(action);
-    }
+    await withSpan(
+      "txline_event",
+      {
+        "event.type": event.type,
+        "match.id": matchId,
+        "fixture.id": fixtureId,
+      },
+      async () => {
+        this.config.onEvent?.(event);
+
+        // Maintain live match state for quote snapshots.
+        this.updateMatchState(event);
+
+        const { actions, notes } = decideActions(event, this.openMarkets);
+
+        for (const note of notes) {
+          this.config.onMatchEvent?.({
+            occurredAt: Date.now(),
+            kind: "decision_logged",
+            label: note.label,
+            matchId: note.matchId,
+            fixtureId: note.fixtureId,
+            source: "matchkeeper",
+          });
+        }
+
+        const eventMatchId = "matchId" in event ? event.matchId : undefined;
+        const state = eventMatchId ? this.matchState.get(eventMatchId) : undefined;
+        if (state && eventMatchId && this.config.quoteTracker) {
+          const quoteActions = quoteOpenMarkets(
+            eventMatchId,
+            state.fixtureId,
+            state.minute,
+            state.score,
+            state.corners,
+            state.cards,
+            state.seq,
+            event.ts,
+            this.openMarkets
+          );
+          for (const qa of quoteActions) {
+            await this.executeAction(qa);
+          }
+        }
+
+        for (const action of actions) {
+          await this.executeAction(action);
+        }
+      }
+    );
   }
 
   private async executeAction(action: AgentAction): Promise<void> {
-    try {
-      let result: ActionResult;
+    await withSpan(
+      "agent.execute_action",
+      {
+        "action.type": action.type,
+        "match.id": action.predicate.matchId,
+        "predicate.kind": action.predicate.kind,
+      },
+      async () => {
+        try {
+          let result: ActionResult;
 
-      switch (action.type) {
-        case "create_market":
-          result = await this.createMarket(action);
-          break;
-        case "settle_market":
-          result = await this.settleMarket(action);
-          break;
-        case "void_market":
-          result = await this.voidMarket(action);
-          break;
-        case "quote_market":
-          result = await this.quoteMarket(action);
-          break;
+          switch (action.type) {
+            case "create_market":
+              result = await this.createMarket(action);
+              break;
+            case "settle_market":
+              result = await this.settleMarket(action);
+              break;
+            case "void_market":
+              result = await this.voidMarket(action);
+              break;
+            case "quote_market":
+              result = await this.quoteMarket(action);
+              break;
+          }
+
+          recordAction(action.type, result.success);
+          this.config.onAction?.(action, result);
+
+          // Delay between chain actions to avoid devnet rate limits
+          await sleep(2000);
+        } catch (err) {
+          recordAction(action.type, false);
+          logger.error("Action failed", {
+            "action.type": action.type,
+            error: String(err),
+          });
+          this.config.onAction?.(action, { success: false, error: String(err) });
+          await sleep(3000);
+        }
       }
+    );
+  }
 
-      this.config.onAction?.(action, result);
-
-      // Delay between chain actions to avoid devnet rate limits
-      await sleep(2000);
-    } catch (err) {
-      console.error(`[agent] Action ${action.type} failed:`, err);
-      this.config.onAction?.(action, { success: false, error: String(err) });
-      await sleep(3000); // Longer delay after errors
-    }
+  private async submitSignedTx(
+    tx: Transaction,
+    attrs: Record<string, string | number | boolean | undefined>
+  ): Promise<string> {
+    return withSpan("tx_submit", attrs, async () => {
+      const sig = await this.config.connection.sendRawTransaction(tx.serialize(), {
+        skipPreflight: true,
+      });
+      await this.config.connection.confirmTransaction(sig, "confirmed");
+      return sig;
+    });
   }
 
   private async createMarket(
@@ -296,7 +339,10 @@ export class Agent {
       try {
         const existing = await connection.getAccountInfo(marketPda);
         if (existing) {
-          console.log(`[agent] Market already exists: ${action.label} → ${marketPda.toBase58()} (skipping creation)`);
+          logger.info("Market already exists, skipping creation", {
+            label: action.label,
+            "market.pda": marketPda.toBase58(),
+          });
           this.openMarkets.push({
             predicate: action.predicate,
             label: action.label,
@@ -321,7 +367,10 @@ export class Agent {
     });
 
     if (dryRun) {
-      console.log(`[agent] (dry-run) Would create market: ${action.label} → ${marketPda.toBase58()}`);
+      logger.info("Dry-run: would create market", {
+        label: action.label,
+        "market.pda": marketPda.toBase58(),
+      });
       return { success: true, marketPda: marketPda.toBase58() };
     }
 
@@ -340,17 +389,24 @@ export class Agent {
       }).add(ix);
       tx.sign(wallet);
 
-      const sig = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: true,
+      const sig = await this.submitSignedTx(tx, {
+        "action.type": "create_market",
+        "market.pda": marketPda.toBase58(),
       });
-      await connection.confirmTransaction(sig, "confirmed");
 
-      console.log(`[agent] Created market: ${action.label} → ${marketPda.toBase58()}`);
+      logger.info("Created market", {
+        label: action.label,
+        "market.pda": marketPda.toBase58(),
+        "tx.signature": sig,
+      });
       return { success: true, signature: sig, marketPda: marketPda.toBase58() };
     } catch (err) {
       const errMsg = String(err);
       if (errMsg.includes("already in use") || errMsg.includes("0x0")) {
-        console.log(`[agent] Market already exists: ${action.label} → ${marketPda.toBase58()}`);
+        logger.info("Market already exists on-chain", {
+          label: action.label,
+          "market.pda": marketPda.toBase58(),
+        });
         return { success: true, marketPda: marketPda.toBase58() };
       }
       throw err;
@@ -369,7 +425,7 @@ export class Agent {
         m.predicate.matchId === action.predicate.matchId
     );
     if (idx === -1) {
-      console.warn(`[agent] Cannot settle — market not found: ${action.label}`);
+      logger.warn("Cannot settle — market not found", { label: action.label });
       return { success: false, error: "Market not found" };
     }
 
@@ -388,13 +444,23 @@ export class Agent {
       try {
         const fixtureId = this.fixtureIdForMatch(action.predicate.matchId);
         if (fixtureId) {
-          const proof = await fetchStatValidation(
-            txlineNetwork,
-            txlineCreds,
-            fixtureId,
-            action.seq,
-            action.statKey
+          const proof = await withSpan(
+            "proof_fetch",
+            {
+              "fixture.id": fixtureId,
+              "match.id": action.predicate.matchId,
+              "market.pda": market.marketPda,
+            },
+            async () =>
+              fetchStatValidation(
+                txlineNetwork,
+                txlineCreds,
+                fixtureId,
+                action.seq,
+                action.statKey
+              )
           );
+          recordProofFetch(true);
           proofSummary = ` (proof: ${proof.statProof.length} stat nodes + ${proof.subTreeProof.length} subtree + ${proof.mainTreeProof.length} main, value=${proof.statToProve.value})`;
 
           // Verify the proof locally before submitting on-chain
@@ -481,6 +547,7 @@ export class Agent {
           });
         }
       } catch (err) {
+        recordProofFetch(false);
         return { success: false, error: `Proof fetch/build failed: ${(err as Error).message}` };
       }
     }
@@ -490,11 +557,11 @@ export class Agent {
     }
 
     if (dryRun) {
-      console.log(`[agent] (dry-run) Would settle: ${action.label} → ${action.outcome.toUpperCase()}${proofSummary}`);
-      if (resolveIx) {
-        console.log(`[agent] (dry-run)   + resolve_market (on-chain validate_stat CPI)`);
-      }
-      console.log(`[agent] (dry-run)   + settle_from_proof + attest_verification`);
+      logger.info("Dry-run: would settle market", {
+        label: action.label,
+        outcome: action.outcome,
+        proof: proofSummary,
+      });
       this.openMarkets.splice(idx, 1);
       return { success: true, marketPda: market.marketPda };
     }
@@ -528,15 +595,20 @@ export class Agent {
     tx.add(settleIx, attestIx);
     tx.sign(wallet);
 
-    const sig = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: true,
+    const sig = await this.submitSignedTx(tx, {
+      "action.type": "settle_market",
+      "market.pda": market.marketPda,
+      outcome: action.outcome,
     });
-    await connection.confirmTransaction(sig, "confirmed");
     this.openMarkets.splice(idx, 1);
 
-    console.log(
-      `[agent] Settled market: ${action.label} → ${action.outcome.toUpperCase()}${proofSummary} (tx: ${sig.slice(0, 16)}...)`
-    );
+    logger.info("Settled market", {
+      label: action.label,
+      outcome: action.outcome,
+      "market.pda": market.marketPda,
+      "tx.signature": sig,
+      proof: proofSummary,
+    });
     return { success: true, signature: sig, marketPda: market.marketPda };
   }
 
@@ -567,7 +639,7 @@ export class Agent {
     this.openMarkets.splice(idx, 1);
 
     if (dryRun) {
-      console.log(`[agent] (dry-run) Would void: ${action.label}`);
+      logger.info("Dry-run: would void market", { label: action.label });
       return { success: true, marketPda: market.marketPda };
     }
 
@@ -584,12 +656,16 @@ export class Agent {
     }).add(ix);
     tx.sign(wallet);
 
-    const sig = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: true,
+    const sig = await this.submitSignedTx(tx, {
+      "action.type": "void_market",
+      "market.pda": market.marketPda,
     });
-    await connection.confirmTransaction(sig, "confirmed");
 
-    console.log(`[agent] Voided market: ${action.label}`);
+    logger.info("Voided market", {
+      label: action.label,
+      "market.pda": market.marketPda,
+      "tx.signature": sig,
+    });
     return { success: true, signature: sig, marketPda: market.marketPda };
   }
 
@@ -688,13 +764,20 @@ export class Agent {
           lastValidBlockHeight,
         }).add(attestIx);
         tx.sign(this.config.wallet);
-        const sig = await this.config.connection.sendRawTransaction(tx.serialize(), {
-          skipPreflight: true,
+        const sig = await this.submitSignedTx(tx, {
+          "action.type": "quote_market",
+          "market.pda": marketPda,
         });
-        await this.config.connection.confirmTransaction(sig, "confirmed");
-        console.log(`[agent] Attested pricing for ${action.label} → ${sig.slice(0, 16)}`);
+        logger.info("Attested pricing", {
+          label: action.label,
+          "market.pda": marketPda,
+          "tx.signature": sig,
+        });
       } catch (err) {
-        console.warn(`[agent] Pricing attestation failed for ${action.label}:`, err);
+        logger.warn("Pricing attestation failed", {
+          label: action.label,
+          error: String(err),
+        });
       }
     }
 

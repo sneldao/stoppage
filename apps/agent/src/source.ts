@@ -21,6 +21,7 @@ import {
   type NormalizedEvent,
   type Fixture,
 } from "@stoppage/txline";
+import { logger, recordSseError } from "./telemetry";
 
 export interface EventSource {
   start: (handler: (event: NormalizedEvent) => void) => Promise<void>;
@@ -58,7 +59,10 @@ export function createLiveSource(
           prevStats.set(update.FixtureId, update.Stats ?? {});
           if (update.StatusId) prevStatusId.set(update.FixtureId, update.StatusId);
         },
-        (err) => console.error("[live] SSE error:", err.message)
+        (err) => {
+          recordSseError(err.message.slice(0, 64));
+          logger.warn("TxLINE SSE error", { error: err.message });
+        }
       );
     },
     stop() {

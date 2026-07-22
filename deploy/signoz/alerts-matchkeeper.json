@@ -1,0 +1,144 @@
+{
+  "channel": {
+    "name": "stoppage-ops",
+    "webhook_configs": [
+      {
+        "send_resolved": true,
+        "url": "http://127.0.0.1:18766/health"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "alert": "Matchkeeper — no TxLINE events (5m)",
+      "alertType": "TRACES_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "version": "v5",
+      "severity": "warning",
+      "labels": { "service": "stoppage-agent", "team": "stoppage" },
+      "condition": {
+        "compositeQuery": {
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "traces",
+                "stepInterval": 60,
+                "filter": { "expression": "name = 'txline_event'" },
+                "aggregations": [{ "expression": "count()" }]
+              }
+            }
+          ]
+        },
+        "op": "1",
+        "target": 1,
+        "matchType": "2",
+        "selectedQueryName": "A",
+        "alertOnAbsent": true,
+        "absentFor": 300
+      },
+      "evalWindow": "5m0s",
+      "frequency": "1m0s"
+    },
+    {
+      "alert": "Matchkeeper — agent action failed",
+      "alertType": "TRACES_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "version": "v5",
+      "severity": "critical",
+      "labels": { "service": "stoppage-agent", "team": "stoppage" },
+      "condition": {
+        "compositeQuery": {
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "traces",
+                "stepInterval": 60,
+                "filter": {
+                  "expression": "name = 'agent.execute_action' AND hasError = true"
+                },
+                "aggregations": [{ "expression": "count()" }]
+              }
+            }
+          ]
+        },
+        "op": "1",
+        "target": 0,
+        "matchType": "1",
+        "selectedQueryName": "A"
+      },
+      "evalWindow": "5m0s",
+      "frequency": "1m0s"
+    },
+    {
+      "alert": "Matchkeeper — proof fetch failing",
+      "alertType": "TRACES_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "version": "v5",
+      "severity": "critical",
+      "labels": { "service": "stoppage-agent", "team": "stoppage" },
+      "condition": {
+        "compositeQuery": {
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "traces",
+                "stepInterval": 60,
+                "filter": {
+                  "expression": "name = 'proof_fetch' AND hasError = true"
+                },
+                "aggregations": [{ "expression": "count()" }]
+              }
+            }
+          ]
+        },
+        "op": "1",
+        "target": 0,
+        "matchType": "1",
+        "selectedQueryName": "A"
+      },
+      "evalWindow": "5m0s",
+      "frequency": "1m0s"
+    },
+    {
+      "alert": "Matchkeeper — TxLINE SSE errors",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "version": "v5",
+      "severity": "warning",
+      "labels": { "service": "stoppage-agent", "team": "stoppage" },
+      "condition": {
+        "compositeQuery": {
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "metrics",
+                "stepInterval": 60,
+                "aggregations": [
+                  {
+                    "metricName": "agent.sse.errors",
+                    "timeAggregation": "rate",
+                    "spaceAggregation": "sum"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "op": "1",
+        "target": 0,
+        "matchType": "1",
+        "selectedQueryName": "A"
+      },
+      "evalWindow": "5m0s",
+      "frequency": "1m0s"
+    }
+  ]
+}

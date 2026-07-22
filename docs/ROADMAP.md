@@ -352,6 +352,19 @@ during M1/M2.
 - [x] Public app icon for Blinks is present and referenced
       (`/icon-512x512.png`, 512x512 PNG).
 
+## M7 — Agent observability (in progress)
+
+SigNoz / OpenTelemetry for the Matchkeeper keeper. See
+[OBSERVABILITY.md](./OBSERVABILITY.md).
+
+- [x] OTel SDK + structured JSON logger in `apps/agent/src/telemetry/`
+- [x] Spans around `handleEvent`, `executeAction`, proof fetch, tx submit
+- [x] Counters: actions, txline events, proof fetch outcomes
+- [x] SigNoz on VPS (Foundry, UI `:9090`, OTLP `:4318`) — `./scripts/install-signoz-vps.sh`
+- [x] VPS PM2 env wired (`OTEL_EXPORTER_OTLP_ENDPOINT` in `.env.agent`)
+- [x] SigNoz dashboards (match ops, settlement reliability)
+- [x] Alerts: settlement failure, SSE gap, proof timeout
+
 ## Icebox (explicitly not now)
 
 Recorded so they stop tempting us mid-sprint (see CLAUDE.md → Scope
@@ -359,7 +372,9 @@ discipline): SPL-token stakes, AMM/LMSR pricing (vault-ratio odds are
 enough for the demo), mainnet anything (legal review first — see README
 compliance note), mobile app, ELO/agent-vs-agent markets, market
 creation UI for arbitrary predicates (launch templates are hardcoded),
-multi-oracle aggregation.
+multi-oracle aggregation, AG Grid for position history / market tape /
+proof board (sortable tables — `@tanstack/react-table` alternative if
+bundle size matters).
 
 ## Risk register
 

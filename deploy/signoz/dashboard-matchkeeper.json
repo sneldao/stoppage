@@ -1,0 +1,167 @@
+{
+  "title": "Matchkeeper Ops",
+  "description": "TxLINE → strategy → proof → tx pipeline for the Stoppage autonomous agent",
+  "tags": ["stoppage", "matchkeeper"],
+  "version": "v5",
+  "layout": [
+    { "h": 6, "w": 6, "x": 0, "y": 0, "i": "w-txline" },
+    { "h": 6, "w": 6, "x": 6, "y": 0, "i": "w-actions" },
+    { "h": 6, "w": 6, "x": 0, "y": 6, "i": "w-proof" },
+    { "h": 6, "w": 6, "x": 6, "y": 6, "i": "w-tx" },
+    { "h": 6, "w": 6, "x": 0, "y": 12, "i": "w-failures" },
+    { "h": 6, "w": 6, "x": 6, "y": 12, "i": "w-sse" }
+  ],
+  "widgets": [
+    {
+      "id": "w-txline",
+      "panelTypes": "graph",
+      "title": "TxLINE events / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-txline",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "traces",
+              "stepInterval": 60,
+              "filter": { "expression": "name = 'txline_event'" },
+              "aggregations": [{ "expression": "count()" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "w-actions",
+      "panelTypes": "graph",
+      "title": "Agent actions / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-actions",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "traces",
+              "stepInterval": 60,
+              "filter": { "expression": "name = 'agent.execute_action'" },
+              "aggregations": [{ "expression": "count()" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "w-proof",
+      "panelTypes": "graph",
+      "title": "Proof fetches / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-proof",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "traces",
+              "stepInterval": 60,
+              "filter": { "expression": "name = 'proof_fetch'" },
+              "aggregations": [{ "expression": "count()" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "w-tx",
+      "panelTypes": "graph",
+      "title": "On-chain tx submits / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-tx",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "traces",
+              "stepInterval": 60,
+              "filter": { "expression": "name = 'tx_submit'" },
+              "aggregations": [{ "expression": "count()" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "w-failures",
+      "panelTypes": "graph",
+      "title": "Failed agent actions / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-failures",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "traces",
+              "stepInterval": 60,
+              "filter": {
+                "expression": "name = 'agent.execute_action' AND hasError = true"
+              },
+              "aggregations": [{ "expression": "count()" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "w-sse",
+      "panelTypes": "graph",
+      "title": "TxLINE SSE errors / min",
+      "query": {
+        "queryType": "builder",
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "promql": [],
+        "clickhouse_sql": [],
+        "id": "q-sse",
+        "queries": [
+          {
+            "type": "builder_query",
+            "spec": {
+              "name": "A",
+              "signal": "metrics",
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "agent.sse.errors",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

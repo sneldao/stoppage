@@ -57,6 +57,17 @@ npx tsx apps/agent/src/index.ts live --live-tx
 npx tsx scripts/subscribe-txline.ts
 ```
 
+### Agent observability
+
+OpenTelemetry export to SigNoz is opt-in. See [OBSERVABILITY.md](./OBSERVABILITY.md).
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+npx tsx apps/agent/src/index.ts replay 18237038
+```
+
+Without the env var, the agent still logs structured JSON to stdout.
+
 ## Deployment
 
 The frontend (`apps/web`) is hosted on **Vercel** — `git push` to `main`

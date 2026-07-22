@@ -15,6 +15,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         AGENT_HTTP_PORT: "18766",
+        // OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME come from .env.agent
+        // (sourced before pm2 start/restart — see docs/DEVELOPMENT.md).
       },
     },
   ],
