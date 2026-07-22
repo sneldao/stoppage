@@ -4,15 +4,22 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market, type Position } from "@stoppage/sdk";
+import { useMarkets } from "@/lib/markets/useMarkets";
+import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchPulse } from "@/components/MatchPulse";
 import { PositionsEmptyState } from "@/components/PositionsEmptyState";
-import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
+import dynamic from "next/dynamic";
+
+const SpinningGrooves = dynamic(
+  () => import("@/components/SpinningGrooves").then((m) => m.SpinningGrooves),
+  { ssr: false }
+);
 
 function positionPayout(market: Market, position: Position): number {
   if (position.side === "yes") {
@@ -77,6 +84,8 @@ function OpenPositionCard({ market, position }: { market: Market; position: Posi
 }
 
 export default function PositionsPage() {
+  useMarkets();
+  useMyPositions();
   const { publicKey } = useWallet();
   const positions = useStoppageStore((s) => s.positions);
   const markets = useStoppageStore((s) => s.markets);

@@ -1,23 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Fixture } from "@stoppage/txline";
 import { countryFlag } from "@/lib/format";
 import { isFixtureLive } from "@/lib/match/fixtures";
-
-type FixtureWithMatchId = Fixture & { matchId: string };
-
-interface MatchSnapshot {
-  updatedAt: number | null;
-  score: { home: number; away: number };
-  stats: { corners: number; cards: number };
-}
+import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
+import { snapshotIsFresh } from "@/lib/match/types";
+import type { LiveMatchSnapshot } from "@/lib/match/types";
 
 function asMilliseconds(ts: number) {
   return ts < 1_000_000_000_000 ? ts * 1_000 : ts;
 }
 
-function safeStartTime(fixture: Fixture): Date {
+function safeStartTime(fixture: { StartTime: unknown }): Date {
   const raw = fixture.StartTime as unknown;
   if (typeof raw === "number") return new Date(raw * 1000);
   if (typeof raw === "string") return new Date(raw);
@@ -43,21 +37,16 @@ function useCountdown(target: Date | null): string {
   return label;
 }
 
-export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | number; onSnapshot?: (snapshot: MatchSnapshot | null) => void }) {
-  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
-  const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | number; onSnapshot?: (snapshot: LiveMatchSnapshot | null) => void }) {
+  const { fixtures, fixturesLoading } = useFixtures();
   const [scoreFlash, setScoreFlash] = useState(0);
   const prevScore = useMemo(() => ({ home: -1, away: -1 }), []);
 
   const fixture = useMemo(() => {
-    // Exact match first
     const exact = fixtures.find((f) => f.matchId === String(matchId));
     if (exact) return exact;
-    // Fallback: matchId may be a FixtureId or partial match
     const byFixtureId = fixtures.find((f) => String(f.FixtureId) === String(matchId));
     if (byFixtureId) return byFixtureId;
-    // Fallback: case-insensitive or substring match
     const lower = String(matchId).toLowerCase();
     return fixtures.find((f) =>
       f.matchId?.toLowerCase() === lower ||
@@ -67,53 +56,29 @@ export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | 
   }, [fixtures, matchId]);
 
   const live = isFixtureLive(fixture);
-  const fresh = snapshot?.updatedAt
-    ? Date.now() - asMilliseconds(snapshot.updatedAt) <= 45_000
-    : false;
+  const snapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);
+  const fresh = snapshotIsFresh(snapshot);
 
   const kickoff = fixture && !live ? safeStartTime(fixture) : null;
   const countdown = useCountdown(kickoff);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/fixtures")
-      .then((r) => r.ok ? r.json() : Promise.reject())
-      .then((data: { fixtures?: FixtureWithMatchId[] }) => {
-        if (!cancelled) setFixtures(data.fixtures ?? []);
-      })
-      .catch(() => { if (!cancelled) setFixtures([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+    if (!snapshot) {
+      onSnapshot?.(null);
+      return;
+    }
+    if (
+      prevScore.home !== -1 &&
+      (snapshot.score.home !== prevScore.home || snapshot.score.away !== prevScore.away)
+    ) {
+      setScoreFlash((v) => v + 1);
+    }
+    prevScore.home = snapshot.score.home;
+    prevScore.away = snapshot.score.away;
+    onSnapshot?.(snapshot);
+  }, [snapshot, prevScore, onSnapshot]);
 
-  useEffect(() => {
-    if (!fixture || !live) { setSnapshot(null); onSnapshot?.(null); return; }
-    let cancelled = false;
-    const refresh = () => {
-      void fetch(`/api/fixtures/${fixture.FixtureId}/score`)
-        .then((r) => r.ok ? r.json() : Promise.reject())
-        .then((data: MatchSnapshot) => {
-          if (cancelled) return;
-          // Flash on score change
-          if (
-            prevScore.home !== -1 &&
-            (data.score.home !== prevScore.home || data.score.away !== prevScore.away)
-          ) {
-            setScoreFlash((v) => v + 1);
-          }
-          prevScore.home = data.score.home;
-          prevScore.away = data.score.away;
-          setSnapshot(data);
-          onSnapshot?.(data);
-        })
-        .catch(() => { if (!cancelled) { setSnapshot(null); onSnapshot?.(null); } });
-    };
-    refresh();
-    const id = window.setInterval(refresh, 15_000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, [fixture, live, prevScore, onSnapshot]);
-
-  if (loading) {
+  if (fixturesLoading) {
     return (
       <section className="market-match-context market-match-context-loading" aria-label="Match context">
         <div className="mmc-skeleton" aria-hidden="true" />

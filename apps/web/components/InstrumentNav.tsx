@@ -14,11 +14,14 @@ const WalletMultiButton = dynamic(
   { ssr: false, loading: () => <div className="h-10 w-32" /> }
 );
 
-const routes = [
+const primaryRoutes = [
   { href: "/", label: "Live" },
   { href: "/match", label: "Match" },
   { href: "/markets", label: "Markets" },
   { href: "/positions", label: "Positions" },
+];
+
+const secondaryRoutes = [
   { href: "/calibration", label: "Calibration" },
   { href: "/operators", label: "Operators" },
 ];
@@ -52,26 +55,44 @@ export function InstrumentNav() {
         )}
       </Link>
       <nav className="nav-routes" aria-label="Primary navigation">
-        {routes.map((route) => {
+        {primaryRoutes.map((route) => {
           const active = route.href === "/" ? pathname === "/" : pathname.startsWith(route.href);
-          return <Link className={`nav-route ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>{route.label}</Link>;
+          return (
+            <Link className={`nav-route ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>
+              {route.label}
+            </Link>
+          );
+        })}
+        {secondaryRoutes.map((route) => {
+          const active = pathname.startsWith(route.href);
+          return (
+            <Link className={`nav-route nav-route--secondary ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>
+              {route.label}
+            </Link>
+          );
         })}
       </nav>
       <div className="nav-right-cluster">
         <span className={`nav-feed nav-feed--${feedState}`} title={`On-chain feed: ${feedLabel.toLowerCase()}`}>
           <i className={feedState === "connected" ? "live-dot" : feedState === "polling" ? "schedule-dot" : "offline-dot"} />
-          {feedLabel}
+          <span className="nav-feed-label">{feedLabel}</span>
         </span>
         <button type="button" className="nav-sound-toggle" onClick={toggleSound} aria-label={soundOn ? "Mute match sounds" : "Unmute match sounds"} title={soundOn ? "Mute match sounds" : "Unmute match sounds"}>
           {soundOn ? "🔊" : "🔇"}
         </button>
-        <Link href="/#setup-prompt" className="nav-session nav-session-link" title={state.expiresAt ? `One-tap expires ${formatSessionCountdown(state.expiresAt)}` : "Set up one-tap betting"}>
+        <Link
+          href="/#setup-prompt"
+          className={`nav-session nav-session-link ${state.delegated ? "nav-session--active" : ""}`}
+          title={state.expiresAt ? `One-tap expires ${formatSessionCountdown(state.expiresAt)}` : "Set up one-tap betting"}
+        >
           <i className={state.delegated ? "live-dot" : "schedule-dot"} />
-          {state.delegated && state.expiresAt
-            ? `One-tap · ${formatSessionCountdown(state.expiresAt)}`
-            : state.paused
-            ? "One-tap paused"
-            : "One-tap setup"}
+          <span className="nav-session-text">
+            {state.delegated && state.expiresAt
+              ? `One-tap · ${formatSessionCountdown(state.expiresAt)}`
+              : state.paused
+              ? "Paused"
+              : "One-tap"}
+          </span>
         </Link>
       </div>
       <div className="nav-wallet"><WalletMultiButton /></div>

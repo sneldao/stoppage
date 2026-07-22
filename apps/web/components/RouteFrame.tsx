@@ -22,5 +22,5 @@ export function RouteFrame({ children }: { children: ReactNode }) {
     previousPathname.current = pathname;
   }, [pathname]);
 
-  return <div className={`route-frame ${depth}`} key={pathname}>{children}</div>;
+  return <div className={`route-frame ${depth}`}>{children}</div>;
 }

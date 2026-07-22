@@ -1,38 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Market, PricingResult, PricingSnapshot } from "@stoppage/sdk";
+import { useCallback, useState } from "react";
+import type { Market, PricingResult } from "@stoppage/sdk";
 import { priceMarket, DEFAULT_QUANT_PARAMS } from "@/lib/quant/fairValue";
 import { deriveSeed } from "@stoppage/quant";
+import { useMarketQuote } from "@/lib/quotes/useMarketQuote";
+import type { QuoteHistoryPoint, QuotePayload } from "@/lib/quotes/types";
 
 /**
- * PricingPanel — the verifiable quant market-maker surface for a focused
- * market (Phase 4).
- *
- * Shows the agent's live fair-value reference line beside the on-chain odds,
- * a bid/ask depth ladder, and the headline "Verify this price" action. The
- * verify loop re-runs the same pure quant model in the browser against the
- * quote's anchored snapshot + published model/seed and confirms it
- * reproduces the agent's quoted fair value — the "no black box" moment.
+ * PricingPanel — verifiable quant market-maker surface for a focused market.
  */
-
-interface QuotePayload {
-  marketId: string;
-  label: string;
-  predicateKind: string;
-  snapshot: PricingSnapshot;
-  result: PricingResult;
-  inventorySkew: number;
-  ts: number;
-}
-
-interface QuoteHistoryPoint {
-  ts: number;
-  fairValue: number;
-  bid: number;
-  ask: number;
-  inventorySkew: number;
-}
 
 type VerifyState =
   | { kind: "idle" }
@@ -42,66 +19,10 @@ type VerifyState =
   | { kind: "error"; message: string };
 
 export function PricingPanel({ market }: { market: Market }) {
-  const [quote, setQuote] = useState<QuotePayload | null>(null);
-  const [history, setHistory] = useState<QuoteHistoryPoint[]>([]);
+  const { quote, history } = useMarketQuote(market.id);
   const [verify, setVerify] = useState<VerifyState>({ kind: "idle" });
-  const esRef = useRef<EventSource | null>(null);
 
-  // Seed for the browser re-run must match the agent's to reproduce the quote.
   const seedFor = (q: QuotePayload) => deriveSeed(q.predicateKind, q.snapshot);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const applyQuote = (q: QuotePayload) => {
-      if (cancelled) return;
-      if (q.marketId !== market.id) return;
-      setQuote(q);
-      setHistory((prev) => [...prev, {
-        ts: q.ts,
-        fairValue: q.result.fairValue,
-        bid: q.result.bid,
-        ask: q.result.ask,
-        inventorySkew: q.inventorySkew,
-      }].slice(-120));
-    };
-
-    // Initial poll.
-    void fetch(`/api/quotes?marketId=${encodeURIComponent(market.id)}`)
-      .then((r) => r.json())
-      .then((data: { latest?: QuotePayload; history?: QuoteHistoryPoint[] }) => {
-        if (cancelled) return;
-        if (data.latest) setQuote(data.latest);
-        if (data.history) setHistory(data.history.slice(-120));
-      })
-      .catch(() => {});
-
-    // Live SSE — filter for this market.
-    try {
-      const es = new EventSource("/api/quotes/stream");
-      esRef.current = es;
-      es.onmessage = (msg) => {
-        try {
-          const data = JSON.parse(msg.data);
-          if (data.type === "init" && Array.isArray(data.quotes)) {
-            for (const q of data.quotes as QuotePayload[]) applyQuote(q);
-          } else if (data.type === "quote") {
-            applyQuote(data.quote as QuotePayload);
-          }
-        } catch {
-          /* skip malformed */
-        }
-      };
-      es.onerror = () => { /* proxy falls back to poll upstream */ };
-    } catch {
-      /* EventSource unsupported */
-    }
-
-    return () => {
-      cancelled = true;
-      esRef.current?.close();
-    };
-  }, [market.id]);
 
   const onVerify = useCallback(() => {
     if (!quote) {
@@ -110,9 +31,6 @@ export function PricingPanel({ market }: { market: Market }) {
     }
     setVerify({ kind: "running" });
     try {
-      // priceMarket always uses the published DEFAULT_QUANT_PARAMS; the
-      // _params argument is ignored by design so the verify loop cannot be
-      // gamed by passing non-published parameters.
       const computed = priceMarket(
         market.predicate,
         quote.snapshot,
@@ -135,7 +53,7 @@ export function PricingPanel({ market }: { market: Market }) {
   }, [quote, market.predicate]);
 
   if (market.status !== "open") {
-    return null; // pricing is a live, in-play surface
+    return null;
   }
 
   const onchainYes = market.yesPool + market.noPool > 0
@@ -167,10 +85,8 @@ export function PricingPanel({ market }: { market: Market }) {
             </div>
           </div>
 
-          {/* Fair-value sparkline (re-pricing as the match moves) */}
           <FairSparkline points={history} current={quote.result.fairValue} onchainYes={onchainYes} />
 
-          {/* Bid / ask depth ladder */}
           <div className="pricing-depth">
             <div className="pricing-depth-row">
               <span className="pricing-depth-side pricing-depth-bid">BID</span>
@@ -190,7 +106,6 @@ export function PricingPanel({ market }: { market: Market }) {
             )}
           </div>
 
-          {/* Verify this price — the no-black-box moment */}
           <div className="pricing-verify">
             <button onClick={onVerify} disabled={verify.kind === "running"}>
               {verify.kind === "running" ? "Re-running model…" : "Verify this price"}
@@ -233,10 +148,6 @@ function diffLabel(fair: number, onchain: number): string {
   return d > 0 ? "model prices YES richer than the pool" : "model prices YES cheaper than the pool";
 }
 
-/**
- * Inline SVG fair-value sparkline with the on-chain odds as a reference line.
- * No chart dependency — keeps the client bundle lean.
- */
 function FairSparkline({
   points,
   current,

@@ -10,7 +10,6 @@ import { getMarket, impliedProbability, type Market, type Side } from "@stoppage
 import { useMarketActions } from "@/lib/markets/useMarketActions";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
-import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
@@ -19,11 +18,8 @@ import { OddsSurgeCallout } from "@/components/OddsSurgeCallout";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
-import { ProofPanel } from "@/components/ProofPanel";
-import { PricingPanel } from "@/components/PricingPanel";
-import { PricingReceiptPanel } from "@/components/PricingReceiptPanel";
+import dynamic from "next/dynamic";
 import { ElectricBorder } from "@/components/ElectricBorder";
-import { StoppageClock } from "@/components/StoppageClock";
 import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigningSpeed, formatConfirmationSpeed, formatSessionCountdown } from "@/lib/format";
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
@@ -34,6 +30,26 @@ import { OdometerPool } from "@/components/OdometerPool";
 import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
 import { useMatchSignals, type SignalSnapshot } from "@/lib/match/useMatchSignals";
+
+const StoppageClock = dynamic(
+  () => import("@/components/StoppageClock").then((m) => m.StoppageClock),
+  { ssr: false }
+);
+
+const PricingPanel = dynamic(
+  () => import("@/components/PricingPanel").then((m) => m.PricingPanel),
+  { ssr: false, loading: () => <section className="pricing-panel pricing-panel-loading" aria-hidden="true" /> }
+);
+
+const PricingReceiptPanel = dynamic(
+  () => import("@/components/PricingReceiptPanel").then((m) => m.PricingReceiptPanel),
+  { ssr: false, loading: () => <section className="pricing-receipt pricing-receipt-loading" aria-hidden="true" /> }
+);
+
+const ProofPanelLazy = dynamic(
+  () => import("@/components/ProofPanel").then((m) => m.ProofPanel),
+  { ssr: false }
+);
 
 const stakePresets = ["0.01", "0.05", "0.10"];
 const LAST_STAKE_KEY = "stoppage:last_stake";
@@ -65,7 +81,6 @@ export default function MarketDetailPage() {
   const { state, getSessionSigner, delegate, pause, resume, revoke } = useSessionKey();
   const { joinViaWallet, joinViaSessionKey, claim } = useMarketActions();
   useMyPositions();
-  useHeliusMonitor();
   const feedState = useStoppageStore((s) => s.feedState);
 
   const storeMarket = useStoppageStore((s) => s.markets[marketAddr]);
@@ -308,7 +323,7 @@ export default function MarketDetailPage() {
 
           {/* ── Bet slip ── */}
           {canJoin && (
-            <section className="market-bet-slip" aria-label="Bet slip">
+            <section id="bet-slip" className="market-bet-slip" aria-label="Bet slip">
               {/* Session badge */}
               <div className="slip-session-row">
                 <span className={state.delegated ? "fast-badge active" : "fast-badge"}>
@@ -624,9 +639,34 @@ export default function MarketDetailPage() {
       <PricingReceiptPanel market={market} />
 
       {/* ── Proof panel ── */}
-      <div id="proof"><ProofPanel market={market} /></div>
+      <div id="proof"><ProofPanelLazy market={market} /></div>
 
       {error && <p className="market-error">{error}</p>}
+
+      {canJoin && (
+        <div className="mobile-market-dock mobile-bet-dock">
+          <span>
+            <i aria-hidden="true" />
+            {selectedSide
+              ? `${selectedSide.toUpperCase()} · ${amountSol || "0"} SOL`
+              : "Choose YES or NO"}
+          </span>
+          <button
+            type="button"
+            className="mobile-bet-dock-action"
+            disabled={busy !== null}
+            onClick={() => {
+              if (selectedSide) {
+                void onJoin();
+                return;
+              }
+              document.getElementById("bet-slip")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            {executionBusy ? "Signing…" : selectedSide ? "Place bet →" : "Open slip →"}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

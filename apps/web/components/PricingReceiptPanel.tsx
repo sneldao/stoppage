@@ -1,29 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Market, PricingReceipt as OnchainPricingReceipt, PricingResult, PricingSnapshot } from "@stoppage/sdk";
+import type { Market, PricingReceipt as OnchainPricingReceipt, PricingResult } from "@stoppage/sdk";
 import { hashSnapshot, deriveSeed } from "@stoppage/quant";
 import { priceMarket, DEFAULT_QUANT_PARAMS } from "@/lib/quant/fairValue";
-
-/**
- * PricingReceiptPanel — the on-chain-attestation counterpart to ProofPanel
- * (Phase 2/4).
- *
- * Renders the live verifiable quote AND the on-chain pricing receipt (if one
- * has been attested). The receipt carries the anchored snapshot hash, model
- * version, fair value, bid/ask, and agent signature — the inputs needed for
- * the "Verify this price" no-black-box loop.
- */
-
-interface QuotePayload {
-  marketId: string;
-  label: string;
-  predicateKind: string;
-  snapshot: PricingSnapshot;
-  result: PricingResult;
-  inventorySkew: number;
-  ts: number;
-}
+import { useMarketQuote } from "@/lib/quotes/useMarketQuote";
 
 interface ReceiptResponse {
   ok: boolean;
@@ -48,34 +29,10 @@ function formatSignature(hex: string): string {
 }
 
 export function PricingReceiptPanel({ market }: { market: Market }) {
-  const [quote, setQuote] = useState<QuotePayload | null>(null);
+  const { quote } = useMarketQuote(market.id);
   const [receipt, setReceipt] = useState<OnchainPricingReceipt | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [verify, setVerify] = useState<VerifyState>({ kind: "idle" });
-
-  useEffect(() => {
-    let cancelled = false;
-    const apply = (q: QuotePayload) => {
-      if (!cancelled && q.marketId === market.id) setQuote(q);
-    };
-    void fetch(`/api/quotes?marketId=${encodeURIComponent(market.id)}`)
-      .then((r) => r.json())
-      .then((d: { latest?: QuotePayload }) => { if (d.latest) apply(d.latest); })
-      .catch(() => {});
-    try {
-      const es = new EventSource("/api/quotes/stream");
-      es.onmessage = (msg) => {
-        try {
-          const data = JSON.parse(msg.data);
-          const q = data.type === "quote" ? data.quote : null;
-          if (q) apply(q as QuotePayload);
-        } catch { /* skip */ }
-      };
-      return () => { cancelled = true; es.close(); };
-    } catch {
-      return () => { cancelled = true; };
-    }
-  }, [market.id]);
 
   useEffect(() => {
     let cancelled = false;

@@ -157,11 +157,22 @@ export function useActivityFeedMonitor() {
     refreshPoll();
     startSSE();
 
+    function onVisibility() {
+      if (document.hidden) {
+        stopPoll();
+        return;
+      }
+      if (!usingSSE && pollId === null) startPoll();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
       es?.close();
       stopPoll();
       if (sseRetryId !== null) window.clearTimeout(sseRetryId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [setFeed, pushToasts]);
 

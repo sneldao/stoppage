@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
 import { formatSol as SOL, formatMarketQuestion, countryFlag } from "@/lib/format";
+import { useStoppageStore } from "@/store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -367,18 +368,18 @@ export function LiveInstrument({
   const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevSignalVersion = useRef(signalVersion);
+  const board = useStoppageStore((s) => s.board);
 
-  // Fetch last settled market for empty market face
+  const boardLastSettled = useMemo(() => {
+    const id = board?.entries?.[0]?.proofMarketIds?.[0];
+    if (!id) return null;
+    return { question: "Last resolved market", outcome: "yes" as const, marketId: id };
+  }, [board]);
+
   useEffect(() => {
-    if (market) return;
-    void fetch("/api/board")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        const id = data?.entries?.[0]?.proofMarketIds?.[0];
-        if (id) setLastSettled({ question: "Last resolved market", outcome: "yes", marketId: id as string });
-      })
-      .catch(() => {});
-  }, [market]);
+    if (market || !boardLastSettled) return;
+    setLastSettled(boardLastSettled);
+  }, [market, boardLastSettled]);
 
   // Collect events for the ticker
   const handleNewEvent = useCallback((evt: LiveEvent) => {
@@ -416,9 +417,11 @@ export function LiveInstrument({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalVersion]);
 
-  // Auto-rotate every 6 s when not paused or signal-locked
+  // Auto-rotate on desktop only — mobile users tap to flip; auto-swap mid-read is disorienting.
   useEffect(() => {
     if (paused) return;
+    const mobile = window.matchMedia("(max-width: 800px)").matches;
+    if (mobile) return;
     const id = window.setInterval(() => {
       if (!paused && !signalLockRef.current) {
         swapTo(front === 0 ? 1 : 0);

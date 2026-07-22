@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
 import { useMarkets } from "@/lib/markets/useMarkets";
-import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { formatSigningSpeed, formatMarketQuestion, formatSol as SOL } from "@/lib/format";
 import { useStoppageStore } from "@/store";
@@ -14,29 +14,30 @@ import { SetupPrompt } from "@/components/SetupPrompt";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { LiveInstrument } from "@/components/LiveInstrument";
 import { MomentAlert } from "@/components/MomentAlert";
-import { StoppageClock } from "@/components/StoppageClock";
 import { SharpMoves } from "@/components/SharpMoves";
+import { LazyWhenVisible } from "@/components/LazyWhenVisible";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { RightNowLine } from "@/components/RightNowLine";
 import { PersonalizedHero, usePrimaryOpenPosition } from "@/components/PersonalizedHero";
 import { StreakCelebration } from "@/components/StreakCelebration";
 import { Achievements } from "@/components/Achievements";
-import { SpinningGrooves } from "@/components/SpinningGrooves";
-import { useAutoReplay, type ReplayStatus } from "@/lib/replay/useAutoReplay";
+import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive } from "@/lib/match/fixtures";
+import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
+import type { LiveMatchSnapshot } from "@/lib/match/types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const StoppageClock = dynamic(
+  () => import("@/components/StoppageClock").then((m) => m.StoppageClock),
+  { ssr: false }
+);
 
-interface LiveMatchSnapshot {
-  updatedAt: number | null;
-  score: { home: number; away: number };
-  stats: { corners: number; cards: number };
-}
-
-type FixtureWithMatchId = Fixture & { matchId: string };
+const SpinningGrooves = dynamic(
+  () => import("@/components/SpinningGrooves").then((m) => m.SpinningGrooves),
+  { ssr: false }
+);
 
 // ─── Market Rail (sidecar) ────────────────────────────────────────────────────
 
@@ -67,7 +68,6 @@ function HeroMarketRail({ markets }: { markets: Market[] }) {
 
 export default function Home() {
   const { markets } = useMarkets();
-  useHeliusMonitor();
   const { publicKey } = useWallet();
   const { state } = useSessionKey();
   const lastSigningMs = useStoppageStore((s) => s.lastSigningMs);
@@ -75,21 +75,11 @@ export default function Home() {
   const positions = useStoppageStore((s) => s.positions);
   const history = useStoppageStore((s) => s.history);
 
-  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
-  const [liveSnapshot, setLiveSnapshot] = useState<LiveMatchSnapshot | null>(null);
+  const { fixtures } = useFixtures();
+  const [overrideSnapshot, setOverrideSnapshot] = useState<LiveMatchSnapshot | null>(null);
   // Counters for the replay scoreline (corner/card stats come from events,
   // not the SSE phase, so we accumulate them as events stream in).
   const replayStatsRef = useRef({ corners: 0, cards: 0 });
-
-  // Fetch fixtures once on mount
-  useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/fixtures")
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Fixture feed unavailable"))))
-      .then((data) => { if (!cancelled) setFixtures(data.fixtures ?? []); })
-      .catch(() => { if (!cancelled) setFixtures([]); });
-    return () => { cancelled = true; };
-  }, []);
 
   const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
   // Dead time → auto-run a featured replay through the live pipeline.
@@ -127,27 +117,6 @@ export default function Home() {
   // external input. Badged honestly as PREVIEW by LiveInstrument.
   const isPreview = !hasLive && !isReplay && !launchingReplay;
 
-  // Detect score/stat changes → fire signal animations. Detection is
-  // suspended during replay (events drive signals directly) and preview
-  // (the loop drives signals directly).
-  const {
-    signalVersion,
-    lastSignalType,
-    scoringTeam,
-    setSignalVersion,
-    setLastSignalType,
-    setScoringTeam,
-    handleMatchEvent,
-  } = useMatchSignals({ snapshot: liveSnapshot, detect: !isReplay && !isPreview });
-
-  const { previewFixture } = usePreviewLoop({
-    active: isPreview,
-    setSnapshot: setLiveSnapshot as (s: LiveMatchSnapshot | null) => void,
-    setLastSignalType,
-    setSignalVersion,
-    setScoringTeam,
-  });
-
   const { market: primaryMarket, position: primaryPosition } = usePrimaryOpenPosition(markets, positions);
 
   const featuredMarket = useMemo(() => {
@@ -163,39 +132,52 @@ export default function Home() {
     }
     return fixtures.find((f) => isFixtureLive(f)) ?? fixtures[0] ?? null;
   }, [fixtures, primaryMarket]);
-  // During a replay the hero shows the replay match; during preview the
-  // synthetic preview fixture; otherwise the live/next fixture.
-  const heroFixture = isPreview ? previewFixture : (isReplay && replayFixture ? replayFixture : featuredFixture);
+
+  const heroFixture = isPreview
+    ? null
+    : isReplay && replayFixture
+    ? replayFixture
+    : featuredFixture;
+
+  const polledSnapshot = useFixtureScore(
+    isReplay || isPreview || !featuredFixture || !isFixtureLive(featuredFixture)
+      ? null
+      : featuredFixture.FixtureId
+  );
+  const liveSnapshot = isReplay || isPreview ? overrideSnapshot : polledSnapshot;
+
+  // Detect score/stat changes → fire signal animations. Detection is
+  // suspended during replay (events drive signals directly) and preview
+  // (the loop drives signals directly).
+  const {
+    signalVersion,
+    lastSignalType,
+    scoringTeam,
+    setSignalVersion,
+    setLastSignalType,
+    setScoringTeam,
+    handleMatchEvent,
+  } = useMatchSignals({ snapshot: liveSnapshot, detect: !isReplay && !isPreview });
+
+  const { previewFixture } = usePreviewLoop({
+    active: isPreview,
+    setSnapshot: setOverrideSnapshot as (s: LiveMatchSnapshot | null) => void,
+    setLastSignalType,
+    setSignalVersion,
+    setScoringTeam,
+  });
+
+  const resolvedHeroFixture = isPreview ? previewFixture : heroFixture;
   const otherMarkets = useMemo(
     () => Object.values(markets).filter((m) => m.id !== featuredMarket?.id).slice(0, 3),
     [markets, featuredMarket],
   );
 
-  // Poll live score when a real match is live (skipped during replay and
-  // preview — the SSE phase / preview loop drives the snapshot there).
-  useEffect(() => {
-    if (isReplay || isPreview) return;
-    if (!featuredFixture || !isFixtureLive(featuredFixture)) {
-      setLiveSnapshot(null);
-      return;
-    }
-    let cancelled = false;
-    const refresh = () => {
-      void fetch(`/api/fixtures/${featuredFixture.FixtureId}/score`)
-        .then((res) => (res.ok ? res.json() : Promise.reject()))
-        .then((data: LiveMatchSnapshot) => { if (!cancelled) setLiveSnapshot(data); })
-        .catch(() => { if (!cancelled) setLiveSnapshot(null); });
-    };
-    refresh();
-    const id = window.setInterval(refresh, 15_000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, [featuredFixture]);
-
   // Lift the replay's SSE phase into the hero snapshot. Score comes from
   // phase; corners/cards are accumulated from the event stream (the phase
   // payload doesn't carry stats).
   const onReplayPhase = useCallback((phase: { score: { home: number; away: number } }) => {
-    setLiveSnapshot({
+    setOverrideSnapshot({
       updatedAt: Date.now(),
       score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
       stats: { ...replayStatsRef.current },
@@ -281,7 +263,7 @@ export default function Home() {
         {/* Centre: single live instrument (match ↔ market) */}
         <div className="live-stage" id="live-stage">
           <LiveInstrument
-            fixture={heroFixture}
+            fixture={resolvedHeroFixture}
             snapshot={liveSnapshot}
             market={featuredMarket}
             marketsLoading={marketsLoading}
@@ -336,7 +318,9 @@ export default function Home() {
           <div className="hero-grooves" aria-hidden="true">
             <SpinningGrooves size={520} rings={6} color="var(--blue)" counterRotate speed={0.7} />
           </div>
-          <SharpMoves />
+          <LazyWhenVisible minHeight={120}>
+            <SharpMoves />
+          </LazyWhenVisible>
           <HeroMarketRail markets={otherMarkets} />
           {publicKey && (
             <Achievements history={history} positions={positions} />

@@ -3,6 +3,8 @@ import { WalletContextProvider } from "@/components/WalletProvider";
 import { ReferralInit } from "@/components/ReferralInit";
 import { InstrumentNav } from "@/components/InstrumentNav";
 import { RouteFrame } from "@/components/RouteFrame";
+import { ChainMonitor } from "@/components/ChainMonitor";
+import { AppMonitors } from "@/components/AppMonitors";
 import { LivePnLStrip } from "@/components/LivePnLStrip";
 import { ActivitySurfaces } from "@/components/ActivitySurfaces";
 import { OddsMovementAlerts } from "@/components/OddsMovementAlerts";
@@ -68,6 +70,8 @@ export default function RootLayout({
       <body>
         <WalletContextProvider>
           <ReferralInit />
+          <ChainMonitor />
+          <AppMonitors />
           <InstrumentNav />
           <LivePnLStrip />
           <RouteFrame>{children}</RouteFrame>

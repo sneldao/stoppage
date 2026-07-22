@@ -1,50 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface OddsShift {
-  marketId: string;
-  label: string;
-  fromYes: number;
-  toYes: number;
-  delta: number;
-  direction: "up" | "down";
-  toTs: number;
-}
+import { useStoppageStore } from "@/store";
 
 /**
  * Sharp movement detector — surfaces significant odds shifts the agent
- * flagged over its 60s lookback window. Each shift is a logged signal
- * pulled directly from TxLINE odds data, matching the track's suggested
- * "Sharp Movement Detector" project.
+ * flagged over its 60s lookback window.
  */
 export function SharpMoves() {
-  const [shifts, setShifts] = useState<OddsShift[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/odds/shifts");
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) {
-            setShifts(data.shifts ?? []);
-            setLoading(false);
-          }
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    const id = window.setInterval(load, 10_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, []);
+  const shifts = useStoppageStore((s) => s.oddsShifts);
+  const loading = useStoppageStore((s) => s.oddsShiftsLoading);
 
   return (
     <div className="sharp-moves">
@@ -57,7 +21,6 @@ export function SharpMoves() {
       </div>
 
       {loading ? (
-        /* Skeleton — prevents layout jump and shows the feature exists */
         <ul className="sharp-moves-skeleton" aria-label="Loading odds shifts">
           {[1, 2, 3].map((n) => (
             <li key={n} className="shift-skeleton-row" aria-hidden="true" />
@@ -166,7 +129,6 @@ export function SharpMoves() {
           color: var(--muted-dim);
           font-size: 7px;
         }
-        /* Loading skeleton */
         .sharp-moves-skeleton {
           list-style: none;
           margin: 0;

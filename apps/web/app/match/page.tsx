@@ -5,9 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
-import type { Fixture } from "@stoppage/txline";
 import { useMarkets } from "@/lib/markets/useMarkets";
-import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
@@ -17,64 +15,60 @@ import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
 import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { SharpMoves } from "@/components/SharpMoves";
+import { LazyWhenVisible } from "@/components/LazyWhenVisible";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MatchSignal } from "@/components/MatchSignal";
 import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
+import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive } from "@/lib/match/fixtures";
-
-type FixtureWithMatchId = Fixture & { matchId: string };
-
-interface LiveMatchSnapshot {
-  updatedAt: number | null;
-  score: { home: number; away: number };
-  stats: { corners: number; cards: number };
-}
-
-function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
-  if (!snapshot?.updatedAt) return false;
-  const timestamp = snapshot.updatedAt < 1_000_000_000_000 ? snapshot.updatedAt * 1_000 : snapshot.updatedAt;
-  return Date.now() - timestamp <= 45_000;
-}
+import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
+import { snapshotIsFresh, type LiveMatchSnapshot } from "@/lib/match/types";
 
 function MatchRoomContent() {
   const searchParams = useSearchParams();
   const { markets } = useMarkets();
-  useHeliusMonitor();
   useMyPositions();
   const { publicKey } = useWallet();
   const positions = useStoppageStore((state) => state.positions);
   const feed = useStoppageStore((state) => state.feed);
-  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
-  const [snapshot, setSnapshot] = useState<LiveMatchSnapshot | null>(null);
+  const { fixtures } = useFixtures();
+  const [replaySnapshot, setReplaySnapshot] = useState<LiveMatchSnapshot | null>(null);
   const [autoReplayFixtureId, setAutoReplayFixtureId] = useState<number | null>(null);
-  const [replayActive, setReplayActive] = useState(false);
-  const orderedMarkets = useMemo(() => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)), [markets]);
+  const replayActive = useStoppageStore((state) => Boolean(state.replayStatus?.active));
+
+  const orderedMarkets = useMemo(
+    () => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)),
+    [markets]
+  );
+  const matchIds = useMemo(
+    () => [...new Set(orderedMarkets.map((market) => String(market.predicate.matchId)))],
+    [orderedMarkets]
+  );
   const requestedMatchId = searchParams.get("match");
-  const selectedMatchId = requestedMatchId && orderedMarkets.some((market) => String(market.predicate.matchId) === requestedMatchId)
+  const selectedMatchId = requestedMatchId && matchIds.includes(requestedMatchId)
     ? requestedMatchId
-    : orderedMarkets[0] ? String(orderedMarkets[0].predicate.matchId) : null;
+    : matchIds[0] ?? null;
+
   const fixture = useMemo(() => {
     if (selectedMatchId) return fixtures.find((item) => item.matchId === selectedMatchId) ?? null;
     return fixtures.find((item) => isFixtureLive(item)) ?? fixtures[0] ?? null;
   }, [fixtures, selectedMatchId]);
-  const live = isFixtureLive(fixture);
 
-  // Live drama layer — goal/card/corner detection drives MatchPulse ripples
-  // and the MomentAlert overlay. Snapshot diffs detect while the poll runs
-  // (real live matches); SSE events drive signals directly during replays.
+  const live = isFixtureLive(fixture);
+  const polledSnapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);
+  const snapshot = live ? polledSnapshot : replaySnapshot;
+
   const { signalVersion, lastSignalType, scoringTeam, handleMatchEvent } = useMatchSignals({
     snapshot,
     detect: live,
   });
 
-  // During replays the score poll is off, so accumulate corner/card events
-  // into the scoreboard stats. When live, the poll stays authoritative.
   const onMatchEvent = useCallback((evt: { type: string; team?: unknown }) => {
     handleMatchEvent(evt);
     if (!live && (evt.type === "corner_awarded" || evt.type === "card_shown")) {
-      setSnapshot((prev) => prev ? {
+      setReplaySnapshot((prev) => prev ? {
         ...prev,
         stats: {
           corners: prev.stats.corners + (evt.type === "corner_awarded" ? 1 : 0),
@@ -83,43 +77,27 @@ function MatchRoomContent() {
       } : prev);
     }
   }, [handleMatchEvent, live]);
-  const matchMarkets = useMemo(() => selectedMatchId ? orderedMarkets.filter((market) => String(market.predicate.matchId) === selectedMatchId) : orderedMarkets, [orderedMarkets, selectedMatchId]);
+
+  const matchMarkets = useMemo(
+    () => selectedMatchId
+      ? orderedMarkets.filter((market) => String(market.predicate.matchId) === selectedMatchId)
+      : orderedMarkets,
+    [orderedMarkets, selectedMatchId]
+  );
+
   const ownedPositions = useMemo(() => {
     if (!publicKey) return [];
     const marketIds = new Set(matchMarkets.map((market) => market.id));
-    return Object.values(positions).filter((position) => position.owner === publicKey.toBase58() && marketIds.has(position.marketId));
+    return Object.values(positions).filter(
+      (position) => position.owner === publicKey.toBase58() && marketIds.has(position.marketId)
+    );
   }, [matchMarkets, positions, publicKey]);
+
   const phase = matchMarkets.find((market) => market.status === "open")?.status ?? matchMarkets[0]?.status ?? "open";
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/fixtures")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Fixture feed unavailable")))
-      .then((data) => { if (!cancelled) setFixtures(data.fixtures ?? []); })
-      .catch(() => { if (!cancelled) setFixtures([]); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (!fixture) { setSnapshot(null); return; }
-    if (!isFixtureLive(fixture)) return; // skip poll for non-live; the SSE phase drives the snapshot during replays
-    let cancelled = false;
-    const refresh = () => {
-      void fetch(`/api/fixtures/${fixture.FixtureId}/score`)
-        .then((response) => response.ok ? response.json() : Promise.reject(new Error("Score feed unavailable")))
-        .then((data: LiveMatchSnapshot) => { if (!cancelled) setSnapshot(data); })
-        .catch(() => { if (!cancelled) setSnapshot(null); });
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 15_000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [fixture]);
 
   const matchActivity = useMemo(() => {
     if (!selectedMatchId) return [];
     const seen = new Set<string>();
-    // Reads from the single store feed (SSE-backed via useActivityFeedMonitor)
-    // instead of a per-page poll — one subscription over polling.
     return feed
       .filter((event) => event.matchId === selectedMatchId)
       .filter((event) => {
@@ -133,7 +111,6 @@ function MatchRoomContent() {
 
   const fresh = snapshotIsFresh(snapshot);
 
-  // Auto-cycle through previous-game replays when no live match is selected.
   const completedFixtures = useMemo(() => fixtures
     .filter((f) => { const s = f.GameState as unknown; return s !== 1 && s !== 2 && s !== 4; })
     .sort((a, b) => {
@@ -155,31 +132,20 @@ function MatchRoomContent() {
     return () => window.clearInterval(id);
   }, [live, requestedMatchId, completedFixtures, replayActive]);
 
-  // Poll replay status so auto-cycle pauses while a replay is running.
-  useEffect(() => {
-    let cancelled = false;
-    const poll = () => {
-      void fetch("/api/replay")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (!cancelled && data?.status) setReplayActive(Boolean(data.status.active));
-        })
-        .catch(() => {});
-    };
-    poll();
-    const timer = window.setInterval(poll, 5_000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, []);
-
   return (
     <main className="app-shell">
       <div className="match-room">
         <MatchPulse live={live} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--match" />
         <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={snapshot} scoringTeam={scoringTeam} />
         <header className="match-room-header">
-          <div><p className="eyebrow">Match</p><h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1></div>
+          <div>
+            <p className="eyebrow">Match</p>
+            <h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1>
+          </div>
           <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>
         </header>
+
+        <MatchFixturePicker fixtures={fixtures} matchIds={matchIds} selectedMatchId={selectedMatchId} />
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
           <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Awaiting kickoff" : "No live match right now"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
@@ -189,10 +155,9 @@ function MatchRoomContent() {
             <LiveMatchBar
               matchId={selectedMatchId}
               onNewEvent={onMatchEvent}
-              onPhase={(phase) => setSnapshot((prev) => ({
+              onPhase={(phase) => setReplaySnapshot((prev) => ({
                 updatedAt: Date.now(),
                 score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
-                // Preserve running stats — the phase payload doesn't carry them.
                 stats: prev?.stats ?? { corners: 0, cards: 0 },
               }))}
             />
@@ -205,7 +170,9 @@ function MatchRoomContent() {
         </section>
 
         <MatchSignal markets={matchMarkets} />
-        <SharpMoves />
+        <LazyWhenVisible minHeight={120}>
+          <SharpMoves />
+        </LazyWhenVisible>
 
         <section className="match-ownership" aria-label="Your match position">
           <div><p className="eyebrow">Your positions</p><h2>{ownedPositions.length ? `${ownedPositions.length} open ${ownedPositions.length === 1 ? "bet" : "bets"}` : "No bets yet."}</h2></div>

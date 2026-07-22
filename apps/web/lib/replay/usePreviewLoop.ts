@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo } from "react";
 import type { Fixture } from "@stoppage/txline";
+import { usePageVisible } from "@/lib/dom/usePageVisible";
 
 interface PreviewSnapshot {
   updatedAt: number | null;
@@ -57,18 +58,21 @@ interface UsePreviewLoopOptions {
 
 export function usePreviewLoop(opts: UsePreviewLoopOptions) {
   const { active, setSnapshot, setLastSignalType, setSignalVersion, setScoringTeam } = opts;
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
     if (!active) return;
+    setSnapshot({ updatedAt: Date.now(), score: { home: 0, away: 0 }, stats: { corners: 0, cards: 0 } });
+  }, [active, setSnapshot]);
+
+  useEffect(() => {
+    if (!active || !pageVisible) return;
     const reduceMotion = typeof window !== "undefined" && window.matchMedia
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
-
-    // Kick off with a static 0-0 so the face isn't blank.
-    setSnapshot({ updatedAt: Date.now(), score: { home: 0, away: 0 }, stats: { corners: 0, cards: 0 } });
     if (reduceMotion) return;
 
-    let step = 1; // start at first goal
+    let step = 1;
     const advance = () => {
       const s = SCRIPT[step % SCRIPT.length];
       const corners = step;
@@ -84,7 +88,7 @@ export function usePreviewLoop(opts: UsePreviewLoopOptions) {
     advance();
     const id = window.setInterval(advance, 13_000); // a goal every ~13s
     return () => window.clearInterval(id);
-  }, [active, setSnapshot, setLastSignalType, setSignalVersion, setScoringTeam]);
+  }, [active, pageVisible, setSnapshot, setLastSignalType, setSignalVersion, setScoringTeam]);
 
   return useMemo(() => ({ previewFixture: PREVIEW_FIXTURE }), []);
 }

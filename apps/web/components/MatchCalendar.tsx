@@ -1,37 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Fixture } from "@stoppage/txline";
+import { useFixtures } from "@/lib/match/useFixtures";
 
 /**
  * Match calendar — shows upcoming fixtures from TxLINE.
  *
- * Fetches the fixture list from the TxLINE API via the web app's
- * server-side API route (keeps credentials off the client).
+ * Reads from the shared fixtures store (FixturesMonitor) instead of
+ * fetching independently.
  */
 export function MatchCalendar() {
-  const [fixtures, setFixtures] = useState<Fixture[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { fixtures, fixturesLoading } = useFixtures();
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/fixtures");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!cancelled) setFixtures(data.fixtures ?? []);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (loading) {
+  if (fixturesLoading) {
     return (
       <div className="match-calendar">
         <h2>Upcoming matches</h2>
@@ -40,13 +20,11 @@ export function MatchCalendar() {
     );
   }
 
-  if (error || fixtures.length === 0) {
+  if (fixtures.length === 0) {
     return (
       <div className="match-calendar">
         <h2>Upcoming matches</h2>
-        <p className="cal-meta">
-          {error ? `Failed to load: ${error}` : "No upcoming fixtures."}
-        </p>
+        <p className="cal-meta">No upcoming fixtures.</p>
       </div>
     );
   }

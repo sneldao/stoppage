@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import { useStoppageStore } from "@/store";
 import { computeHistoryStats } from "@/store/historySlice";
@@ -61,7 +62,13 @@ export function PositionHistory() {
   const isHotStreak = stats.currentStreak >= 3;
 
   if (history.length === 0) {
-    return null;
+    return (
+      <div className="position-history position-history--empty">
+        <h2>Bet history</h2>
+        <p>Settled bets, W/L, and net PnL show up here after your first market closes.</p>
+        <Link href="/markets" className="position-history-cta">Browse live markets →</Link>
+      </div>
+    );
   }
 
   return (

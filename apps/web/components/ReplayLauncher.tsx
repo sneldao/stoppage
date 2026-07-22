@@ -1,78 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface ReplayStatus {
-  active: boolean;
-  fixtureId?: number;
-  matchId?: string;
-  homeTeam?: string;
-  awayTeam?: string;
-  startedAt?: number;
-  finished?: boolean;
-}
+import { useEffect } from "react";
+import { useReplay } from "@/lib/replay/useReplay";
 
 interface ReplayLauncherProps {
-  /** Fixtures available to replay (completed / past). */
   fixtures: Array<{ FixtureId: number; Participant1: string; Participant2: string; StartTime: string }>;
   onLaunched?: (matchId: string) => void;
-  /** If provided, automatically launch this fixture when it changes. */
   autoLaunchFixtureId?: number | null;
 }
 
 export function ReplayLauncher({ fixtures, onLaunched, autoLaunchFixtureId }: ReplayLauncherProps) {
-  const [status, setStatus] = useState<ReplayStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { status, launching: busy, error, launch } = useReplay();
 
-  // Poll replay status while active so the UI reflects completion.
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/replay");
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) setStatus(data.status ?? null);
-        }
-      } catch { /* agent unreachable */ }
-    };
-    poll();
-    const id = window.setInterval(poll, 5000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, []);
-
-  // Auto-launch when the parent cycles the fixture id.
   useEffect(() => {
     if (!autoLaunchFixtureId || status?.active) return;
     const exists = fixtures.some((f) => f.FixtureId === autoLaunchFixtureId);
     if (exists) {
-      void launch(autoLaunchFixtureId);
-    }
-  }, [autoLaunchFixtureId, fixtures, status?.active]);
-
-  const launch = async (fixtureId: number) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/replay", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fixtureId }),
+      void launch(autoLaunchFixtureId).then((next) => {
+        if (next?.matchId) onLaunched?.(next.matchId);
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Replay failed to start");
-      } else {
-        const status = data.status as ReplayStatus;
-        setStatus(status);
-        if (status.matchId) onLaunched?.(status.matchId);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Agent unreachable");
-    } finally {
-      setBusy(false);
     }
+  }, [autoLaunchFixtureId, fixtures, status?.active, launch, onLaunched]);
+
+  const handleLaunch = async (fixtureId: number) => {
+    const next = await launch(fixtureId);
+    if (next?.matchId) onLaunched?.(next.matchId);
   };
 
   if (fixtures.length === 0 && !status?.active) return null;
@@ -94,7 +46,7 @@ export function ReplayLauncher({ fixtures, onLaunched, autoLaunchFixtureId }: Re
               key={f.FixtureId}
               className="replay-fixture"
               disabled={busy}
-              onClick={() => void launch(f.FixtureId)}
+              onClick={() => void handleLaunch(f.FixtureId)}
             >
               <strong>{f.Participant1} v {f.Participant2}</strong>
               <span>{new Date(f.StartTime).toLocaleDateString([], { month: "short", day: "numeric" })} · replay →</span>

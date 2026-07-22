@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
-import { useHeliusMonitor } from "@/lib/helius/useHeliusMonitor";
 import { impliedProbability } from "@stoppage/sdk";
 import type { Market } from "@stoppage/sdk";
-import type { Fixture } from "@stoppage/txline";
 import { buildMarketTweet, buildTweetIntent } from "@/lib/share/tweet";
 import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
@@ -20,12 +19,15 @@ import { ProofBoard } from "@/components/ProofBoard";
 import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { MarketsEmptyState } from "@/components/MarketsEmptyState";
-import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { OddsNumber } from "@/components/OddsNumber";
 import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
 import { isFixtureLive } from "@/lib/match/fixtures";
+import { useFixtures } from "@/lib/match/useFixtures";
 
-type FixtureWithMatchId = Fixture & { matchId: string };
+const SpinningGrooves = dynamic(
+  () => import("@/components/SpinningGrooves").then((m) => m.SpinningGrooves),
+  { ssr: false }
+);
 
 function statusBadge(status: Market["status"]) {
   const map: Record<Market["status"], string> = {
@@ -117,27 +119,16 @@ function MarketRow({ market }: { market: Market }) {
 }
 
 export default function MarketsPage() {
-  const { markets, refresh } = useMarkets();
+  useMarkets();
   useMyPositions();
-  useHeliusMonitor();
+  const markets = useStoppageStore((s) => s.markets);
   const marketsLoading = useStoppageStore((s) => s.marketsLoading);
+  const history = useStoppageStore((s) => s.history);
+  const positions = useStoppageStore((s) => s.positions);
+  const hasPersonalData = history.length > 0 || Object.keys(positions).length > 0;
   const [filter, setFilter] = useState<TapeFilter>("all");
-  const [fixtures, setFixtures] = useState<FixtureWithMatchId[]>([]);
-
-  // Silent auto-refresh every 12 s — markets settle and open in real time
-  useEffect(() => {
-    const id = window.setInterval(() => void refresh(), 12_000);
-    return () => window.clearInterval(id);
-  }, [refresh]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/fixtures")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Fixture feed unavailable")))
-      .then((data: { fixtures?: FixtureWithMatchId[] }) => { if (!cancelled) setFixtures(data.fixtures ?? []); })
-      .catch(() => { if (!cancelled) setFixtures([]); });
-    return () => { cancelled = true; };
-  }, []);
+  const { fixtures } = useFixtures();
+  useMarkets();
 
   const sorted = useMemo(() => {
     const order: Record<Market["status"], number> = {
@@ -239,7 +230,12 @@ export default function MarketsPage() {
                             <em className="tape-match-live"><i className="live-dot" /> LIVE</em>
                           )}
                         </span>
-                        <small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small>
+                        <div className="tape-match-heading-right">
+                          <small>{matchMarkets.length} {matchMarkets.length === 1 ? "market" : "markets"}</small>
+                          <Link href={`/match?match=${encodeURIComponent(matchId)}`} className="tape-match-room-link">
+                            Match room →
+                          </Link>
+                        </div>
                       </div>
                       {matchMarkets.map((market) => <MarketRow key={market.id} market={market} />)}
                     </section>
@@ -257,7 +253,7 @@ export default function MarketsPage() {
         </div>
 
         {/* Personal history — collapsed by default, out of judges' way */}
-        <details className="tape-personal-details">
+        <details className="tape-personal-details" open={hasPersonalData}>
           <summary>My positions &amp; history</summary>
           <div className="tape-personal-body">
             <PositionHistory />

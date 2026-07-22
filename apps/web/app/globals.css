@@ -3673,6 +3673,7 @@ body {
 .global-ticker-label { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--lime); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
 .global-ticker-track { display: flex; gap: 26px; flex: 1; min-width: 0; overflow: hidden; animation: ticker-scroll 42s linear infinite; }
 .global-ticker:hover .global-ticker-track { animation-play-state: paused; }
+.page-hidden .global-ticker-track { animation-play-state: paused; }
 .global-ticker-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; }
 .global-ticker-item .global-ticker-time { color: var(--muted-dim); }
 .global-ticker-item .global-ticker-text { color: var(--ink); }
@@ -4044,3 +4045,90 @@ body {
 .op-moat ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .op-moat li { padding: 13px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.55; }
 .op-moat strong { color: var(--ink); }
+
+/* === UX PASS — nav, positions, mobile bet dock === */
+.nav-route--secondary { opacity: .72; }
+.nav-session-text { white-space: nowrap; }
+.nav-feed-label { white-space: nowrap; }
+
+.position-history--empty {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.position-history--empty h2 { margin: 0 0 8px; font-size: 18px; }
+.position-history--empty p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.position-history-cta { color: var(--lime); font: 500 11px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
+
+.mobile-bet-dock { gap: 12px; }
+.mobile-bet-dock-action {
+  border: 0;
+  background: transparent;
+  color: var(--lime);
+  font: 700 11px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mobile-bet-dock-action:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 800px) {
+  .nav-route--secondary { display: none; }
+  .instrument-nav .nav-session { display: inline-flex; max-width: 72px; overflow: hidden; }
+  .instrument-nav .nav-session-text { overflow: hidden; text-overflow: ellipsis; font-size: 8px; }
+  .nav-feed-label { display: none; }
+  .positions-body { grid-template-columns: 1fr; gap: 28px; }
+  .positions-side-col { order: -1; }
+  .market-shell { padding-bottom: 88px; }
+  .mobile-bet-dock { display: flex; }
+}
+
+@media (min-width: 801px) {
+  .mobile-bet-dock { display: none; }
+}
+
+/* === UX PASS — match fixture picker === */
+.match-fixture-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+.match-fixture-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--muted);
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: border-color .15s, color .15s;
+}
+.match-fixture-chip:hover { border-color: var(--blue); color: var(--ink); }
+.match-fixture-chip.active {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: rgba(0, 255, 136, .06);
+}
+.match-fixture-chip--live .live-dot { width: 6px; height: 6px; }
+
+.tape-match-heading-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tape-match-room-link {
+  color: var(--lime);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tape-match-room-link:hover { text-decoration: underline; }
