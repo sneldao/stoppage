@@ -161,6 +161,8 @@ function MatchGroup({
       <div
         id={`match-group-${matchId}`}
         className={`tape-match-group__body ${expanded ? "tape-match-group__body--open" : ""}`}
+        aria-hidden={!expanded}
+        inert={!expanded}
       >
         <div className="tape-match-group__inner">
           {markets.map((market) => (
@@ -196,7 +198,7 @@ export default function MarketsPage() {
   const positions = useStoppageStore((s) => s.positions);
   const hasPersonalData = history.length > 0 || Object.keys(positions).length > 0;
   const [filter, setFilter] = useState<TapeFilter>("open");
-  const { fixtures } = useFixtures();
+  const { fixtures, fixturesLoading } = useFixtures();
 
   const sorted = useMemo(() => {
     const order: Record<Market["status"], number> = {
@@ -258,11 +260,11 @@ export default function MarketsPage() {
       setShowMoreLimit(INITIAL_GROUPS_SHOWN);
       return;
     }
-    if (!initializedRef.current && !marketsLoading && byMatch.length > 0) {
+    if (!initializedRef.current && !marketsLoading && !fixturesLoading && byMatch.length > 0) {
       initializedRef.current = true;
       setExpandedMatches(buildDefaultExpanded(byMatch, fixtureByMatchId));
     }
-  }, [filter, byMatch, fixtureByMatchId, marketsLoading]);
+  }, [filter, byMatch, fixtureByMatchId, marketsLoading, fixturesLoading]);
 
   const visibleGroups = byMatch.slice(0, showMoreLimit);
   const hasMore = byMatch.length > showMoreLimit;
@@ -294,15 +296,14 @@ export default function MarketsPage() {
         </div>
 
         <div className="markets-toolbar">
-          <div className="markets-filter-chips" role="tablist" aria-label="Market state filters">
+          <div className="markets-filter-chips" role="group" aria-label="Market state filters">
             {tapeFilters.map((item) => {
               const active = filter === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  role="tab"
-                  aria-selected={active}
+                  aria-pressed={active}
                   className={active ? "active" : ""}
                   onClick={() => setFilter(item.id)}
                 >
