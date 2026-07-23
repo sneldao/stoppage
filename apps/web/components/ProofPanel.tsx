@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Market } from "@stoppage/sdk";
+import { buildProofTweet, buildTweetIntent } from "@/lib/share/tweet";
 
 interface ProofPanelProps {
   market: Market;
@@ -238,14 +239,31 @@ export function ProofPanel({ market }: ProofPanelProps) {
       </div>
 
       {verify.kind === "receipt-checked" && verify.data.explorerUrl && (
-        <a
-          className="proof-explorer-link"
-          href={verify.data.explorerUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          View settlement transaction <span>↗</span>
-        </a>
+        <>
+          <a
+            className="proof-explorer-link"
+            href={verify.data.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View settlement transaction <span>↗</span>
+          </a>
+          <a
+            className="proof-share-btn"
+            href={buildTweetIntent(
+              buildProofTweet(
+                market,
+                verify.data.merkleRoot ?? "",
+                verify.data.explorerUrl,
+                typeof window !== "undefined" ? `${window.location.origin}/markets/${market.id}` : "",
+              ),
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Share the proof on X
+          </a>
+        </>
       )}
 
       <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">

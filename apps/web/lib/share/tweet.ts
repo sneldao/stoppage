@@ -105,3 +105,38 @@ export function buildResolutionTweet(
     url,
   ].join("\n");
 }
+
+/**
+ * Build a proof-centric tweet — the proof is the primary marketing artifact.
+ *
+ * Unlike buildResolutionTweet (which is about the user's call), this leads
+ * with the cryptographic proof: the Merkle root, the on-chain CPI
+ * verification, and the Explorer transaction link. The market question
+ * and outcome are context, not the headline.
+ *
+ * @param market - The settled market
+ * @param merkleRoot - The anchored Merkle root (hex string)
+ * @param explorerUrl - Solana Explorer link to the settlement transaction
+ * @param marketUrl - The market page URL for "verify yourself"
+ */
+export function buildProofTweet(
+  market: Market,
+  merkleRoot: string,
+  explorerUrl: string,
+  marketUrl: string,
+): string {
+  const label = formatMarketQuestion(market.predicate);
+  const shortRoot = merkleRoot.length > 16
+    ? `${merkleRoot.slice(0, 8)}…${merkleRoot.slice(-8)}`
+    : merkleRoot;
+  return [
+    `⚽ Settlement verified from on-chain proof.`,
+    ``,
+    `${label} → outcome ${market.outcome.toUpperCase()}`,
+    `Merkle root: ${shortRoot}`,
+    `TxLINE validate_stat CPI confirmed in-tx.`,
+    ``,
+    `Inspect the proof:`,
+    explorerUrl,
+  ].join("\n");
+}
