@@ -31,20 +31,29 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 
 async function fetchSolPrice(): Promise<EnrichmentItem | null> {
   try {
-    const resp = await fetch("https://price.jup.ag/v6/price?ids=SOL", {
+    // Jupiter Price Lite API v3 — free, no key. Uses the wrapped SOL mint
+    // address (So111...11112) as the token id.
+    const solMint = "So11111111111111111111111111111111111111112";
+    const resp = await fetch(`https://lite-api.jup.ag/price/v3?ids=${solMint}`, {
       signal: AbortSignal.timeout(SOL_TIMEOUT_MS),
       cache: "no-store",
     });
     if (!resp.ok) return null;
-    const data = (await resp.json()) as {
-      data?: { SOL?: { price?: number } };
-    };
-    const price = data.data?.SOL?.price;
+    const data = (await resp.json()) as Record<
+      string,
+      { usdPrice?: number; priceChange24h?: number } | undefined
+    >;
+    const price = data[solMint]?.usdPrice;
     if (price == null || !Number.isFinite(price)) return null;
+    const change = data[solMint]?.priceChange24h;
+    const changeStr =
+      change != null && Number.isFinite(change)
+        ? ` ${change >= 0 ? "+" : ""}${(change * 100).toFixed(1)}% 24h`
+        : "";
     return {
       id: "sol:price",
       source: "sol",
-      label: `SOL $${price.toFixed(2)}`,
+      label: `SOL $${price.toFixed(2)}${changeStr}`,
       ts: Date.now(),
     };
   } catch {
