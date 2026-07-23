@@ -132,31 +132,38 @@ function MatchGroup({
     : `Match ${matchId}`;
   const time = live ? null : formatFixtureTime(fixture);
 
+  const headingId = `match-heading-${matchId}`;
+
   return (
-    <section className={`tape-match-group ${live ? "tape-match-group--live" : ""}`}>
-      <button
-        type="button"
-        className="tape-match-heading"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls={`match-group-${matchId}`}
-      >
-        <span className="tape-match-heading__title">
-          {label}
-          {live && (
-            <em className="tape-match-live">
-              <i className="live-dot" /> LIVE
-            </em>
-          )}
-          {time && <small className="tape-match-heading__time">{time}</small>}
-        </span>
-        <span className="tape-match-heading__right">
-          <small>
-            {markets.length} {markets.length === 1 ? "market" : "markets"}
-          </small>
-          <span className="tape-match-heading__chevron" aria-hidden="true" />
-        </span>
-      </button>
+    <section
+      className={`tape-match-group ${live ? "tape-match-group--live" : ""}`}
+      aria-labelledby={headingId}
+    >
+      <h2 id={headingId} className="tape-match-heading__h2">
+        <button
+          type="button"
+          className="tape-match-heading"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls={`match-group-${matchId}`}
+        >
+          <span className="tape-match-heading__title">
+            {label}
+            {live && (
+              <em className="tape-match-live">
+                <i className="live-dot" /> LIVE
+              </em>
+            )}
+            {time && <small className="tape-match-heading__time">{time}</small>}
+          </span>
+          <span className="tape-match-heading__right">
+            <small>
+              {markets.length} {markets.length === 1 ? "market" : "markets"}
+            </small>
+            <span className="tape-match-heading__chevron" aria-hidden="true" />
+          </span>
+        </button>
+      </h2>
 
       <div
         id={`match-group-${matchId}`}
