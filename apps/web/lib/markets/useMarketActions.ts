@@ -5,6 +5,10 @@
  * composes @stoppage/sdk instruction builders with the wallet adapter
  * (for wallet-signed actions) and signWithSessionKey (for the no-popup
  * join — rule 5). Results are reflected into the store by callers.
+ *
+ * HARD GATE: join methods validate fixture availability before building
+ * transactions. Cannot bet on markets without match data (trust violation:
+ * users staking SOL on conditions they can't verify).
  */
 
 import { useCallback } from "react";
@@ -24,6 +28,7 @@ import {
 } from "@stoppage/sdk";
 import type { Keypair } from "@solana/web3.js";
 import { useStoppageStore } from "@/store";
+import { validateFixtureForBetting } from "./fixtureValidator";
 
 export interface JoinParams {
   market: PublicKey;
@@ -71,19 +76,39 @@ export function useMarketActions() {
     [connection, publicKey, sendTransaction]
   );
 
-  /** Join via the connected wallet (one popup). */
+  /**
+   * Validate fixture availability for a market before allowing join.
+   * Reads fixtures from store synchronously — no async fetch needed.
+   */
+  const validateFixture = useCallback((marketAddr: PublicKey): void => {
+    const { fixtures, markets } = useStoppageStore.getState();
+    const validation = validateFixtureForBetting(markets, fixtures, marketAddr);
+    if (!validation.canBet) {
+      throw new Error(validation.reason ?? "Cannot place bet on this market");
+    }
+  }, []);
+
+  /**
+   * Join via the connected wallet (one popup).
+   * HARD GATE: validates fixture availability before building transaction.
+   */
   const joinViaWallet = useCallback(
     async ({ market, side, amountLamports }: JoinParams) => {
       if (!publicKey) throw new Error("Wallet not connected");
+      
+      // Gate: cannot bet without fixture data
+      validateFixture(market);
+      
       const ix = buildJoinViaWalletIx(publicKey, market, side, amountLamports);
       return sendWalletTx(ix);
     },
-    [publicKey, sendWalletTx]
+    [publicKey, sendWalletTx, validateFixture]
   );
 
   /**
    * Join via a session key — NO wallet popup (rule 5). The session key
    * signs and pays; the position is attributed to the owner wallet.
+   * HARD GATE: validates fixture availability before building transaction.
    */
   const joinViaSessionKey = useCallback(
     async (
@@ -91,6 +116,9 @@ export function useMarketActions() {
       owner: PublicKey,
       { market, side, amountLamports }: JoinParams
     ) => {
+      // Gate: cannot bet without fixture data
+      validateFixture(market);
+      
       const ix = buildJoinViaSessionKeyIx(
         sessionKeypair.publicKey,
         owner,
@@ -100,7 +128,7 @@ export function useMarketActions() {
       );
       return signAndConfirmWithSessionKey(connection, sessionKeypair, [ix]);
     },
-    [connection]
+    [connection, validateFixture]
   );
 
   /** Claim a settled position (wallet signs). Records to history. */

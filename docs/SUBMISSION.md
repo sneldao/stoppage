@@ -24,6 +24,36 @@ with its Ed25519 key. Anyone can re-run the published model against the
 anchored snapshot and confirm the price — the "no black box" loop that
 onchain apps can offer and web2 sportsbooks cannot.
 
+## Strategic Thesis
+
+The product is the settlement primitive, not the betting app. The
+reference UI proves the loop end-to-end; the settlement program + SDK
+are the product surface for operators. The creative monopoly is
+narrow and specific: the first settlement primitive where fund release
+is cryptographically gated on an on-chain proof verification for
+sports markets. The expansion path is more stat types → more oracle
+types → more chains.
+
+The moat is the schlep. Encoding TxLINE's borsh types into the exact
+byte format `validate_stat` expects, aligning fixture IDs / sequence
+numbers / stat keys / JWT credentials, and building the CPI path that
+makes proof verification a settlement precondition — this is painful,
+un-tutorializable work that no one else on Solana has done. The fact
+that it's hard is the reason the opportunity exists.
+
+The proof is the primary marketing artifact. Every settled market
+produces a shareable proof: the Merkle root, the on-chain CPI
+verification, the settlement transaction, and the fund release — all
+in one atomic transaction. This is the "oh shit" moment that no
+oracle-based protocol can replicate. The demo should lead with it.
+
+The verifiable quant model is the secondary secret. Open-source models
+are reproducible in theory but not in practice — you need the exact
+input snapshot. Stoppage anchors the snapshot hash on-chain, so
+"Verify this price" reproduces the exact computation, not an
+approximation. This eliminates the black-box trust assumption that
+every sportsbook — on-chain or off — silently makes.
+
 ## What To Show In The Demo
 
 1. Open the deployed app and show the live match instrument on mobile width.

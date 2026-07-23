@@ -22,7 +22,7 @@ import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
 import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
-import { isFixtureLive } from "@/lib/match/fixtures";
+import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { useMatchRoomReplay } from "@/lib/replay/useMatchRoomReplay";
 import { snapshotIsFresh, type LiveMatchSnapshot } from "@/lib/match/types";
@@ -193,7 +193,32 @@ function MatchRoomContent() {
           <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2 id="match-live-reads-title">Markets for this match.</h2></div><span>{matchMarkets.length} active</span></div>
           {matchMarkets.length ? <div className="match-market-list">{matchMarkets.map((market) => {
             const odds = impliedProbability(market);
-            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><OddsSparkline marketId={market.id} currentYes={odds.yes} /><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
+            
+            // Determine betting gate state for this market
+            let bettingBlocked = false;
+            let blockedReason = "";
+            if (market.status === "open" && fixture) {
+              // Match ended
+              if (fixture.GameState > 4) {
+                bettingBlocked = true;
+                blockedReason = "Match ended";
+              }
+              // Pre-match: kickoff > 2h away
+              else if (isFixtureScheduled(fixture)) {
+                const startTime = fixtureStartTimeMs(fixture);
+                const hoursUntilKickoff = (startTime - Date.now()) / (1000 * 60 * 60);
+                if (hoursUntilKickoff > 2) {
+                  bettingBlocked = true;
+                  blockedReason = "Opens in 2h";
+                }
+              }
+            } else if (market.status === "open" && !fixture) {
+              // No fixture data available
+              bettingBlocked = true;
+              blockedReason = "Awaiting data";
+            }
+            
+            return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}{bettingBlocked && <span className="market-tape-row__blocked" title={blockedReason}>⚠</span>}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><OddsSparkline marketId={market.id} currentYes={odds.yes} /><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
           })}</div> : <div className="match-room-empty">Markets will appear here when the match context supports them.</div>}
         </section>
 

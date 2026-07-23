@@ -8,6 +8,59 @@ and executes a defined strategy. **Submissions close July 19, 2026 at
 This file is the single status ledger. If something is deployed, broken,
 or descoped, it's recorded here and nowhere else.
 
+## Strategic direction
+
+**The product is the settlement primitive, not the betting app.**
+
+The reference UI proves the loop end-to-end (delegate → bet → settle →
+prove). The settlement program + SDK are the product surface for
+operators. The creative monopoly is narrow: the first settlement
+primitive where fund release is cryptographically gated on an on-chain
+proof verification for sports markets. Own that market of one, then
+expand.
+
+**Expansion path:** more TxLINE stat types (next_goal_within,
+card_shown — already scaffolded, need proof mappings) → more oracle
+types (the CPI pattern is oracle-agnostic in principle) → more chains.
+Each step is a schlep (borsh encoding, proof alignment, CPI path).
+The schlep is the moat — if it were easy, Polymarket would already
+have proof-gated settlement.
+
+**Post-hackathon identity decision:** the next 3 months look completely
+different depending on the answer. If settlement infrastructure: make
+the settlement program + SDK consumable by a third party, write the
+integration guide, find one betting protocol that wants to use it. If
+betting app: get 10 real users through the loop on a real match. The
+codebase supports both; the decision determines what to build next.
+
+**Distribution is woven into the product:**
+- The proof is the primary marketing artifact. Every settled market
+  should produce a shareable proof card (Merkle root, CPI verification,
+  settlement tx, fund release — all atomic). This is the thing no
+  competitor can produce. Future: "share this proof" feature.
+- The `/operators` page is the B2B distribution channel — developer-facing
+  pitch with SDK integration snippets and a clear "your markets settle
+  like this" demo.
+- Blinks make every market a shareable Solana Action. Someone posts a
+  market on X, someone else bets without leaving Twitter.
+- The "Verify this price" button is a demonstration that doubles as
+  marketing — when the price reproduces, the differentiator is felt
+  viscerally, not explained abstractly.
+- The global ticker is a retention loop — SOL price, live scores, and
+  on-this-day sports history keep the page open, increasing the
+  probability of conversion.
+
+**Things that don't scale (and should):**
+- Matchkeeper as a single PM2 process on one VPS. Proves the loop;
+  decentralizing the keeper comes after the CPI path is battle-tested.
+- Hand-seeded devnet markets. One real user loop on a real match is
+  worth more than 50 seeded markets. Target: one real match in the
+  KeeperHub hackathon window (through Aug 13) with real bets and real
+  proof-gated settlement.
+- Hardcoded launch templates (corners_over, total_goals_over). Don't
+  build a general predicate system until two specific predicates have
+  settled real markets.
+
 ## Current state (2026-07-20)
 
 - Monorepo builds end to end (web app, SDK, both Anchor programs).

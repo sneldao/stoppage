@@ -3585,6 +3585,22 @@ body {
 .global-ticker-item--fact .global-ticker-badge { border-color: var(--amber); color: var(--amber); }
 .global-ticker-item--fact .global-ticker-text { color: var(--ink); }
 
+/* Betting blocked state — shown when market is open but fixture data unavailable */
+.market-bet-slip--blocked { padding: 32px 24px; text-align: center; background: var(--panel); border: 1px solid var(--amber); border-radius: 4px; margin: 24px 0; }
+.bet-blocked-icon { font-size: 48px; margin-bottom: 16px; color: var(--amber); }
+.bet-blocked-title { font-size: 20px; font-weight: 600; color: var(--ink); margin: 0 0 8px; font-family: var(--font-mono); letter-spacing: 0.02em; }
+.bet-blocked-reason { font-size: 14px; color: var(--amber); margin: 0 0 20px; font-weight: 500; }
+.bet-blocked-explanation { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 24px; max-width: 480px; margin-left: auto; margin-right: auto; }
+.bet-blocked-hint { text-align: left; max-width: 480px; margin: 0 auto; padding: 16px; background: var(--panel-alt); border-radius: 4px; }
+.bet-blocked-hint strong { display: block; font-size: 12px; color: var(--ink); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.bet-blocked-hint ul { margin: 0; padding-left: 20px; list-style: none; }
+.bet-blocked-hint li { position: relative; padding-left: 16px; margin-bottom: 8px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.bet-blocked-hint li::before { content: "→"; position: absolute; left: 0; color: var(--amber); }
+.bet-blocked-hint li:last-child { margin-bottom: 0; }
+
+/* Betting blocked warning badge in market lists */
+.market-tape-row__blocked { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 6px; font-size: 11px; color: var(--amber); background: rgba(251, 191, 36, 0.15); border: 1px solid var(--amber); border-radius: 2px; vertical-align: middle; cursor: help; }
+
 /* Event toasts — slide-in from right */
 .event-toasts { position: fixed; top: 84px; right: 16px; z-index: 50; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
 .event-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid var(--line); border-left: 3px solid var(--lime); border-radius: 3px; background: var(--panel); box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; animation: toast-slide-in .4s var(--ease) both; }

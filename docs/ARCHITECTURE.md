@@ -2,8 +2,44 @@
 
 This document describes the design. Sequencing, status, and acceptance
 criteria live in [ROADMAP.md](./ROADMAP.md); working rules and module
-boundaries live in [../CLAUDE.md](../CLAUDE.md). The one sequencing
-principle worth restating here: **session-key signing is built first,
+boundaries live in [../CLAUDE.md](../CLAUDE.md).
+
+## Why this exists
+
+The product is the settlement primitive, not the betting app. Every
+existing sports market protocol on Solana settles from an off-chain
+oracle — a multisig signs, a token-staked committee votes, or an admin
+key overrides. None can show you the cryptographic proof that the score
+was 2-1 *and* that the proof was verified inside the transaction that
+released the funds. Stoppage can.
+
+The settlement program (`programs/settlement`) is the keystone. Its sole
+job: given a predicate outcome claim, CPI into TxLINE's `validate_stat`
+to confirm it against the cryptographically anchored match data, then
+emit a proof-carrying event so the market can be settled and the UI can
+render the proof. If `validate_stat` rejects the proof, the entire
+transaction reverts — settlement IS conditional on on-chain proof
+verification, not contingent on an oracle's word.
+
+The reference betting UI exists to prove the loop end-to-end: delegate
+session key → bet with no popup → match ends → agent fetches Merkle
+proof → `resolve_market` CPIs into `validate_stat` → `settle_from_proof`
+releases the vault → user sees the proof. The UI is the demo; the
+settlement program + SDK are the product. The `/operators` page frames
+this as B2B infrastructure: other betting protocols can integrate the
+settlement layer without adopting the reference UI.
+
+The moat is the schlep: encoding TxLINE's borsh types (ScoreStat,
+StatTerm, ProofNode, TraderPredicate, Comparison, BinaryExpression,
+Option) into the exact byte format `validate_stat` expects, aligning
+fixture IDs / sequence numbers / stat keys / JWT credentials, and
+building the CPI path. This is the kind of work that takes days, has
+no tutorial, and makes you question your life choices. It's also the
+reason no one else has done it.
+
+## Design principles
+
+The one sequencing principle worth restating here: **session-key signing is built first,
 end to end** — one real transaction signed by a delegated session key
 with no wallet popup. Nothing else matters if that doesn't work on
 camera.

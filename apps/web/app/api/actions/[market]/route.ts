@@ -6,6 +6,10 @@
  * POST -> given a chosen side + amount, returns an unsigned join-via-wallet
  *         transaction for the user's wallet to sign. (Session-key signing is
  *         a client-side flow; Blinks use the wallet path.)
+ *
+ * HARD GATE: validates fixture availability before building transactions.
+ * Cannot bet on markets without match data (trust violation: users staking
+ * SOL on conditions they can't verify).
  */
 
 import { NextRequest } from "next/server";
@@ -21,6 +25,8 @@ import {
   impliedProbability,
   PREDICATE_LABEL,
 } from "@stoppage/sdk";
+import { fetchFixtures, loadCredentials, attachReplayableFlags, matchIdFromFixture } from "@stoppage/txline";
+import { validateFixtureForBettingAsync } from "@/lib/markets/fixtureValidator";
 import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/actions/cors";
 
 // Default stake for a Blink join (0.05 SOL). The Actions spec allows a
@@ -129,6 +135,27 @@ export async function POST(
     const m = await getMarket(conn, marketPk);
     if (m.status !== "open") {
       return actionJson({ error: `market is ${m.status}` }, { status: 400 });
+    }
+
+    // HARD GATE: validate fixture availability before building transaction.
+    // Fetch fixtures server-side and validate the specific matchId.
+    const { network, creds } = loadCredentials();
+    const fixtures = await fetchFixtures(network, creds);
+    const enriched = await attachReplayableFlags(network, creds, fixtures);
+    const fixturesWithMatchId = enriched.map((fixture) => ({
+      ...fixture,
+      matchId: matchIdFromFixture(fixture),
+    }));
+    const validation = await validateFixtureForBettingAsync(
+      fixturesWithMatchId,
+      marketPk,
+      async () => m
+    );
+    if (!validation.canBet) {
+      return actionJson(
+        { error: validation.reason ?? "Cannot place bet on this market" },
+        { status: 400 }
+      );
     }
 
     const ix = buildJoinViaWalletIx(accountPk, marketPk, side, DEFAULT_AMOUNT_LAMPORTS);

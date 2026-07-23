@@ -16,7 +16,7 @@ import { MatchPulse } from "@/components/MatchPulse";
 import { OpenPositionsBanner } from "@/components/OpenPositionsBanner";
 import { MarketsEmptyState } from "@/components/MarketsEmptyState";
 import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
-import { isFixtureLive, fixtureStartTimeMs } from "@/lib/match/fixtures";
+import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { useFixtures } from "@/lib/match/useFixtures";
 import type { FixtureWithMatchId } from "@/lib/match/types";
 
@@ -56,13 +56,37 @@ function formatFixtureTime(fixture: FixtureWithMatchId | undefined) {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function MarketRow({ market }: { market: Market }) {
+function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithMatchId }) {
   const odds = impliedProbability(market);
   const pred = market.predicate;
   const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
   const team = pred.params.team ? ` · ${pred.params.team}` : "";
   const total = market.yesPool + market.noPool;
   const isOpen = market.status === "open";
+
+  // Determine betting gate state for this market
+  let bettingBlocked = false;
+  let blockedReason = "";
+  if (isOpen && fixture) {
+    // Match ended
+    if (fixture.GameState > 4) {
+      bettingBlocked = true;
+      blockedReason = "Match ended";
+    }
+    // Pre-match: kickoff > 2h away
+    else if (isFixtureScheduled(fixture)) {
+      const startTime = fixtureStartTimeMs(fixture);
+      const hoursUntilKickoff = (startTime - Date.now()) / (1000 * 60 * 60);
+      if (hoursUntilKickoff > 2) {
+        bettingBlocked = true;
+        blockedReason = "Opens in 2h";
+      }
+    }
+  } else if (isOpen && !fixture) {
+    // No fixture data available
+    bettingBlocked = true;
+    blockedReason = "Awaiting data";
+  }
 
   // Subtle background flash when odds or pool move between refreshes.
   const [flash, setFlash] = useState(false);
@@ -85,6 +109,11 @@ function MarketRow({ market }: { market: Market }) {
         <span>
           {PREDICATE_LABEL[pred.kind] ?? pred.kind} {param}
           {team}
+          {bettingBlocked && (
+            <span className="market-tape-row__blocked" title={blockedReason}>
+              ⚠
+            </span>
+          )}
         </span>
         <small>pool {SOL(total)}</small>
       </div>
@@ -173,7 +202,7 @@ function MatchGroup({
       >
         <div className="tape-match-group__inner">
           {markets.map((market) => (
-            <MarketRow key={market.id} market={market} />
+            <MarketRow key={market.id} market={market} fixture={fixture} />
           ))}
         </div>
       </div>

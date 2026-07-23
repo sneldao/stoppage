@@ -24,6 +24,7 @@ import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigning
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MarketMatchContext } from "@/components/MarketMatchContext";
+import { useBettingGate } from "@/lib/match/useBettingGate";
 import { CallCard } from "@/components/CallCard";
 import { ResolutionCard } from "@/components/ResolutionCard";
 import { OdometerPool } from "@/components/OdometerPool";
@@ -164,6 +165,11 @@ export default function MarketDetailPage() {
   const odds = market ? impliedProbability(market) : { yes: 0.5, no: 0.5 };
   const amountLamports = Math.round(parseFloat(amountSol || "0") * LAMPORTS_PER_SOL);
 
+  // Betting gate — blocks betting when fixture data is unavailable or match state
+  // doesn't allow it. The proof path panel shows "awaiting" for these states;
+  // the bet slip must not contradict it.
+  const bettingGate = useBettingGate(market?.predicate.matchId ?? "");
+
   const run = async (label: string, fn: () => Promise<ActionResult>, viaSession = false) => {
     setBusy(label);
     setError(null);
@@ -265,7 +271,11 @@ export default function MarketDetailPage() {
     );
   }
 
-  const canJoin = market.status === "open";
+  // canJoin = market is open AND betting gate allows it (fixture data available,
+  // match state permits betting). The proof path panel shows "awaiting" when
+  // the gate blocks — the bet slip must never contradict it.
+  const canJoin = market.status === "open" && bettingGate.canBet;
+  const marketOpenButBlocked = market.status === "open" && !bettingGate.canBet;
   const canClaim = (market.status === "settled" || market.status === "void") && myPosition && myPosition.amountLamports > 0;
   const isWinner = market.status === "settled" && myPosition && myPosition.side === market.outcome;
   const executionBusy = busy?.startsWith("join");
@@ -320,6 +330,52 @@ export default function MarketDetailPage() {
 
           {/* ── Odds surge callout — loud when ≥10pp swings in 60s ── */}
           {canJoin && <OddsSurgeCallout market={market} />}
+
+          {/* ── Betting blocked state — market is open but fixture data unavailable ── */}
+          {marketOpenButBlocked && (
+            <section className="market-bet-slip market-bet-slip--blocked" aria-label="Betting unavailable">
+              <div className="bet-blocked-icon" aria-hidden="true">⚠</div>
+              <h2 className="bet-blocked-title">Betting not available</h2>
+              <p className="bet-blocked-reason">{bettingGate.reason}</p>
+              <p className="bet-blocked-explanation">
+                {bettingGate.gate === "awaiting_fixture" && (
+                  <>We don't have match data to resolve this bet against. The proof path is waiting for fixture confirmation. Betting will open once match data is available.</>
+                )}
+                {bettingGate.gate === "match_ended" && (
+                  <>This match has ended. The market is awaiting settlement proof. No new positions can be opened.</>
+                )}
+                {bettingGate.gate === "pre_match_too_early" && (
+                  <>This match hasn't started yet and kickoff is more than 2 hours away. Betting opens closer to match time when the proof path is confirmed.</>
+                )}
+              </p>
+              <div className="bet-blocked-hint">
+                <strong>What's happening:</strong>
+                <ul>
+                  {bettingGate.gate === "awaiting_fixture" && (
+                    <>
+                      <li>The Matchkeeper is waiting for TxLINE to confirm this fixture</li>
+                      <li>Once confirmed, the proof path will be established</li>
+                      <li>Betting will open automatically</li>
+                    </>
+                  )}
+                  {bettingGate.gate === "match_ended" && (
+                    <>
+                      <li>The match has finished</li>
+                      <li>The Matchkeeper is validating the settlement proof</li>
+                      <li>Existing positions will be settled once proof validates</li>
+                    </>
+                  )}
+                  {bettingGate.gate === "pre_match_too_early" && (
+                    <>
+                      <li>The match is scheduled but hasn't started</li>
+                      <li>Betting opens within 2 hours of kickoff</li>
+                      <li>The proof path will be established before betting opens</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            </section>
+          )}
 
           {/* ── Bet slip ── */}
           {canJoin && (
