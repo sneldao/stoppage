@@ -35,13 +35,14 @@ export function useHeliusMonitor() {
   const monitorRef = useRef<HeliusMonitor | null>(null);
 
   useEffect(() => {
+    // transactionSubscribe WebSockets only work on Helius (or similar enhanced
+    // RPC). Public cluster endpoints (api.devnet.solana.com) reject them — fall
+    // back to polling instead of spamming failed connections.
+    const heliusUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
     const rpcUrl =
-      process.env.NEXT_PUBLIC_HELIUS_RPC_URL ||
-      (connection.rpcEndpoint.startsWith("https")
-        ? connection.rpcEndpoint
-        : undefined);
+      heliusUrl && !heliusUrl.includes("YOUR_API_KEY") ? heliusUrl : undefined;
 
-    if (!rpcUrl || rpcUrl.includes("YOUR_API_KEY")) {
+    if (!rpcUrl) {
       // No Helius URL configured — polling via useMarkets.refresh().
       setFeedState("polling");
       return;

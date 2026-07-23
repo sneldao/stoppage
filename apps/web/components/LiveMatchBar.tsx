@@ -126,7 +126,12 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
   const esRef = useRef<EventSource | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const prevPhaseRef = useRef<string | null>(null);
+  const onNewEventRef = useRef(onNewEvent);
+  const onPhaseRef = useRef(onPhase);
   const [phaseTransition, setPhaseTransition] = useState<string | null>(null);
+
+  onNewEventRef.current = onNewEvent;
+  onPhaseRef.current = onPhase;
 
   useEffect(() => {
     if (!matchId) return;
@@ -141,14 +146,17 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
         const data: SSEMessage = JSON.parse(msg.data);
         if (data.type === "init" && data.phase) {
           setPhase(data.phase);
-          onPhase?.(data.phase);
+          onPhaseRef.current?.(data.phase);
           if (data.recentEvents) setEvents(data.recentEvents);
         } else if (data.type === "event") {
-          if (data.phase) { setPhase(data.phase); onPhase?.(data.phase); }
+          if (data.phase) {
+            setPhase(data.phase);
+            onPhaseRef.current?.(data.phase);
+          }
           if (data.event) {
             setEvents((prev) => [data.event!, ...prev].slice(0, 30));
             playEventSound(data.event.type);
-            if (onNewEvent) onNewEvent(data.event);
+            onNewEventRef.current?.(data.event);
           }
         }
       } catch { /* skip malformed */ }
@@ -159,7 +167,7 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
       esRef.current = null;
       setConnected(false);
     };
-  }, [matchId, onNewEvent, onPhase]);
+  }, [matchId]);
 
   useEffect(() => {
     if (phase?.phaseLabel && prevPhaseRef.current !== null && prevPhaseRef.current !== phase.phaseLabel) {
