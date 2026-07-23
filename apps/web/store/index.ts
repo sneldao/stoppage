@@ -14,14 +14,16 @@ import { createFixturesSlice, type FixturesSlice } from "./fixturesSlice";
 import { createOddsHistorySlice, type OddsHistorySlice } from "./oddsHistorySlice";
 import { createReplaySlice, type ReplaySlice } from "./replaySlice";
 import { createAgentDataSlice, type AgentDataSlice } from "./agentDataSlice";
+import { createTickerSlice, type TickerSlice } from "./tickerSlice";
 export { computeHistoryStats } from "./historySlice";
 export type { HistoryStats, SettledPosition } from "./historySlice";
 export { TOAST_KINDS } from "./activityFeedSlice";
 export type { OddsPoint } from "./oddsHistorySlice";
 export type { ReplayStatus } from "./replaySlice";
 export type { BoardData, BoardEntry, OddsShift } from "./agentDataSlice";
+export type { TickerItem, TickerSource } from "./tickerSlice";
 
-export type StoppageStore = MarketsSlice & PositionsSlice & ReferralSlice & HistorySlice & ActivitySlice & ActivityFeedSlice & FixturesSlice & OddsHistorySlice & ReplaySlice & AgentDataSlice;
+export type StoppageStore = MarketsSlice & PositionsSlice & ReferralSlice & HistorySlice & ActivitySlice & ActivityFeedSlice & FixturesSlice & OddsHistorySlice & ReplaySlice & AgentDataSlice & TickerSlice;
 
 export const useStoppageStore = create<StoppageStore>()((...args) => ({
   ...createMarketsSlice(...args),
@@ -34,4 +36,5 @@ export const useStoppageStore = create<StoppageStore>()((...args) => ({
   ...createOddsHistorySlice(...args),
   ...createReplaySlice(...args),
   ...createAgentDataSlice(...args),
+  ...createTickerSlice(...args),
 }));

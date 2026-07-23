@@ -3568,6 +3568,18 @@ body {
 .global-ticker-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; }
 .global-ticker-item .global-ticker-time { color: var(--muted-dim); }
 .global-ticker-item .global-ticker-text { color: var(--ink); }
+.global-ticker-badge { display: inline-flex; align-items: center; padding: 1px 5px; border: 1px solid var(--line); color: var(--muted-dim); font: 500 7px "DM Mono", monospace; letter-spacing: .08em; }
+/* Source-rail coloring: protocol events get lime, odds get amber, live fixtures get blue */
+.global-ticker-item--protocol .global-ticker-text { color: var(--lime); }
+.global-ticker-item--protocol .global-ticker-badge { border-color: var(--lime); color: var(--lime); }
+.global-ticker-item--odds .global-ticker-badge { border-color: var(--amber); color: var(--amber); }
+.global-ticker-item--fixture .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
+.global-ticker-item--fixture .global-ticker-text { color: var(--ink); }
+.global-ticker-item--sol .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
+.global-ticker-item--sol .global-ticker-text { color: var(--blue); }
+.global-ticker-item--sports .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
+.global-ticker-item--pool .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
+.global-ticker-item--quote .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* Event toasts — slide-in from right */
