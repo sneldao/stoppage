@@ -4044,6 +4044,59 @@ body {
 .cal-verify--ok { border-color: var(--lime); color: var(--lime); }
 .cal-verify--bad { border-color: #ff958c; color: #ff958c; }
 
+.cal-scoreboard { margin-top: 44px; }
+.cal-scoreboard-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.cal-scoreboard-head h2 { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
+.cal-scoreboard-stats {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 18px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #111827;
+}
+.cal-stat { display: grid; gap: 4px; min-width: 100px; }
+.cal-stat__value {
+  font: 500 28px "DM Mono", monospace;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.cal-stat__label {
+  font: 500 10px "DM Mono", monospace;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+.cal-stat small { color: var(--muted-dim); font-size: 10px; line-height: 1.4; }
+.cal-curve { justify-self: end; max-width: 100%; }
+.cal-curve-axis { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cal-curve-perfect { stroke: var(--muted-dim); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.cal-curve-dot { fill: var(--blue); opacity: .9; }
+.cal-curve-label { fill: var(--muted-dim); font: 500 8px "DM Mono", monospace; letter-spacing: .04em; }
+
+.cal-settled-table { margin-top: 18px; border-top: 1px solid var(--line); }
+.cal-settled-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.6fr) auto auto 1fr auto;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+  font-size: 12px;
+}
+.cal-settled-row--head {
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+.cal-settled-row strong { font: 500 13px "DM Mono", monospace; color: var(--ink); }
+.cal-outcome-yes { color: var(--lime); font: 500 10px "DM Mono", monospace; }
+.cal-outcome-no { color: #ff958c; font: 500 10px "DM Mono", monospace; }
+.cal-source { color: var(--muted); font: 500 9px "DM Mono", monospace; line-height: 1.4; }
+.cal-brier-contrib { color: var(--muted-dim); font: 500 11px "DM Mono", monospace; font-variant-numeric: tabular-nums; }
+
 .verify-latest-quote { margin-top: 14px; display: grid; gap: 8px; }
 .verify-latest-quote button {
   align-self: start;
@@ -4120,6 +4173,16 @@ body {
   .cal-row .cal-ci { grid-column: 1; grid-row: 3; }
   .cal-row .cal-model { grid-column: 2; grid-row: 3; text-align: right; }
   .cal-row .cal-verify { grid-column: 1 / -1; grid-row: 4; justify-self: stretch; text-align: center; padding: 8px; }
+  .cal-scoreboard-stats { grid-template-columns: 1fr; }
+  .cal-curve { justify-self: start; }
+  .cal-settled-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 14px 0;
+  }
+  .cal-settled-row--head { display: none; }
+  .cal-settled-row .cal-market-link { grid-column: 1 / -1; }
+  .cal-settled-row .cal-source { grid-column: 1 / -1; font-size: 10px; }
 }
 
 /* === UX PASS — nav, positions, mobile bet dock === */

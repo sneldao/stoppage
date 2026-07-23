@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { MARKET_PROGRAM_ID, parseMarket } from "@stoppage/sdk";
+import { MARKET_PROGRAM_ID, MARKET_ACCOUNT_SIZE, parseMarket } from "@stoppage/sdk";
 import { useStoppageStore } from "@/store";
 
 /**
@@ -39,7 +39,7 @@ export function useMarkets() {
       const resp = await connectionRef.current.getProgramAccounts(
         new PublicKey(MARKET_PROGRAM_ID),
         {
-          filters: [{ dataSize: 8 + 1 + 32 + 8 + 8 + 32 + 8 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 2 + 4 + 1 }],
+          filters: [{ dataSize: MARKET_ACCOUNT_SIZE }],
           commitment: "confirmed",
         }
       );

@@ -543,6 +543,31 @@ export function buildVerifyPricingIx(
 
 // ── Account parsing ─────────────────────────────────────────────────
 
+/**
+ * On-chain byte size of a Market account (8-byte discriminator + fields),
+ * mirroring `Market::space()` in programs/market/src/lib.rs. Single source
+ * of truth for the `dataSize` filter used by getProgramAccounts callers.
+ * CLAUDE.md rule 6: do not duplicate this constant in callers.
+ */
+export const MARKET_ACCOUNT_SIZE =
+  8 + // discriminator
+  1 + // kind (PredicateKind)
+  32 + // match_id
+  8 + // team
+  8 + // param_u64
+  32 + // creator
+  8 + // bond_lamports
+  1 + // bond_claimed
+  8 + // yes_pool
+  8 + // no_pool
+  8 + // closes_at
+  8 + // settles_at
+  1 + // status
+  1 + // outcome
+  2 + // fee_bps
+  4 + // verifications
+  1; // bump
+
 /** Parse a raw account buffer into a Market object. */
 export function parseMarket(accountData: Buffer, marketAddress: string): Market {
   // Skip 8-byte discriminator.

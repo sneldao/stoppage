@@ -1,8 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { MARKET_PROGRAM_ID, parseMarket, readU64LE, type Market } from "@stoppage/sdk";
+import { MARKET_PROGRAM_ID, MARKET_ACCOUNT_SIZE, parseMarket, readU64LE, type Market } from "@stoppage/sdk";
 import { NextResponse } from "next/server";
 
-const MARKET_ACCOUNT_SIZE = 8 + 1 + 32 + 8 + 8 + 32 + 8 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 2 + 4 + 1;
 const POSITION_ACCOUNT_SIZE = 8 + 32 + 32 + 1 + 8 + 1 + 1;
 const PUBLIC_DEVNET_RPC = "https://api.devnet.solana.com";
 let shyftIndexAvailable: boolean | null = null;

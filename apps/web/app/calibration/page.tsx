@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { CalibrationQuoteRow } from "@/components/CalibrationQuoteRow";
+import { CalibrationScoreboard } from "@/components/CalibrationScoreboard";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
@@ -34,7 +35,7 @@ export default function CalibrationPage() {
           <h1>Was the model right?</h1>
           <p className="page-lede page-lede--short">
             Every quote is anchored to a Merkle-proven TxLINE snapshot and a published model.
-            Settled markets will score the line against reality — auditable, not a black box.
+            Settled markets are scored against on-chain receipts — auditable, not a black box.
           </p>
         </header>
 
@@ -61,6 +62,8 @@ export default function CalibrationPage() {
             </div>
           </div>
         </section>
+
+        <CalibrationScoreboard />
 
         <section className="cal-board">
           <div className="cal-board-head">
