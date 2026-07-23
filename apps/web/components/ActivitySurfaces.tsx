@@ -37,7 +37,7 @@ const SOURCE_BADGE: Record<TickerSource, string> = {
   pool: "TVL",
   sol: "SOL",
   sports: "SPORT",
-  fact: "",
+  fact: "OTD",
 };
 
 function EventToasts({ toasts, dismiss }: { toasts: MatchEvent[]; dismiss: (id: string) => void }) {

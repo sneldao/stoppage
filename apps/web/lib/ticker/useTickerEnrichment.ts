@@ -20,7 +20,7 @@ const POLL_MS = 90_000;
 interface EnrichmentResponse {
   items: Array<{
     id: string;
-    source: "sol" | "sports";
+    source: "sol" | "sports" | "fact";
     label: string;
     ts: number;
   }>;

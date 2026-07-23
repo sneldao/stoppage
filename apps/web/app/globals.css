@@ -3580,6 +3580,8 @@ body {
 .global-ticker-item--sports .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
 .global-ticker-item--pool .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
 .global-ticker-item--quote .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
+.global-ticker-item--fact .global-ticker-badge { border-color: var(--amber); color: var(--amber); }
+.global-ticker-item--fact .global-ticker-text { color: var(--ink); }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* Event toasts — slide-in from right */
