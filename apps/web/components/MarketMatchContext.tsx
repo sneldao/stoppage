@@ -6,35 +6,10 @@ import { isFixtureLive } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { snapshotIsFresh } from "@/lib/match/types";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
+import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
 
 function asMilliseconds(ts: number) {
   return ts < 1_000_000_000_000 ? ts * 1_000 : ts;
-}
-
-function safeStartTime(fixture: { StartTime: unknown }): Date {
-  const raw = fixture.StartTime as unknown;
-  if (typeof raw === "number") return new Date(raw * 1000);
-  if (typeof raw === "string") return new Date(raw);
-  return new Date(0);
-}
-
-function useCountdown(target: Date | null): string {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    if (!target) return;
-    const tick = () => {
-      const diff = target.getTime() - Date.now();
-      if (diff <= 0) { setLabel("Now"); return; }
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      const s = Math.floor((diff % 60_000) / 1_000);
-      setLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
-    };
-    tick();
-    const id = setInterval(tick, 1_000);
-    return () => clearInterval(id);
-  }, [target]);
-  return label;
 }
 
 export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | number; onSnapshot?: (snapshot: LiveMatchSnapshot | null) => void }) {

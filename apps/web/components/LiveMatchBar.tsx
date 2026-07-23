@@ -170,12 +170,14 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
   }, [matchId]);
 
   useEffect(() => {
-    if (phase?.phaseLabel && prevPhaseRef.current !== null && prevPhaseRef.current !== phase.phaseLabel) {
-      setPhaseTransition(phase.phaseLabel);
-      const t = setTimeout(() => setPhaseTransition(null), 1500);
-      return () => clearTimeout(t);
+    const label = phase?.phaseLabel ?? null;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    if (label && prevPhaseRef.current !== null && prevPhaseRef.current !== label) {
+      setPhaseTransition(label);
+      t = setTimeout(() => setPhaseTransition(null), 1500);
     }
-    prevPhaseRef.current = phase?.phaseLabel ?? null;
+    prevPhaseRef.current = label;
+    return () => { if (t) clearTimeout(t); };
   }, [phase?.phaseLabel]);
 
   useEffect(() => {

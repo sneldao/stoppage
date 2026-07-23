@@ -7,6 +7,7 @@ import type { Fixture } from "@stoppage/txline";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
 import { formatSol as SOL, formatMarketQuestion, countryFlag } from "@/lib/format";
+import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
 import { useStoppageStore } from "@/store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,32 +41,7 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
   return Date.now() - ts <= 45_000;
 }
 
-function safeStartTime(fixture: Fixture): Date {
-  const raw = fixture.StartTime as unknown;
-  if (typeof raw === "number") return new Date(raw < 1_000_000_000_000 ? raw * 1000 : raw);
-  if (typeof raw === "string") return new Date(raw);
-  return new Date(0);
-}
 
-function useCountdown(target: Date | null): string {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    if (!target) return;
-    const tick = () => {
-      const diff = target.getTime() - Date.now();
-      if (diff <= 0) { setLabel("Now"); return; }
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      const s = Math.floor((diff % 60_000) / 1_000);
-      const days = Math.floor(h / 24);
-      setLabel(days > 1 ? `${days}d ${h % 24}h` : h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
-    };
-    tick();
-    const id = setInterval(tick, 1_000);
-    return () => clearInterval(id);
-  }, [target]);
-  return label;
-}
 
 // ─── EventTicker ──────────────────────────────────────────────────────────────
 
