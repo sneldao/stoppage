@@ -8,7 +8,7 @@
 
 export const tapeFilters = [
   { id: "all", label: "All" },
-  { id: "open", label: "Live" },
+  { id: "open", label: "Open" },
   { id: "awaiting_settlement", label: "Settling" },
   { id: "settled", label: "Resolved" },
 ] as const;

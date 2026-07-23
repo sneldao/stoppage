@@ -27,10 +27,10 @@ const COPY: Record<
     switchHint: null,
   },
   open: {
-    head: "Nothing is live right now.",
+    head: "Nothing is open right now.",
     badge: "Quiet",
     hint:
-      "Markets open at kickoff and stay live through the match. The next fixture's slate lands here automatically once Matchkeeper publishes it.",
+      "Markets open at kickoff and stay open through the match. The next fixture's slate lands here automatically once Matchkeeper publishes it.",
     switchTo: "settled",
     switchHint: "Or browse Resolved to see how past markets ran.",
   },
@@ -38,7 +38,7 @@ const COPY: Record<
     head: "Nothing is settling right now.",
     badge: "Quiet",
     hint:
-      "Settlement windows are short — they open at the final whistle and close after the on-chain proof verifies. Try Live while you wait.",
+      "Settlement windows are short — they open at the final whistle and close after the on-chain proof verifies. Try Open while you wait.",
     switchTo: "open",
     switchHint: "Or browse Resolved for past results.",
   },
