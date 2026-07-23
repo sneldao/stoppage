@@ -3,24 +3,22 @@
 import Link from "next/link";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
+import { CalibrationQuoteRow } from "@/components/CalibrationQuoteRow";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
+import { useMarkets } from "@/lib/markets/useMarkets";
+import { useStoppageStore } from "@/store";
 
 /**
  * Calibration page — the public, verifiable "was the model right?" board.
  *
- * This is the social/competitive hook that ONLY works because predictions are
- * on-chain and provable: every quoted probability is anchored to a TxLINE
- * snapshot + a published model, and every settlement outcome is proof-gated.
- * So a Brier score / calibration curve over settled markets is auditable by
- * anyone — web2 can't offer that because their model is proprietary.
- *
- * The leaderboard populates from settled markets (Person 2's attested
- * pricing + settlement). Until history accrues, it shows the methodology and
- * the live model lines feeding it. No fabricated backtest numbers.
+ * The leaderboard populates from settled markets as they resolve.
+ * Until history accrues, the live model lines feed the board. No fabricated backtest numbers.
  */
 
 export default function CalibrationPage() {
+  useMarkets();
   const { quotes, streaming } = useAllQuotes();
+  const replayActive = useStoppageStore((s) => Boolean(s.replayStatus?.active));
 
   return (
     <main className="page-shell calibration-page">
@@ -28,19 +26,17 @@ export default function CalibrationPage() {
         <div className="cal-grooves" aria-hidden="true">
           <SpinningGrooves size={360} rings={5} color="var(--blue)" counterRotate speed={0.5} />
         </div>
-        <header className="page-head">
+
+        <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+
+        <header className="page-head page-head--compact">
           <p className="eyebrow">Verifiable calibration</p>
           <h1>Was the model right?</h1>
-          <p className="page-lede">
-            Every Matchkeeper quote is anchored to a Merkle-proven TxLINE snapshot and a
-            published, open-source model. Every settlement is proof-gated on-chain. That
-            means the model&apos;s quoted probabilities can be checked against reality — a
-            Brier score and calibration curve anyone can audit. A web2 book can&apos;t offer
-            this: their edge is the black box.
+          <p className="page-lede page-lede--short">
+            Every quote is anchored to a Merkle-proven TxLINE snapshot and a published model.
+            Settled markets will score the line against reality — auditable, not a black box.
           </p>
         </header>
-
-        <ModelQuoteStrip quotes={quotes} streaming={streaming} />
 
         <section className="cal-method">
           <div className="cal-method-card">
@@ -70,33 +66,34 @@ export default function CalibrationPage() {
           <div className="cal-board-head">
             <h2>Live model lines</h2>
             <span className="cal-board-sub">
-              {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
-              {streaming ? "streaming · feeding the calibration curve" : "feeding the calibration curve"}
+              {quotes.length > 0
+                ? `${quotes.length} market${quotes.length !== 1 ? "s" : ""} priced`
+                : "feeding the calibration curve"}
             </span>
           </div>
           {quotes.length === 0 ? (
             <div className="cal-empty">
               <p className="cal-empty__lead">Waiting for the first live quote.</p>
               <p className="cal-empty__hint">
-                Start a match replay and Matchkeeper will publish verifiable lines here.
-                Settled markets will populate the Brier leaderboard as they resolve.
+                {replayActive
+                  ? "Replay is running — Matchkeeper should publish lines shortly."
+                  : "Start a match replay and Matchkeeper will publish verifiable lines here."}
+                {" "}Settled markets will populate the Brier leaderboard as they resolve.
               </p>
             </div>
           ) : (
             <div className="cal-table">
               <div className="cal-row cal-row--head">
                 <span>Market</span>
-                <span>Fair value</span>
+                <span>Trend</span>
+                <span>Fair</span>
+                <span>Bid–ask</span>
                 <span>CI</span>
                 <span>Model</span>
+                <span />
               </div>
               {quotes.map((q) => (
-                <div className="cal-row" key={q.marketId}>
-                  <span className="cal-market">{q.label}</span>
-                  <strong key={q.ts} className="score-flash">{Math.round(q.result.fairValue * 100)}¢</strong>
-                  <span>±{Math.round(((q.result.ci[1] - q.result.ci[0]) / 2) * 100)}¢</span>
-                  <span className="cal-model">{q.result.modelVersion}</span>
-                </div>
+                <CalibrationQuoteRow key={q.marketId} quote={q} />
               ))}
             </div>
           )}

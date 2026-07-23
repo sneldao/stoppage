@@ -257,9 +257,9 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 /* Signal grid — more visible on dark */
 .signal-grid i { background: rgba(0,255,136,.04); transition: background .3s ease; }
 
-/* Score flash animation for score changes */
-@keyframes score-glow { 0% { text-shadow: 0 0 30px rgba(0,255,136,.6); } 100% { text-shadow: none; } }
-.score-flash { animation: score-glow .8s ease-out; }
+/* Score flash animation for score changes — uses @keyframes score-flash
+   defined above (lime color + text-shadow). The earlier score-glow
+   override was removed to restore the visible color flash. */
 
 
 /* Mobile dock — lime accent */
@@ -3922,8 +3922,10 @@ body {
 .op-grooves { top: 60px; right: -60px; }
 .page-shell-content { position: relative; z-index: 1; }
 .page-head { max-width: 720px; }
+.page-head--compact { margin-bottom: 0; }
 .page-head h1 { margin: 0; font: 400 clamp(44px, 5vw, 68px)/.9 "Instrument Serif", Georgia, serif; }
 .page-lede { margin: 22px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; max-width: 640px; }
+.page-lede--short { margin-top: 14px; font-size: 13px; line-height: 1.6; max-width: 520px; }
 
 .model-quote-strip {
   display: flex;
@@ -3935,6 +3937,10 @@ body {
   background: rgba(10,14,23,.7);
   overflow-x: auto;
 }
+.model-quote-strip--hero {
+  margin-top: 0;
+  margin-bottom: 28px;
+}
 .model-quote-strip__status {
   display: inline-flex;
   align-items: center;
@@ -3944,6 +3950,11 @@ body {
   font: 500 10px "DM Mono", monospace;
   text-transform: uppercase;
   white-space: nowrap;
+}
+.model-quote-strip__status small {
+  color: var(--muted-dim);
+  font-size: 9px;
+  letter-spacing: .04em;
 }
 .model-quote-strip__pills {
   display: flex;
@@ -3967,6 +3978,12 @@ body {
   color: var(--ink);
   font-size: 12px;
   white-space: nowrap;
+  text-decoration: none;
+  transition: border-color .2s ease, background .2s ease;
+}
+.model-quote-pill:hover {
+  border-color: var(--blue);
+  background: rgba(17,29,58,.85);
 }
 .model-quote-pill__label {
   max-width: 160px;
@@ -3991,11 +4008,58 @@ body {
 .cal-empty__lead { margin: 0; color: var(--ink); font-size: 14px; }
 .cal-empty__hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .cal-table { margin-top: 18px; border-top: 1px solid var(--line); }
-.cal-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.cal-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) 100px auto auto auto auto auto;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
 .cal-row--head { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
 .cal-row strong { font: 500 14px "DM Mono", monospace; color: var(--ink); }
 .cal-market { font-size: 13px; color: var(--ink); }
+.cal-market-link {
+  text-decoration: none;
+  color: var(--ink);
+  transition: color .15s ease;
+}
+.cal-market-link:hover { color: var(--blue); }
+.cal-spark { width: 100px; height: 32px; margin: 0; display: block; }
+.cal-depth, .cal-ci { font: 500 11px "DM Mono", monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cal-model { color: var(--blue); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
+.cal-verify {
+  justify-self: end;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.cal-verify:hover:not(:disabled) { border-color: var(--blue); color: var(--ink); }
+.cal-verify:disabled { opacity: .5; cursor: not-allowed; }
+.cal-verify--ok { border-color: var(--lime); color: var(--lime); }
+.cal-verify--bad { border-color: #ff958c; color: #ff958c; }
+
+.verify-latest-quote { margin-top: 14px; display: grid; gap: 8px; }
+.verify-latest-quote button {
+  align-self: start;
+  padding: 8px 14px;
+  border: 1px solid var(--lime);
+  background: rgba(0,255,136,.06);
+  color: var(--lime);
+  font: 500 10px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.verify-latest-quote button:hover:not(:disabled) { background: rgba(0,255,136,.12); }
+.verify-latest-quote button:disabled { opacity: .5; cursor: not-allowed; }
+.verify-latest-quote__ok { margin: 0; color: var(--lime); font-size: 12px; line-height: 1.5; }
+.verify-latest-quote__bad { margin: 0; color: #ff958c; font-size: 12px; line-height: 1.5; }
 
 .cal-cta, .op-cta { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
 .cal-cta p, .op-cta p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
@@ -4019,6 +4083,44 @@ body {
 .op-moat ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .op-moat li { padding: 13px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.55; }
 .op-moat strong { color: var(--ink); }
+
+/* Operators code block copy button */
+.op-code-wrap { position: relative; margin: 18px 0 0; }
+.op-code-wrap .op-code { margin: 0; }
+.op-code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: rgba(10,14,23,.85);
+  color: var(--muted);
+  font: 500 9px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s ease, border-color .15s ease, color .15s ease;
+}
+.op-code-wrap:hover .op-code-copy { opacity: 1; }
+.op-code-copy:hover { border-color: var(--blue); color: var(--ink); }
+.op-code-copy--ok { border-color: var(--lime); color: var(--lime); opacity: 1; }
+
+/* Mobile: collapse the 7-column cal table into stacked cards */
+@media (max-width: 720px) {
+  .cal-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    padding: 16px 0;
+  }
+  .cal-row--head { display: none; }
+  .cal-row .cal-market-link { grid-column: 1; grid-row: 1; }
+  .cal-row .cal-spark { grid-column: 2; grid-row: 1; width: 80px; height: 28px; }
+  .cal-row > strong { grid-column: 1; grid-row: 2; font-size: 18px; }
+  .cal-row .cal-depth { grid-column: 2; grid-row: 2; text-align: right; }
+  .cal-row .cal-ci { grid-column: 1; grid-row: 3; }
+  .cal-row .cal-model { grid-column: 2; grid-row: 3; text-align: right; }
+  .cal-row .cal-verify { grid-column: 1 / -1; grid-row: 4; justify-self: stretch; text-align: center; padding: 8px; }
+}
 
 /* === UX PASS — nav, positions, mobile bet dock === */
 .nav-route--secondary { opacity: .72; }

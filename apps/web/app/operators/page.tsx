@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
+import { VerifyLatestQuote } from "@/components/VerifyLatestQuote";
+import { CodeBlock } from "@/components/CodeBlock";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
+import { useMarkets } from "@/lib/markets/useMarkets";
+import { useStoppageStore } from "@/store";
 
 /**
  * Operators page — the B2B surface (Phase 5).
@@ -13,8 +17,10 @@ import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
  */
 
 export default function OperatorsPage() {
+  useMarkets();
   const { quotes, streaming } = useAllQuotes();
   const latest = quotes[0];
+  const latestMarket = useStoppageStore((s) => (latest ? s.markets[latest.marketId] : undefined));
 
   const codeExample = latest
     ? `// Latest live quote received at ${new Date(latest.ts).toISOString()}
@@ -51,18 +57,17 @@ const reproduced = priceMarket(
         <div className="op-grooves" aria-hidden="true">
           <SpinningGrooves size={360} rings={5} color="var(--lime)" counterRotate speed={0.5} />
         </div>
-        <header className="page-head">
+
+        <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+
+        <header className="page-head page-head--compact">
           <p className="eyebrow">For operators</p>
           <h1>License verifiable in-play pricing &amp; settlement</h1>
-          <p className="page-lede">
-            Stoppage is the market-making infrastructure layer for in-play sports.
-            We publish Monte-Carlo fair values, market-make around them, and settle
-            through proof-gated on-chain resolution. The moat: data is Merkle-anchored,
-            the model is open-source, and settlement is trustless.
+          <p className="page-lede page-lede--short">
+            Monte-Carlo fair values, market-made bid/ask, proof-gated settlement —
+            Merkle-anchored data, open model, trustless resolution.
           </p>
         </header>
-
-        <ModelQuoteStrip quotes={quotes} streaming={streaming} />
 
         <section className="op-pillars">
           <div className="op-pillar">
@@ -82,12 +87,10 @@ const reproduced = priceMarket(
         <section className="op-api">
           <div className="op-api-head">
             <h2>The API</h2>
-            <span className="op-api-sub">
-              {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
-              {streaming ? "quote in, proof out · live" : "quote in, proof out"}
-            </span>
+            <span className="op-api-sub">quote in, proof out</span>
           </div>
-          <pre className="op-code">{codeExample}</pre>
+          <CodeBlock code={codeExample} />
+          <VerifyLatestQuote quote={latest} market={latestMarket} />
           <p className="op-api-note">
             The quote, snapshot, model, and seed fully determine the price.
             Reproduce it yourself to confirm Matchkeeper wasn&apos;t gamed.

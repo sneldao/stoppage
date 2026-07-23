@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { acquireQuoteStream } from "@/lib/quotes/quoteStream";
+import { acquireQuoteStream, subscribeQuoteStreamConnection } from "@/lib/quotes/quoteStream";
 import type { QuotePayload } from "@/lib/quotes/types";
 
 export interface AllQuotesState {
@@ -30,7 +30,11 @@ export function useAllQuotes(): AllQuotesState {
       })
       .catch(() => {});
 
-    const release = acquireQuoteStream((data) => {
+    const releaseConnection = subscribeQuoteStreamConnection((connected) => {
+      if (!cancelled) setStreaming(connected);
+    });
+
+    const releaseStream = acquireQuoteStream((data) => {
       const payload = data as {
         type?: string;
         quote?: QuotePayload;
@@ -39,17 +43,16 @@ export function useAllQuotes(): AllQuotesState {
       if (payload.type === "init" && Array.isArray(payload.quotes)) {
         const quotes = payload.quotes;
         setQuotes((prev) => quotes.reduce(applyQuote, [...prev]));
-        setStreaming(true);
       } else if (payload.type === "quote" && payload.quote) {
         const quote = payload.quote;
         setQuotes((prev) => applyQuote(prev, quote));
-        setStreaming(true);
       }
     });
 
     return () => {
       cancelled = true;
-      release();
+      releaseStream();
+      releaseConnection();
     };
   }, []);
 
