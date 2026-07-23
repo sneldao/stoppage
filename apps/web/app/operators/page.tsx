@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
+import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
+import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 
 /**
  * Operators page — the B2B surface (Phase 5).
@@ -11,6 +13,38 @@ import { SpinningGrooves } from "@/components/SpinningGrooves";
  */
 
 export default function OperatorsPage() {
+  const { quotes, streaming } = useAllQuotes();
+  const latest = quotes[0];
+
+  const codeExample = latest
+    ? `// Latest live quote received at ${new Date(latest.ts).toISOString()}
+const es = new EventSource("/api/quotes/stream");
+es.onmessage = (e) => {
+  const { quote } = JSON.parse(e.data);
+  // ${latest.label}
+  // fairValue: ${(latest.result.fairValue * 100).toFixed(1)}¢
+  // bid: ${(latest.result.bid * 100).toFixed(1)}¢  ask: ${(latest.result.ask * 100).toFixed(1)}¢
+  // model: ${latest.result.modelVersion}
+};`
+    : `// 1. Subscribe to the live verifiable quote line
+const es = new EventSource("/api/quotes/stream");
+es.onmessage = (e) => {
+  const { quote } = JSON.parse(e.data);
+  // quote.result = { fairValue, bid, ask, ci, sims, modelVersion, seed }
+  // quote.snapshot = anchored TxLINE state the model priced from
+};
+
+// 2. Reproduce the quote in your own infra (no black box)
+const reproduced = priceMarket(
+  quote.predicate,
+  quote.snapshot,
+  MODEL_PARAMS,
+  quote.result.seed
+);
+// reproduced.fairValue === quote.result.fairValue -> verified
+
+// 3. Settle through proof-gated on-chain resolution`;
+
   return (
     <main className="page-shell operators-page">
       <div className="page-shell-content">
@@ -27,6 +61,8 @@ export default function OperatorsPage() {
             the model is open-source, and settlement is trustless.
           </p>
         </header>
+
+        <ModelQuoteStrip quotes={quotes} streaming={streaming} />
 
         <section className="op-pillars">
           <div className="op-pillar">
@@ -46,26 +82,12 @@ export default function OperatorsPage() {
         <section className="op-api">
           <div className="op-api-head">
             <h2>The API</h2>
-            <span className="op-api-sub">quote in, proof out</span>
+            <span className="op-api-sub">
+              {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
+              {streaming ? "quote in, proof out · live" : "quote in, proof out"}
+            </span>
           </div>
-          <pre className="op-code">{`// 1. Subscribe to the live verifiable quote line
-const es = new EventSource("/api/quotes/stream");
-es.onmessage = (e) => {
-  const { quote } = JSON.parse(e.data);
-  // quote.result = { fairValue, bid, ask, ci, sims, modelVersion, seed }
-  // quote.snapshot = anchored TxLINE state the model priced from
-};
-
-// 2. Reproduce the quote in your own infra (no black box)
-const reproduced = priceMarket(
-  quote.predicate,
-  quote.snapshot,
-  MODEL_PARAMS,
-  quote.result.seed
-);
-// reproduced.fairValue === quote.result.fairValue -> verified
-
-// 3. Settle through proof-gated on-chain resolution`}</pre>
+          <pre className="op-code">{codeExample}</pre>
           <p className="op-api-note">
             The quote, snapshot, model, and seed fully determine the price.
             Reproduce it yourself to confirm Matchkeeper wasn&apos;t gamed.

@@ -37,60 +37,6 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .hero-grooves { position: absolute; right: -120px; top: 50%; transform: translateY(-50%); width: 520px; height: 520px; pointer-events: none; z-index: 0; }
 .hero-grooves .spinning-grooves { position: static; width: 100%; height: 100%; opacity: .45; }
 
-/* Page shells with alive backdrops */
-.page-shell { position: relative; min-height: 100vh; overflow: hidden; }
-.cal-grooves, .op-grooves { position: absolute; top: 80px; right: -80px; width: 360px; height: 360px; pointer-events: none; z-index: 0; opacity: .35; }
-.op-grooves { top: 60px; right: -60px; }
-.page-shell::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 70% 20%, rgba(96,165,250,.08) 0%, transparent 45%), radial-gradient(circle at 20% 80%, rgba(0,255,136,.05) 0%, transparent 40%); pointer-events: none; z-index: 0; }
-.page-shell-content { position: relative; z-index: 1; }
-.calibration-page .page-shell-content, .operators-page .page-shell-content { width: min(900px, calc(100% - 48px)); margin: 0 auto; padding: 70px 0 90px; }
-.calibration-page .page-head, .operators-page .page-head { text-align: center; margin-bottom: 48px; }
-.calibration-page .page-head h1, .operators-page .page-head h1 { margin: 0; font: 400 clamp(44px, 6vw, 68px)/.9 "Instrument Serif", Georgia, serif; }
-.calibration-page .page-lede, .operators-page .page-lede { max-width: 640px; margin: 22px auto 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
-
-/* Calibration page */
-.cal-method { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 48px; }
-.cal-method-card { padding: 24px; border: 1px solid var(--line); background: rgba(17,29,58,.55); backdrop-filter: blur(6px); transition: transform 180ms var(--ease), border-color 180ms ease; }
-.cal-method-card:hover { transform: translateY(-3px); border-color: var(--blue); }
-.cal-method-num { display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 16px; border: 1px solid var(--blue); color: var(--blue); font: 500 12px "DM Mono", monospace; }
-.cal-method-card h3 { margin: 0 0 8px; font: 400 22px/1.1 "Instrument Serif", Georgia, serif; }
-.cal-method-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.cal-board { padding: 24px; border: 1px solid var(--line); background: rgba(17,29,58,.55); backdrop-filter: blur(6px); margin-bottom: 32px; }
-.cal-board-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 20px; }
-.cal-board-head h2 { margin: 0; font: 400 28px/1 "Instrument Serif", Georgia, serif; }
-.cal-board-sub { color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
-.cal-table { display: grid; gap: 8px; }
-.cal-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 13px; }
-.cal-row--head { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; padding-bottom: 8px; }
-.cal-row strong { color: var(--lime); font: 500 15px "DM Mono", monospace; }
-.cal-empty { color: var(--muted); font-size: 13px; line-height: 1.6; }
-.cal-cta { text-align: center; padding: 32px; border: 1px solid var(--line); background: rgba(17,29,58,.55); }
-.cal-cta p { max-width: 520px; margin: 0 auto 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
-.cal-cta-link { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; background: var(--ink); color: #fff; font: 700 11px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
-.cal-cta-link:hover { background: var(--blue); }
-
-/* Operators page */
-.op-pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 48px; }
-.op-pillar { padding: 24px; border: 1px solid var(--line); background: rgba(17,29,58,.55); backdrop-filter: blur(6px); text-align: center; transition: transform 180ms var(--ease), border-color 180ms ease; }
-.op-pillar:hover { transform: translateY(-3px); border-color: var(--lime); }
-.op-pillar h3 { margin: 0 0 10px; font: 400 24px/1.1 "Instrument Serif", Georgia, serif; }
-.op-pillar p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.op-api { padding: 28px; border: 1px solid var(--line); background: rgba(17,29,58,.55); backdrop-filter: blur(6px); margin-bottom: 32px; }
-.op-api-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 18px; }
-.op-api-head h2 { margin: 0; font: 400 28px/1 "Instrument Serif", Georgia, serif; }
-.op-api-sub { color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
-.op-code { padding: 20px; overflow-x: auto; background: rgba(10,14,23,.7); color: #a5b4d6; font: 500 11px/1.6 "DM Mono", monospace; border: 1px solid var(--line); }
-.op-api-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.op-moat { padding: 28px; border: 1px solid var(--line); background: rgba(17,29,58,.55); backdrop-filter: blur(6px); margin-bottom: 32px; }
-.op-moat h2 { margin: 0 0 20px; font: 400 28px/1 "Instrument Serif", Georgia, serif; text-align: center; }
-.op-moat ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.op-moat li { position: relative; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.op-moat li::before { content: "→"; position: absolute; left: 0; color: var(--lime); }
-.op-moat strong { color: var(--ink); }
-.op-cta { text-align: center; }
-.op-cta-link { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border: 1px solid var(--ink); color: var(--ink); font: 700 11px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
-.op-cta-link:hover { background: var(--ink); color: #fff; }
-
 /* Markets page hero + grooves */
 .market-explorer { position: relative; }
 .market-hero-grooves { position: absolute; right: -140px; top: 60px; width: 420px; height: 420px; pointer-events: none; z-index: 0; opacity: .35; }
@@ -3945,10 +3891,91 @@ body {
 }
 
 /* ── Calibration + Operators pages (Phase 4/5) ── */
-.page-shell { width: min(1000px, calc(100% - 48px)); margin: 0 auto; padding: 70px 0 96px; }
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  width: min(1000px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 70px 0 96px;
+}
+.page-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(96,165,250,.08) 0%, transparent 45%),
+    radial-gradient(circle at 20% 80%, rgba(0,255,136,.05) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+.cal-grooves, .op-grooves {
+  position: absolute;
+  top: 80px;
+  right: -80px;
+  width: 360px;
+  height: 360px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .35;
+}
+.op-grooves { top: 60px; right: -60px; }
+.page-shell-content { position: relative; z-index: 1; }
 .page-head { max-width: 720px; }
 .page-head h1 { margin: 0; font: 400 clamp(44px, 5vw, 68px)/.9 "Instrument Serif", Georgia, serif; }
 .page-lede { margin: 22px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; max-width: 640px; }
+
+.model-quote-strip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 34px 0 0;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  background: rgba(10,14,23,.7);
+  overflow-x: auto;
+}
+.model-quote-strip__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font: 500 10px "DM Mono", monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.model-quote-strip__pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+.model-quote-strip__empty {
+  color: var(--muted-dim);
+  font: 500 11px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+.model-quote-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  background: rgba(17,29,58,.55);
+  color: var(--ink);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.model-quote-pill__label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-quote-pill strong { color: var(--lime); font: 500 13px "DM Mono", monospace; }
+.model-quote-pill small { color: var(--muted-dim); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
 
 .cal-method { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 38px; }
 .cal-method-card { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 18px; border: 1px solid var(--line); background: #111827; }
@@ -3960,7 +3987,9 @@ body {
 .cal-board-head { display: flex; align-items: baseline; gap: 12px; }
 .cal-board-head h2 { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
 .cal-board-sub { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
-.cal-empty { margin: 18px 0 0; padding: 22px; border: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.6; }
+.cal-empty { margin: 18px 0 0; padding: 22px; border: 1px solid var(--line); }
+.cal-empty__lead { margin: 0; color: var(--ink); font-size: 14px; }
+.cal-empty__hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .cal-table { margin-top: 18px; border-top: 1px solid var(--line); }
 .cal-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line); align-items: center; }
 .cal-row--head { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }

@@ -2,44 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePageVisible } from "@/lib/dom/usePageVisible";
+import { acquireQuoteStream } from "@/lib/quotes/quoteStream";
 import type { QuoteHistoryPoint, QuotePayload } from "@/lib/quotes/types";
-
-type StreamListener = (data: unknown) => void;
-
-let sharedStream: EventSource | null = null;
-let sharedListeners = new Set<StreamListener>();
-
-function dispatchStream(data: unknown) {
-  for (const listener of sharedListeners) listener(data);
-}
-
-function acquireQuoteStream(listener: StreamListener) {
-  sharedListeners.add(listener);
-  if (!sharedStream) {
-    try {
-      sharedStream = new EventSource("/api/quotes/stream");
-      sharedStream.onmessage = (message) => {
-        try {
-          dispatchStream(JSON.parse(message.data));
-        } catch {
-          // skip malformed payload
-        }
-      };
-      sharedStream.onerror = () => {
-        // upstream proxy handles fallback; keep connection for recovery
-      };
-    } catch {
-      sharedStream = null;
-    }
-  }
-  return () => {
-    sharedListeners.delete(listener);
-    if (sharedListeners.size === 0) {
-      sharedStream?.close();
-      sharedStream = null;
-    }
-  };
-}
 
 /** One quotes fetch + one SSE stream per market detail page. */
 export function useMarketQuote(marketId: string) {

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { PricingSnapshot } from "@stoppage/sdk";
 import { SpinningGrooves } from "@/components/SpinningGrooves";
+import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
+import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 
 /**
  * Calibration page — the public, verifiable "was the model right?" board.
@@ -19,54 +19,8 @@ import { SpinningGrooves } from "@/components/SpinningGrooves";
  * the live model lines feeding it. No fabricated backtest numbers.
  */
 
-interface QuotePayload {
-  marketId: string;
-  label: string;
-  predicateKind: string;
-  snapshot: PricingSnapshot;
-  result: { fairValue: number; bid: number; ask: number; ci: [number, number]; sims: number; modelVersion: string };
-  inventorySkew: number;
-  ts: number;
-}
-
 export default function CalibrationPage() {
-  const [quotes, setQuotes] = useState<QuotePayload[]>([]);
-  const [streaming, setStreaming] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const apply = (quote: QuotePayload) => {
-      if (cancelled) return;
-      setQuotes((prev) => {
-        const next = prev.filter((q) => q.marketId !== quote.marketId);
-        next.push(quote);
-        return next.sort((a, b) => b.ts - a.ts);
-      });
-    };
-
-    // Initial snapshot, then live SSE so the board ticks as Matchkeeper
-    // re-prices — "live model lines" should actually be live.
-    void fetch("/api/quotes")
-      .then((r) => r.json())
-      .then((d: { quotes?: QuotePayload[] }) => { if (!cancelled && d.quotes) d.quotes.forEach(apply); })
-      .catch(() => {});
-
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource("/api/quotes/stream");
-      es.onopen = () => { if (!cancelled) setStreaming(true); };
-      es.onerror = () => { if (!cancelled) setStreaming(false); };
-      es.onmessage = (msg) => {
-        try {
-          const data = JSON.parse(msg.data);
-          if (data.type === "init" && Array.isArray(data.quotes)) (data.quotes as QuotePayload[]).forEach(apply);
-          else if (data.type === "quote" && data.quote) apply(data.quote as QuotePayload);
-        } catch { /* skip malformed */ }
-      };
-    } catch { /* EventSource unavailable — snapshot only */ }
-
-    return () => { cancelled = true; es?.close(); };
-  }, []);
+  const { quotes, streaming } = useAllQuotes();
 
   return (
     <main className="page-shell calibration-page">
@@ -86,62 +40,67 @@ export default function CalibrationPage() {
           </p>
         </header>
 
-      <section className="cal-method">
-        <div className="cal-method-card">
-          <span className="cal-method-num">1</span>
-          <div>
-            <h3>Quote</h3>
-            <p>Monte Carlo fair value + bid/ask, published live and anchored to the exact match snapshot.</p>
-          </div>
-        </div>
-        <div className="cal-method-card">
-          <span className="cal-method-num">2</span>
-          <div>
-            <h3>Settle</h3>
-            <p>Proof-gated resolution records the true outcome on-chain — no operator discretion.</p>
-          </div>
-        </div>
-        <div className="cal-method-card">
-          <span className="cal-method-num">3</span>
-          <div>
-            <h3>Score</h3>
-            <p>Brier score + calibration curve over all settled markets. Public, reproducible, trustless.</p>
-          </div>
-        </div>
-      </section>
+        <ModelQuoteStrip quotes={quotes} streaming={streaming} />
 
-      <section className="cal-board">
-        <div className="cal-board-head">
-          <h2>Live model lines</h2>
-          <span className="cal-board-sub">
-            {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
-            {streaming ? "streaming · feeding the calibration curve" : "feeding the calibration curve"}
-          </span>
-        </div>
-        {quotes.length === 0 ? (
-          <p className="cal-empty">
-            No live quotes yet — start a match replay and Matchkeeper will publish verifiable
-            lines here. Settled markets will populate the Brier leaderboard as they resolve.
-          </p>
-        ) : (
-          <div className="cal-table">
-            <div className="cal-row cal-row--head">
-              <span>Market</span>
-              <span>Fair value</span>
-              <span>CI</span>
-              <span>Model</span>
+        <section className="cal-method">
+          <div className="cal-method-card">
+            <span className="cal-method-num">1</span>
+            <div>
+              <h3>Quote</h3>
+              <p>Monte Carlo fair value + bid/ask, published live and anchored to the exact match snapshot.</p>
             </div>
-            {quotes.map((q) => (
-              <div className="cal-row" key={q.marketId}>
-                <span className="cal-market">{q.label}</span>
-                <strong key={q.ts} className="score-flash">{Math.round(q.result.fairValue * 100)}¢</strong>
-                <span>±{Math.round(((q.result.ci[1] - q.result.ci[0]) / 2) * 100)}¢</span>
-                <span className="cal-model">{q.result.modelVersion}</span>
-              </div>
-            ))}
           </div>
-        )}
-      </section>
+          <div className="cal-method-card">
+            <span className="cal-method-num">2</span>
+            <div>
+              <h3>Settle</h3>
+              <p>Proof-gated resolution records the true outcome on-chain — no operator discretion.</p>
+            </div>
+          </div>
+          <div className="cal-method-card">
+            <span className="cal-method-num">3</span>
+            <div>
+              <h3>Score</h3>
+              <p>Brier score + calibration curve over all settled markets. Public, reproducible, trustless.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="cal-board">
+          <div className="cal-board-head">
+            <h2>Live model lines</h2>
+            <span className="cal-board-sub">
+              {streaming && <i className="live-dot" style={{ width: 5, height: 5, marginRight: 5 }} />}
+              {streaming ? "streaming · feeding the calibration curve" : "feeding the calibration curve"}
+            </span>
+          </div>
+          {quotes.length === 0 ? (
+            <div className="cal-empty">
+              <p className="cal-empty__lead">Waiting for the first live quote.</p>
+              <p className="cal-empty__hint">
+                Start a match replay and Matchkeeper will publish verifiable lines here.
+                Settled markets will populate the Brier leaderboard as they resolve.
+              </p>
+            </div>
+          ) : (
+            <div className="cal-table">
+              <div className="cal-row cal-row--head">
+                <span>Market</span>
+                <span>Fair value</span>
+                <span>CI</span>
+                <span>Model</span>
+              </div>
+              {quotes.map((q) => (
+                <div className="cal-row" key={q.marketId}>
+                  <span className="cal-market">{q.label}</span>
+                  <strong key={q.ts} className="score-flash">{Math.round(q.result.fairValue * 100)}¢</strong>
+                  <span>±{Math.round(((q.result.ci[1] - q.result.ci[0]) / 2) * 100)}¢</span>
+                  <span className="cal-model">{q.result.modelVersion}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="cal-cta">
           <p>Building an agent, a sportsbook, or a prediction market? License the verifiable pricing + settlement layer.</p>
