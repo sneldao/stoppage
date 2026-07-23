@@ -184,12 +184,12 @@ export default function Home() {
     });
   }, []);
 
-  const handleNewEvent = (evt: any) => {
+  const handleNewEvent = useCallback((evt: any) => {
     handleMatchEvent(evt);
     // Accumulate replay stats as events stream in.
     if (evt.type === "corner_awarded") replayStatsRef.current = { ...replayStatsRef.current, corners: replayStatsRef.current.corners + 1 };
     if (evt.type === "card_shown" || evt.type === "yellow_card" || evt.type === "red_card") replayStatsRef.current = { ...replayStatsRef.current, cards: replayStatsRef.current.cards + 1 };
-  };
+  }, [handleMatchEvent]);
 
   const marketHref = featuredMarket ? `/markets/${featuredMarket.id}` : "/markets";
 

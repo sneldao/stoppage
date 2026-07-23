@@ -12,7 +12,7 @@ import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
 import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
-import { LiveMatchBar } from "@/components/LiveMatchBar";
+import { LiveMatchBar, type MatchPhaseState } from "@/components/LiveMatchBar";
 import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { SharpMoves } from "@/components/SharpMoves";
 import { LazyWhenVisible } from "@/components/LazyWhenVisible";
@@ -77,6 +77,14 @@ function MatchRoomContent() {
       } : prev);
     }
   }, [handleMatchEvent, live]);
+
+  const onReplayPhase = useCallback((phase: MatchPhaseState) => {
+    setReplaySnapshot((prev) => ({
+      updatedAt: Date.now(),
+      score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
+      stats: prev?.stats ?? { corners: 0, cards: 0 },
+    }));
+  }, []);
 
   const matchMarkets = useMemo(
     () => selectedMatchId
@@ -155,17 +163,12 @@ function MatchRoomContent() {
             <LiveMatchBar
               matchId={selectedMatchId}
               onNewEvent={onMatchEvent}
-              onPhase={(phase) => setReplaySnapshot((prev) => ({
-                updatedAt: Date.now(),
-                score: { home: phase.score.home ?? 0, away: phase.score.away ?? 0 },
-                stats: prev?.stats ?? { corners: 0, cards: 0 },
-              }))}
+              onPhase={onReplayPhase}
             />
           )}
           <ReplayLauncher
             fixtures={completedFixtures}
             autoLaunchFixtureId={autoReplayFixtureId}
-            onLaunched={() => { /* the SSE feed picks the replay up automatically */ }}
           />
         </section>
 

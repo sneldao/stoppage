@@ -1,7 +1,7 @@
 import http from "node:http";
 import type { MatchEventLedger } from "./eventLedger";
 import type { LiveStore } from "./liveStore";
-import type { ReplayManager } from "./replayManager";
+import { ReplayDataError, type ReplayManager } from "./replayManager";
 import type { OddsTracker } from "./oddsTracker";
 import type { QuoteTracker } from "./quoteTracker";
 import type { Fixture } from "@stoppage/txline";
@@ -71,7 +71,11 @@ export function startEventHttpServer(ledger: MatchEventLedger, liveStore?: LiveS
           const status = await replayManager.launch(fixture);
           writeJson(res, 200, { status });
         } catch (err) {
-          writeJson(res, 500, { error: err instanceof Error ? err.message : "replay launch failed" });
+          if (err instanceof ReplayDataError) {
+            writeJson(res, 400, { error: err.message });
+          } else {
+            writeJson(res, 500, { error: err instanceof Error ? err.message : "replay launch failed" });
+          }
         }
       })();
       return;

@@ -40,6 +40,13 @@ export interface ReplayStatus {
   finished?: boolean;
 }
 
+export class ReplayDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReplayDataError";
+  }
+}
+
 export interface ReplayDeps {
   connection: Connection;
   wallet: Keypair;
@@ -74,7 +81,7 @@ export class ReplayManager {
     // Verify the fixture has historical data worth replaying.
     const scores = await fetchHistoricalScores(network, creds, fixtureId);
     if (!scores || scores.length === 0) {
-      throw new Error(`No historical score data for fixture ${fixtureId}`);
+      throw new ReplayDataError(`No historical score data for fixture ${fixtureId}`);
     }
 
     // ~20x speed: a full match replays in a few minutes, fast enough for a
