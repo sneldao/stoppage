@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { Fixture } from "@stoppage/txline";
+import type { FixtureWithMatchId } from "@/lib/match/types";
 import { listReplayableFixtures } from "@/lib/match/fixtures";
 import { useStoppageStore } from "@/store";
 import { useReplay } from "@/lib/replay/useReplay";
@@ -17,7 +17,7 @@ const ROTATE_MS = 25_000;
 export interface UseMatchRoomReplayOptions {
   /** When false, do not auto-launch (live match or URL-pinned match). */
   enabled: boolean;
-  fixtures: Fixture[];
+  fixtures: FixtureWithMatchId[];
 }
 
 export function useMatchRoomReplay({ enabled, fixtures }: UseMatchRoomReplayOptions) {

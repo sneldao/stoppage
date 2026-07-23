@@ -1,56 +1,49 @@
-import type { Fixture } from "@stoppage/txline";
+import type { FixtureWithMatchId } from "@/lib/match/types";
 
-// GamePhase literals from @stoppage/txline — not imported here because the enum
-// pulls txline's node-only credentials module (fs) into the client bundle.
-const NOT_STARTED = 1;
+// GamePhase.FirstHalf / GamePhase.SecondHalf (@stoppage/txline). Kept as
+// literals here because a value import of the enum pulls txline's node-only
+// credentials module (fs) into the client bundle.
 const FIRST_HALF = 2;
 const SECOND_HALF = 4;
-const FINISHED = 5;
-const FINISHED_EXTRA_TIME = 10;
-const FINISHED_PENALTIES = 13;
-
-const REPLAYABLE_STATES = new Set([FINISHED, FINISHED_EXTRA_TIME, FINISHED_PENALTIES]);
+const NOT_STARTED = 1;
 
 /**
  * A fixture is in play during the first or second half.
  * Single source of truth for "is this match live" across the web app.
  */
-export function isFixtureLive(fixture: Fixture | null | undefined): boolean {
+export function isFixtureLive(fixture: Pick<FixtureWithMatchId, "GameState"> | null | undefined): boolean {
   return fixture?.GameState === FIRST_HALF || fixture?.GameState === SECOND_HALF;
 }
 
-/** Full-time (or equivalent terminal) states only — not "anything not live". */
-export function isFixtureFinished(fixture: Fixture | null | undefined): boolean {
-  const state = fixture?.GameState;
-  return typeof state === "number" && REPLAYABLE_STATES.has(state);
-}
-
-export function isFixtureScheduled(fixture: Fixture | null | undefined): boolean {
+export function isFixtureScheduled(fixture: Pick<FixtureWithMatchId, "GameState"> | null | undefined): boolean {
   return fixture?.GameState === NOT_STARTED;
 }
 
-export function fixtureStartTimeMs(fixture: Fixture): number {
+export function fixtureStartTimeMs(fixture: Pick<FixtureWithMatchId, "StartTime">): number {
   const raw = fixture.StartTime as unknown;
   if (typeof raw === "number") return raw < 1_000_000_000_000 ? raw * 1000 : raw;
   if (typeof raw === "string") return new Date(raw).getTime();
   return 0;
 }
 
-/** Finished fixtures the agent can replay, newest first, optional team priority. */
+/**
+ * Fixtures the agent can replay — uses the server-computed `replayable` flag
+ * from GET /api/fixtures (finished phase + TxLINE historical scores).
+ */
 export function listReplayableFixtures(
-  fixtures: Fixture[],
+  fixtures: FixtureWithMatchId[],
   blockedIds: ReadonlySet<number> = new Set(),
   preferTeams: string[] = []
-): Fixture[] {
+): FixtureWithMatchId[] {
   const replayable = fixtures
-    .filter((f) => isFixtureFinished(f) && !blockedIds.has(f.FixtureId))
+    .filter((f) => f.replayable && !blockedIds.has(f.FixtureId))
     .sort((a, b) => fixtureStartTimeMs(b) - fixtureStartTimeMs(a));
 
   if (preferTeams.length === 0) return replayable;
 
   const lowered = preferTeams.map((t) => t.toLowerCase());
-  const featured: Fixture[] = [];
-  const rest: Fixture[] = [];
+  const featured: FixtureWithMatchId[] = [];
+  const rest: FixtureWithMatchId[] = [];
   for (const f of replayable) {
     const home = (f.Participant1 ?? "").toLowerCase();
     const away = (f.Participant2 ?? "").toLowerCase();

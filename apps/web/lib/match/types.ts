@@ -1,6 +1,10 @@
 import type { Fixture } from "@stoppage/txline";
 
-export type FixtureWithMatchId = Fixture & { matchId: string };
+export type FixtureWithMatchId = Fixture & {
+  matchId: string;
+  /** Server-computed: finished + TxLINE historical scores (GET /api/fixtures). */
+  replayable: boolean;
+};
 
 export interface LiveMatchSnapshot {
   updatedAt: number | null;

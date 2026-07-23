@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
-import type { Fixture } from "@stoppage/txline";
+import type { FixtureWithMatchId } from "@/lib/match/types";
 import { listReplayableFixtures } from "@/lib/match/fixtures";
 import { useStoppageStore } from "@/store";
 import { useReplay } from "@/lib/replay/useReplay";
@@ -18,7 +18,7 @@ export interface UseAutoReplayOptions {
   /** When true, a live fixture is in play — do not auto-replay. */
   hasLive: boolean;
   /** All fixtures (used to pick a featured replay). */
-  fixtures: Fixture[];
+  fixtures: FixtureWithMatchId[];
   /** Featured-priority list — if any completed fixture matches, prefer it. */
   preferTeams?: string[];
 }

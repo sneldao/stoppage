@@ -16,6 +16,7 @@ import { PublicKey, type Connection, type Keypair } from "@solana/web3.js";
 import { getMarket } from "@stoppage/sdk";
 import {
   fetchHistoricalScores,
+  isFixtureFinished,
   matchIdFromFixture,
   type Fixture,
   type Network,
@@ -77,6 +78,10 @@ export class ReplayManager {
     const { connection, wallet, dryRun, network, creds, ledger, liveStore, oddsTracker } = this.deps;
     const fixtureId = fixture.FixtureId;
     const matchId = matchIdFromFixture(fixture);
+
+    if (!isFixtureFinished(fixture)) {
+      throw new ReplayDataError(`Fixture ${fixtureId} is not in a finished state`);
+    }
 
     // Verify the fixture has historical data worth replaying.
     const scores = await fetchHistoricalScores(network, creds, fixtureId);

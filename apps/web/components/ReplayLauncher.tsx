@@ -1,10 +1,10 @@
 "use client";
 
-import type { Fixture } from "@stoppage/txline";
+import type { FixtureWithMatchId } from "@/lib/match/types";
 import { useReplay } from "@/lib/replay/useReplay";
 
 interface ReplayLauncherProps {
-  fixtures: Fixture[];
+  fixtures: FixtureWithMatchId[];
   /** When true, only show status chrome (auto-launch handled elsewhere). */
   autoMode?: boolean;
 }
