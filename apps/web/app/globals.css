@@ -4208,6 +4208,7 @@ body {
 
 /* Match group — fixture name is the primary heading */
 .tape-match-group { border-bottom: 1px solid var(--line); }
+.tape-match-group + .tape-match-group { margin-top: 0; }
 .tape-match-heading {
   display: flex;
   justify-content: space-between;
