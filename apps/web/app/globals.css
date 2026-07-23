@@ -3565,7 +3565,7 @@ body {
    The track transform is set directly on the DOM element each frame. */
 .global-ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; height: 30px; padding: 0 14px; border-top: 1px solid var(--line); background: rgba(12,20,40,.92); backdrop-filter: blur(8px); overflow: hidden; }
 .global-ticker-label { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--lime); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
-.global-ticker-track { display: flex; flex: 1; min-width: 0; overflow: hidden; will-change: transform; }
+.global-ticker-track { display: flex; flex-shrink: 0; min-width: 0; overflow: hidden; will-change: transform; }
 .global-ticker-set { display: flex; gap: 26px; flex-shrink: 0; padding-right: 26px; }
 .global-ticker-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; }
 .global-ticker-item .global-ticker-time { color: var(--muted-dim); }
