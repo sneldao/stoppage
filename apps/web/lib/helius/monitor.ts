@@ -51,6 +51,7 @@ export class HeliusMonitor {
   private lastErrorAt = 0;
   private readonly errorThrottleMs = 30_000;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private closedByUser = false;
 
   constructor(private readonly config: HeliusMonitorConfig) {}
@@ -176,7 +177,9 @@ export class HeliusMonitor {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = Math.pow(2, this.reconnectAttempts) * 1000;
-      setTimeout(() => {
+      this.reconnectTimeout = setTimeout(() => {
+        this.reconnectTimeout = null;
+        if (this.closedByUser) return;
         this.log(
           "warn",
           `Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
@@ -195,6 +198,10 @@ export class HeliusMonitor {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
     }
   }
 
