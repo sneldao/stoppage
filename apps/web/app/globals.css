@@ -3559,12 +3559,14 @@ body {
 .settlement-moment-proof { display: inline-block; color: var(--blue); font: 500 10px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
 @keyframes settlement-arrive { from { opacity: 0; transform: translate(-50%, -42%) scale(.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-/* Global activity ticker — fixed bottom marquee */
+/* Global activity ticker — fixed bottom marquee.
+   Scroll is driven by requestAnimationFrame in ActivitySurfaces (not
+   CSS keyframes) so the loop is truly seamless regardless of item count.
+   The track transform is set directly on the DOM element each frame. */
 .global-ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; height: 30px; padding: 0 14px; border-top: 1px solid var(--line); background: rgba(12,20,40,.92); backdrop-filter: blur(8px); overflow: hidden; }
 .global-ticker-label { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--lime); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
-.global-ticker-track { display: flex; gap: 26px; flex: 1; min-width: 0; overflow: hidden; animation: ticker-scroll 42s linear infinite; }
-.global-ticker:hover .global-ticker-track { animation-play-state: paused; }
-.page-hidden .global-ticker-track { animation-play-state: paused; }
+.global-ticker-track { display: flex; flex: 1; min-width: 0; overflow: hidden; will-change: transform; }
+.global-ticker-set { display: flex; gap: 26px; flex-shrink: 0; padding-right: 26px; }
 .global-ticker-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; color: var(--muted); font: 500 10px "DM Mono", monospace; }
 .global-ticker-item .global-ticker-time { color: var(--muted-dim); }
 .global-ticker-item .global-ticker-text { color: var(--ink); }
@@ -3582,7 +3584,6 @@ body {
 .global-ticker-item--quote .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
 .global-ticker-item--fact .global-ticker-badge { border-color: var(--amber); color: var(--amber); }
 .global-ticker-item--fact .global-ticker-text { color: var(--ink); }
-@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* Event toasts — slide-in from right */
 .event-toasts { position: fixed; top: 84px; right: 16px; z-index: 50; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
