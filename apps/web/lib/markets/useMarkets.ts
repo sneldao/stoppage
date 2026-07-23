@@ -20,6 +20,9 @@ import { useStoppageStore } from "@/store";
  */
 export function useMarkets() {
   const { connection } = useConnection();
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+
   const upsertMarket = useStoppageStore((s) => s.upsertMarket);
   const markets = useStoppageStore((s) => s.markets);
   const fetchingRef = useRef(false);
@@ -33,7 +36,7 @@ export function useMarkets() {
       // Anchor accounts are prefixed with an 8-byte discriminator. We
       // don't need a memcmp for a small devnet program — just fetch all
       // accounts owned by the program and parse the ones that fit.
-      const resp = await connection.getProgramAccounts(
+      const resp = await connectionRef.current.getProgramAccounts(
         new PublicKey(MARKET_PROGRAM_ID),
         {
           filters: [{ dataSize: 8 + 1 + 32 + 8 + 8 + 32 + 8 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 2 + 4 + 1 }],
@@ -52,9 +55,9 @@ export function useMarkets() {
       fetchingRef.current = false;
       setMarketsLoading(false);
     }
-  }, [connection, upsertMarket, setMarketsLoading]);
+  }, [upsertMarket, setMarketsLoading]);
 
-  // Initial load on mount + when the connection changes.
+  // Initial load on mount — connection is read via ref to avoid refresh loops.
   useEffect(() => {
     void refresh();
   }, [refresh]);

@@ -6,7 +6,7 @@
  * writes them into the store. HeliusMonitor pushes live updates.
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { MARKET_PROGRAM_ID, readU64LE } from "@stoppage/sdk";
@@ -20,6 +20,9 @@ const OWNER_OFFSET = 40;
 
 export function useMyPositions() {
   const { connection } = useConnection();
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+
   const { publicKey } = useWallet();
   const addPosition = useStoppageStore((s) => s.addPosition);
   const clearPositions = useStoppageStore((s) => s.clearPositions);
@@ -30,7 +33,7 @@ export function useMyPositions() {
     if (!publicKey) return;
     setPositionsLoading(true);
     try {
-      const resp = await connection.getProgramAccounts(
+      const resp = await connectionRef.current.getProgramAccounts(
         new PublicKey(MARKET_PROGRAM_ID),
         {
           commitment: "confirmed",
@@ -65,7 +68,7 @@ export function useMyPositions() {
     } finally {
       setPositionsLoading(false);
     }
-  }, [connection, publicKey, addPosition, setPositionsLoading]);
+  }, [publicKey, addPosition, setPositionsLoading]);
 
   useEffect(() => {
     if (!publicKey) {

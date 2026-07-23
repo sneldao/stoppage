@@ -35,6 +35,8 @@ export const createMarketsSlice: StateCreator<MarketsSlice, [], [], MarketsSlice
         markets: { ...state.markets, [marketId]: { ...market, status } },
       };
     }),
-  setMarketsLoading: (loading) => set({ marketsLoading: loading }),
-  setFeedState: (feedState) => set({ feedState }),
+  setMarketsLoading: (loading) =>
+    set((state) => (state.marketsLoading === loading ? state : { marketsLoading: loading })),
+  setFeedState: (feedState) =>
+    set((state) => (state.feedState === feedState ? state : { feedState })),
 });

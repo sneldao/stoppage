@@ -30,6 +30,9 @@ function extractMarketAddress(log: string): string | null {
 
 export function useHeliusMonitor() {
   const { connection } = useConnection();
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+
   const upsertMarket = useStoppageStore((s) => s.upsertMarket);
   const setFeedState = useStoppageStore((s) => s.setFeedState);
   const monitorRef = useRef<HeliusMonitor | null>(null);
@@ -59,7 +62,7 @@ export function useHeliusMonitor() {
         // for the 12s poll. This is what makes settlement appear live.
         const addr = extractMarketAddress(event.log);
         if (addr) {
-          void getMarket(connection, new PublicKey(addr))
+          void getMarket(connectionRef.current, new PublicKey(addr))
             .then((m) => upsertMarket(m))
             .catch(() => {});
         }
@@ -79,5 +82,6 @@ export function useHeliusMonitor() {
       monitorRef.current = null;
       setFeedState("polling");
     };
-  }, [connection, upsertMarket, setFeedState]);
+    // Connection identity from wallet-adapter churns every render — read via ref.
+  }, [upsertMarket, setFeedState]);
 }
