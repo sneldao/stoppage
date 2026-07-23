@@ -25,7 +25,7 @@ import { Achievements } from "@/components/Achievements";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
-import { isFixtureLive } from "@/lib/match/fixtures";
+import { isFixtureLive, listReplayableFixtures } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
 
@@ -286,17 +286,11 @@ export default function Home() {
                 className="replay-control-switch"
                 disabled={launchingReplay}
                 onClick={() => {
-                  // Pick the next-most-recent completed fixture that isn't the current replay.
                   const currentId = replayStatus?.fixtureId;
-                  const completed = fixtures
-                    .filter((f) => { const s = f.GameState as unknown; return s !== 1 && s !== 2 && s !== 4; })
-                    .filter((f) => f.FixtureId !== currentId)
-                    .sort((a, b) => {
-                      const ta = typeof a.StartTime === "string" ? new Date(a.StartTime).getTime() : (a.StartTime as unknown as number) * 1000;
-                      const tb = typeof b.StartTime === "string" ? new Date(b.StartTime).getTime() : (b.StartTime as unknown as number) * 1000;
-                      return tb - ta;
-                    });
-                  if (completed[0]) void launchReplay(completed[0].FixtureId);
+                  const blocked = new Set(useStoppageStore.getState().replayBlockedFixtureIds);
+                  const next = listReplayableFixtures(fixtures, blocked)
+                    .find((f) => f.FixtureId !== currentId);
+                  if (next) void launchReplay(next.FixtureId);
                 }}
               >
                 Switch match →

@@ -3627,6 +3627,18 @@ body {
 .replay-control-switch { padding: 6px 10px; border: 1px solid var(--amber); border-radius: 3px; background: transparent; color: var(--amber); font: 700 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transition: background 160ms var(--ease); }
 .replay-control-switch:hover:not(:disabled) { background: rgba(251,191,36,.1); }
 .replay-control-switch:disabled { opacity: .5; cursor: wait; }
+.replay-control-strip--active { border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.08); }
+.replay-control-strip--idle .replay-control-status { color: var(--muted); }
+.replay-control-note { font: 500 8px "DM Mono", monospace; color: var(--muted-dim); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.replay-launcher-panel { margin-top: 14px; display: grid; gap: 8px; }
+.replay-launcher-error { margin: 0; padding: 0 2px; color: #ff9c91; font: 500 10px "DM Mono", monospace; }
+.replay-fixture-list { display: grid; gap: 6px; }
+.replay-fixture { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; background: rgba(255,255,255,.02); color: var(--ink); cursor: pointer; text-align: left; transition: border-color .15s ease, background .15s ease; }
+.replay-fixture:hover:not(:disabled) { border-color: var(--amber); background: rgba(251,191,36,.06); }
+.replay-fixture:disabled { opacity: .5; cursor: wait; }
+.replay-fixture strong { font-size: 12px; }
+.replay-fixture span { font: 500 9px "DM Mono", monospace; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+.control-scoreboard .replay-control-strip { border-color: rgba(251,191,36,.22); background: rgba(251,191,36,.06); }
 
 /* LiveMatchBar listening empty state */
 .live-bar-empty--listening { position: relative; overflow: hidden; }

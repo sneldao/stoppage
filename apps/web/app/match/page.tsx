@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import { useMarkets } from "@/lib/markets/useMarkets";
@@ -24,6 +24,7 @@ import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
+import { useMatchRoomReplay } from "@/lib/replay/useMatchRoomReplay";
 import { snapshotIsFresh, type LiveMatchSnapshot } from "@/lib/match/types";
 
 function MatchRoomContent() {
@@ -35,8 +36,7 @@ function MatchRoomContent() {
   const feed = useStoppageStore((state) => state.feed);
   const { fixtures } = useFixtures();
   const [replaySnapshot, setReplaySnapshot] = useState<LiveMatchSnapshot | null>(null);
-  const [autoReplayFixtureId, setAutoReplayFixtureId] = useState<number | null>(null);
-  const replayActive = useStoppageStore((state) => Boolean(state.replayStatus?.active));
+  const replayStatus = useStoppageStore((state) => state.replayStatus);
 
   const orderedMarkets = useMemo(
     () => Object.values(markets).sort((a, b) => a.closesAt.localeCompare(b.closesAt)),
@@ -57,6 +57,11 @@ function MatchRoomContent() {
   }, [fixtures, selectedMatchId]);
 
   const live = isFixtureLive(fixture);
+  const deadTime = !live && !requestedMatchId;
+  const { isReplay, replayable, launching: launchingReplay } = useMatchRoomReplay({
+    enabled: deadTime,
+    fixtures,
+  });
   const polledSnapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);
   const snapshot = live ? polledSnapshot : replaySnapshot;
 
@@ -119,31 +124,19 @@ function MatchRoomContent() {
 
   const fresh = snapshotIsFresh(snapshot);
 
-  const completedFixtures = useMemo(() => fixtures
-    .filter((f) => { const s = f.GameState as unknown; return s !== 1 && s !== 2 && s !== 4; })
-    .sort((a, b) => {
-      const ta = typeof a.StartTime === "string" ? new Date(a.StartTime).getTime() : (a.StartTime as unknown as number) * 1000;
-      const tb = typeof b.StartTime === "string" ? new Date(b.StartTime).getTime() : (b.StartTime as unknown as number) * 1000;
-      return tb - ta;
-    }), [fixtures]);
-
-  useEffect(() => {
-    if (live || requestedMatchId || completedFixtures.length === 0) return;
-    let idx = 0;
-    const id = window.setInterval(() => {
-      if (replayActive) return;
-      const next = completedFixtures[idx % completedFixtures.length];
-      if (next) setAutoReplayFixtureId(next.FixtureId);
-      idx += 1;
-    }, 25_000);
-    setAutoReplayFixtureId(completedFixtures[0]?.FixtureId ?? null);
-    return () => window.clearInterval(id);
-  }, [live, requestedMatchId, completedFixtures, replayActive]);
+  const barMatchId = (isReplay && replayStatus?.matchId) ? replayStatus.matchId : selectedMatchId;
+  const scoreboardMode = live
+    ? fresh ? "live" : "delayed"
+    : isReplay
+    ? "replay"
+    : fixture
+    ? "scheduled"
+    : "idle";
 
   return (
     <main className="app-shell">
       <div className="match-room">
-        <MatchPulse live={live} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--match" />
+        <MatchPulse live={live || isReplay} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--match" />
         <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={snapshot} scoringTeam={scoringTeam} />
         <header className="match-room-header">
           <div>
@@ -156,20 +149,34 @@ function MatchRoomContent() {
         <MatchFixturePicker fixtures={fixtures} matchIds={matchIds} selectedMatchId={selectedMatchId} />
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
-          <div className="control-scoreboard-top"><span className={live ? "match-live" : "match-next"}><i /> {live ? fresh ? "Live feed" : "Feed delayed" : fixture ? "Awaiting kickoff" : "No live match right now"}</span><span>{fixture?.Country ?? "TxLINE"}</span></div>
+          <div className="control-scoreboard-top">
+            <span className={
+              scoreboardMode === "live" ? "match-live"
+              : scoreboardMode === "replay" ? "match-replay"
+              : scoreboardMode === "scheduled" ? "match-next"
+              : "match-next"
+            }>
+              <i /> {
+                scoreboardMode === "live" ? (fresh ? "Live feed" : "Feed delayed")
+                : scoreboardMode === "replay" ? (launchingReplay ? "Starting replay…" : "Replay · live pipeline")
+                : scoreboardMode === "scheduled" ? "Awaiting kickoff"
+                : "No live match right now"
+              }
+            </span>
+            <span>{fixture?.Country ?? (isReplay ? "Replay" : "TxLINE")}</span>
+          </div>
           <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b key={snapshot ? `${snapshot.score.home}-${snapshot.score.away}` : "vs"} className={snapshot ? "score-flash" : ""}>{snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Listening"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Listening for the next match"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Listening for the next match"}</span></div>
-          {selectedMatchId && (
+          {barMatchId && (
             <LiveMatchBar
-              matchId={selectedMatchId}
+              matchId={barMatchId}
               onNewEvent={onMatchEvent}
               onPhase={onReplayPhase}
             />
           )}
-          <ReplayLauncher
-            fixtures={completedFixtures}
-            autoLaunchFixtureId={autoReplayFixtureId}
-          />
+          {deadTime && (
+            <ReplayLauncher fixtures={replayable} autoMode />
+          )}
         </section>
 
         <MatchSignal markets={matchMarkets} />

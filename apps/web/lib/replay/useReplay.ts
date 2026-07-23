@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import { useStoppageStore } from "@/store";
 import type { ReplayStatus } from "@/store/replaySlice";
 
+const NO_HISTORY = "No historical score data";
+
 export function useReplay() {
   const status = useStoppageStore((s) => s.replayStatus);
   const launching = useStoppageStore((s) => s.replayLaunching);
@@ -9,6 +11,7 @@ export function useReplay() {
   const setReplayStatus = useStoppageStore((s) => s.setReplayStatus);
   const setReplayLaunching = useStoppageStore((s) => s.setReplayLaunching);
   const setReplayError = useStoppageStore((s) => s.setReplayError);
+  const markReplayBlocked = useStoppageStore((s) => s.markReplayBlocked);
 
   const launch = useCallback(async (fixtureId: number) => {
     setReplayLaunching(true);
@@ -21,19 +24,23 @@ export function useReplay() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setReplayError(data.error ?? "Replay failed to start");
+        const message = data.error ?? "Replay failed to start";
+        setReplayError(message);
+        if (response.status === 400 && String(message).includes(NO_HISTORY)) {
+          markReplayBlocked(fixtureId);
+        }
         return null;
       }
       const nextStatus = data.status as ReplayStatus;
       setReplayStatus(nextStatus);
       return nextStatus;
-    } catch (error) {
-      setReplayError(error instanceof Error ? error.message : "Agent unreachable");
+    } catch (err) {
+      setReplayError(err instanceof Error ? err.message : "Agent unreachable");
       return null;
     } finally {
       setReplayLaunching(false);
     }
-  }, [setReplayError, setReplayLaunching, setReplayStatus]);
+  }, [markReplayBlocked, setReplayError, setReplayLaunching, setReplayStatus]);
 
   return {
     status,

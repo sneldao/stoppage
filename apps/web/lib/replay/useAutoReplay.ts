@@ -6,8 +6,10 @@
  * this hook only orchestrates the one-time auto-launch on the home page.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Fixture } from "@stoppage/txline";
+import { listReplayableFixtures } from "@/lib/match/fixtures";
+import { useStoppageStore } from "@/store";
 import { useReplay } from "@/lib/replay/useReplay";
 
 export type { ReplayStatus } from "@/store/replaySlice";
@@ -21,30 +23,14 @@ export interface UseAutoReplayOptions {
   preferTeams?: string[];
 }
 
-function startedTimeMs(f: Fixture): number {
-  const raw = f.StartTime as unknown;
-  if (typeof raw === "number") return raw < 1_000_000_000_000 ? raw * 1000 : raw;
-  if (typeof raw === "string") return new Date(raw).getTime();
-  return 0;
-}
-
-function pickFeatured(fixtures: Fixture[], preferTeams: string[] = []): Fixture | null {
-  const completed = fixtures.filter((f) => {
-    const s = f.GameState as unknown;
-    return s !== 1 && s !== 2 && s !== 4;
-  });
-  const lowered = preferTeams.map((t) => t.toLowerCase());
-  for (const f of completed) {
-    const h = (f.Participant1 ?? "").toLowerCase();
-    const a = (f.Participant2 ?? "").toLowerCase();
-    if (lowered.some((t) => h.includes(t) || a.includes(t))) return f;
-  }
-  const sorted = [...completed].sort((a, b) => startedTimeMs(b) - startedTimeMs(a));
-  return sorted[0] ?? null;
-}
-
 export function useAutoReplay(opts: UseAutoReplayOptions) {
   const { hasLive, fixtures, preferTeams } = opts;
+  const blockedIds = useStoppageStore((s) => s.replayBlockedFixtureIds);
+  const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
+  const replayable = useMemo(
+    () => listReplayableFixtures(fixtures, blocked, preferTeams),
+    [fixtures, blocked, preferTeams]
+  );
   const { status, launching, error, launch, isActive } = useReplay();
   const autoLaunchedRef = useRef(false);
 
@@ -52,11 +38,11 @@ export function useAutoReplay(opts: UseAutoReplayOptions) {
     if (hasLive || autoLaunchedRef.current) return;
     if (status?.active) { autoLaunchedRef.current = true; return; }
     if (launching) return;
-    const featured = pickFeatured(fixtures, preferTeams);
+    const featured = replayable[0];
     if (!featured) return;
     autoLaunchedRef.current = true;
     void launch(featured.FixtureId);
-  }, [hasLive, fixtures, status?.active, launching, launch, preferTeams]);
+  }, [hasLive, replayable, status?.active, launching, launch]);
 
   useEffect(() => {
     if (hasLive) autoLaunchedRef.current = true;
@@ -68,6 +54,7 @@ export function useAutoReplay(opts: UseAutoReplayOptions) {
     error,
     launch,
     isReplay: isActive && !hasLive,
+    replayable,
   };
 }
 
