@@ -43,7 +43,7 @@ Usage: $0 [options]
 
 Options:
   --no-pull          Skip git pull on the VPS (use if you already pulled)
-  --logs             Tail PM2 logs after restart (Ctrl-C to exit)
+  --logs             Print recent PM2 logs after restart (snapshot, non-blocking)
   --require-healthy  Abort before deploy if the agent is not currently healthy
   -h, --help         Show this help message
 
@@ -167,8 +167,8 @@ DEPLOY_EXIT=$?
 
 if $TAIL_LOGS; then
   echo ""
-  echo "── tailing logs (Ctrl-C to exit)"
-  ssh "$SSH_HOST" "cd $REMOTE_DIR && pm2 logs $PM2_NAME --lines 50"
+  echo "── recent logs for $PM2_NAME"
+  ssh "$SSH_HOST" "cd $REMOTE_DIR && pm2 logs $PM2_NAME --nostream --lines 100"
 fi
 
 exit $DEPLOY_EXIT
