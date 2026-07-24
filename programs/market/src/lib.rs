@@ -186,6 +186,7 @@ pub mod market {
         team: [u8; 8],
         param_u64: u64,
         closes_at: i64,
+        oracle: Pubkey,
     ) -> Result<()> {
         let clock = Clock::get()?;
         require!(closes_at > clock.unix_timestamp, MarketError::ClosesInPast);
@@ -198,6 +199,7 @@ pub mod market {
         market.team = team;
         market.param_u64 = param_u64;
         market.creator = ctx.accounts.creator.key();
+        market.oracle = oracle;
         market.bond_lamports = MIN_BOND_LAMPORTS;
         market.bond_claimed = false;
         market.yes_pool = 0;
@@ -226,6 +228,7 @@ pub mod market {
         emit!(MarketCreated {
             market: market.key(),
             creator: ctx.accounts.creator.key(),
+            oracle,
             kind,
             closes_at,
         });
@@ -366,6 +369,7 @@ pub mod market {
             MarketError::InvalidResolutionOwner
         );
         let market = &mut ctx.accounts.market;
+        let expected_oracle = market.oracle;
         let (expected_resolution, _) = Pubkey::find_program_address(
             &[b"resolution", market.key().as_ref()],
             &SETTLEMENT_PROGRAM_ID,
@@ -379,6 +383,7 @@ pub mod market {
             &ctx.accounts.resolution.to_account_info(),
             market.key(),
             outcome,
+            expected_oracle,
         )?;
         require!(
             market.status == STATUS_OPEN || market.status == STATUS_AWAITING,
@@ -630,15 +635,22 @@ pub mod market {
 
 /// Decodes the stable prefix of settlement::Resolution. We intentionally do
 /// not depend on the settlement crate so both programs can be deployed and
-/// upgraded independently; owner, PDA, Anchor discriminator, market and
-/// outcome are all checked before a vault can settle.
+/// upgraded independently; owner, PDA, Anchor discriminator, market,
+/// outcome, and validator are all checked before a vault can settle.
+///
+/// Layout (settlement::Resolution, offsets after the 8-byte discriminator):
+///   [0..32)   market: Pubkey
+///   [32]      outcome: u8
+///   [33..65)  validator_program: Pubkey
 fn verify_resolution_receipt(
     resolution: &AccountInfo,
     market: Pubkey,
     outcome: u8,
+    expected_oracle: Pubkey,
 ) -> Result<()> {
     let data = resolution.try_borrow_data()?;
-    const PREFIX_LEN: usize = 8 + 32 + 1;
+    // discriminator(8) + market(32) + outcome(1) + validator(32)
+    const PREFIX_LEN: usize = 8 + 32 + 1 + 32;
     require!(data.len() >= PREFIX_LEN, MarketError::MalformedResolution);
     // Anchor discriminator for `account:Resolution`.
     let expected_discriminator = [31, 13, 235, 201, 17, 66, 5, 138];
@@ -650,6 +662,16 @@ fn verify_resolution_receipt(
         .map_err(|_| error!(MarketError::MalformedResolution))?;
     require_keys_eq!(receipt_market, market, MarketError::ResolutionMarketMismatch);
     require!(data[40] == outcome, MarketError::ResolutionOutcomeMismatch);
+    // Bind settlement to the oracle the market was created with: the
+    // validator that verified the proof must be the market's approved
+    // oracle. An operator's market cannot be settled by a foreign proof.
+    let receipt_validator = Pubkey::try_from(&data[41..73])
+        .map_err(|_| error!(MarketError::MalformedResolution))?;
+    require_keys_eq!(
+        receipt_validator,
+        expected_oracle,
+        MarketError::ResolutionOracleMismatch
+    );
     Ok(())
 }
 
@@ -758,6 +780,12 @@ pub struct Market {
     pub team: [u8; 8],        // team code, e.g. "FRA\0\0\0\0\0"
     pub param_u64: u64,       // window seconds / threshold
     pub creator: Pubkey,
+    /// The oracle (validator program) approved to settle this market.
+    /// settle_from_proof cross-checks the resolution receipt's
+    /// validator_program against this — an operator binds a market to
+    /// their own validator at creation, so settlement is gated on the
+    /// market's chosen oracle, not a hard-coded one.
+    pub oracle: Pubkey,
     pub bond_lamports: u64,
     pub bond_claimed: bool,
     pub yes_pool: u64,
@@ -773,7 +801,7 @@ pub struct Market {
 
 impl Market {
     pub fn space() -> usize {
-        8 + 1 + 32 + 8 + 8 + 32 + 8 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 2 + 4 + 1
+        8 + 1 + 32 + 8 + 8 + 32 + 32 + 8 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 2 + 4 + 1
     }
 }
 
@@ -892,7 +920,7 @@ pub struct SessionPing<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(kind: u8, match_id: [u8; 32], team: [u8; 8], param_u64: u64)]
+#[instruction(kind: u8, match_id: [u8; 32], team: [u8; 8], param_u64: u64, closes_at: i64, oracle: Pubkey)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -1087,6 +1115,7 @@ pub struct SessionPingEvent {
 pub struct MarketCreated {
     pub market: Pubkey,
     pub creator: Pubkey,
+    pub oracle: Pubkey,
     pub kind: u8,
     pub closes_at: i64,
 }
@@ -1213,6 +1242,8 @@ pub enum MarketError {
     ResolutionMarketMismatch,
     #[msg("Resolution receipt outcome does not match settlement outcome")]
     ResolutionOutcomeMismatch,
+    #[msg("Resolution receipt validator does not match market's bound oracle")]
+    ResolutionOracleMismatch,
     #[msg("Signer is not the market creator")]
     NotCreator,
     #[msg("Bond has already been claimed")]

@@ -2,9 +2,12 @@
  * Settlement program instruction builders.
  *
  * buildResolveMarketIx builds the resolve_market instruction that CPIs
- * into TxLINE's validate_stat. The txline_ix_data argument is the
- * borsh-serialized validate_stat args (without the discriminator — the
- * settlement program prepends it).
+ * into an operator's validator program. Oracle-agnostic at the contract
+ * level: the validator program id and the readonly anchor accounts it
+ * reads are passed in `remaining_accounts`. The SDK keeps TxLINE's
+ * `validate_stat` borsh-encoding as a reference adapter; an operator's
+ * own validator implements the same shape (returns 1-byte bool from a
+ * CPI).
  *
  * The TxLINE types are serialized manually using borsh conventions:
  *   - integers: little-endian
@@ -17,6 +20,27 @@
 
 import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { SETTLEMENT_PROGRAM_ID } from "./programIds";
+
+// TxLINE validate_stat instruction discriminator (from the TxLINE IDL).
+// The settlement program no longer prepends this — the SDK's TxLINE
+// oracle adapter does, since the contract is now oracle-agnostic.
+const TXLINE_VALIDATE_STAT_DISCRIMINATOR = Buffer.from([
+  107, 197, 232, 90, 191, 136, 105, 185,
+]);
+
+/**
+ * Reference oracle program IDs. Operators building with the SDK can use
+ * these to bind markets to the TxLINE oracle without importing
+ * @stoppage/txline directly. The settlement program is oracle-agnostic —
+ * any validator program works — but TxLINE is the reference integration.
+ */
+export const TXLINE_ORACLE_PROGRAM_IDS: Record<string, string> = {
+  devnet: "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J",
+  mainnet: "9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA",
+};
+
+/** Default oracle for devnet (TxLINE). Used by the web app and demo scripts. */
+export const DEFAULT_ORACLE = new PublicKey(TXLINE_ORACLE_PROGRAM_IDS.devnet);
 
 // ── TxLINE type encoders ────────────────────────────────────────────
 
@@ -227,27 +251,30 @@ export function deriveResolutionPda(market: PublicKey): [PublicKey, number] {
 /**
  * Build the resolve_market instruction for the settlement program.
  *
- * This instruction CPIs into TxLINE's validate_stat to verify the proof
- * on-chain, then emits a MarketResolved event with the proof data.
+ * Oracle-agnostic: the validator program id and its readonly accounts
+ * are passed via remaining_accounts. The caller is responsible for
+ * building the complete validator instruction data (discriminator + args).
+ *
+ * For TxLINE, use buildTxlineValidateStatData which includes the discriminator.
  *
  * @param resolver - The keeper/agent wallet (permissionless)
  * @param market - The market account to resolve
- * @param txlineProgramId - The TxLINE program address
- * @param dailyScoresMerkleRoots - The TxLINE daily_scores_merkle_roots PDA
- * @param statement - The human-readable statement (e.g. "GOAL:FRA:63:00")
+ * @param validatorProgram - The oracle validator program id
+ * @param validatorAccounts - Readonly accounts the validator reads (e.g., merkle roots)
+ * @param statement - The human-readable statement (e.g., "total_goals_over:2.5:FRA-SPA")
  * @param merkleRoot - The anchored Merkle root (32 bytes)
  * @param outcome - 0=YES, 1=NO
- * @param txlineIxData - Pre-built validate_stat instruction data (from buildValidateStatData)
+ * @param validatorIxData - Complete validator instruction data (discriminator + args)
  */
 export function buildResolveMarketIx(
   resolver: PublicKey,
   market: PublicKey,
-  txlineProgramId: PublicKey,
-  dailyScoresMerkleRoots: PublicKey,
+  validatorProgram: PublicKey,
+  validatorAccounts: PublicKey[],
   statement: string,
   merkleRoot: Uint8Array,
   outcome: number,
-  txlineIxData: Buffer
+  validatorIxData: Buffer
 ): TransactionInstruction {
   // Anchor discriminator for resolve_market (from the IDL).
   // sha256("global:resolve_market")[0..8]
@@ -262,9 +289,9 @@ export function buildResolveMarketIx(
     statementBuf,
   ]);
   // Borsh Vec<u8> = 4 bytes length (LE) + bytes
-  const txlineDataEncoded = Buffer.concat([
-    encodeU32(txlineIxData.length),
-    txlineIxData,
+  const validatorDataEncoded = Buffer.concat([
+    encodeU32(validatorIxData.length),
+    validatorIxData,
   ]);
 
   const data = Buffer.concat([
@@ -272,16 +299,21 @@ export function buildResolveMarketIx(
     statementEncoded, // String
     merkleRootBuf, // [u8; 32]
     encodeU8(outcome), // u8
-    txlineDataEncoded, // Vec<u8>
+    validatorDataEncoded, // Vec<u8>
   ]);
 
   const keys = [
     { pubkey: resolver, isSigner: true, isWritable: true },
     { pubkey: market, isSigner: false, isWritable: true },
     { pubkey: deriveResolutionPda(market)[0], isSigner: false, isWritable: true },
-    { pubkey: txlineProgramId, isSigner: false, isWritable: false },
-    { pubkey: dailyScoresMerkleRoots, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    // remaining_accounts: validator program first, then its readonly accounts
+    { pubkey: validatorProgram, isSigner: false, isWritable: false },
+    ...validatorAccounts.map((acc) => ({
+      pubkey: acc,
+      isSigner: false,
+      isWritable: false,
+    })),
   ];
 
   return new TransactionInstruction({
@@ -289,6 +321,30 @@ export function buildResolveMarketIx(
     data,
     keys,
   });
+}
+
+/**
+ * Build the complete instruction data for TxLINE's validate_stat,
+ * including the 8-byte discriminator. Use this with buildResolveMarketIx
+ * when settling against the TxLINE oracle.
+ *
+ * @param params - The validate_stat parameters (same as before)
+ * @returns Complete instruction data (discriminator + borsh args)
+ */
+export function buildTxlineValidateStatData(params: {
+  ts: number;
+  fixtureSummary: ScoresBatchSummary;
+  fixtureProof: ProofNode[];
+  mainTreeProof: ProofNode[];
+  predicate: TraderPredicate;
+  statA: StatTerm;
+  statB?: StatTerm | null;
+  op?: BinaryExpression | null;
+}): Buffer {
+  return Buffer.concat([
+    TXLINE_VALIDATE_STAT_DISCRIMINATOR,
+    buildValidateStatData(params),
+  ]);
 }
 
 // ── Re-export types ─────────────────────────────────────────────────

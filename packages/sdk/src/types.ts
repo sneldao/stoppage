@@ -65,6 +65,7 @@ export interface Market {
   id: string;
   predicate: MarketPredicate;
   creator: string;
+  oracle: string;
   bondLamports: number;
   bondClaimed: boolean;
   yesPool: number;

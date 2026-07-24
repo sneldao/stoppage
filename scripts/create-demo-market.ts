@@ -15,6 +15,7 @@ import {
 } from "@solana/web3.js";
 import {
   buildCreateMarketIx,
+  DEFAULT_ORACLE,
   type MarketPredicate,
 } from "@stoppage/sdk";
 
@@ -49,6 +50,7 @@ async function main() {
     creator: walletKeypair.publicKey,
     predicate,
     closesAt,
+    oracle: DEFAULT_ORACLE,
   });
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();

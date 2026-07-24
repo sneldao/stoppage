@@ -10,10 +10,12 @@ import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
 
 /**
- * Operators page — the B2B surface (Phase 5).
+ * Operators page — the B2B surface.
  *
- * Positions Stoppage as verifiable in-play pricing + settlement
- * infrastructure — the Goldman-style market-maker/layer, not a retail book.
+ * Positions Stoppage as the proof-gated settlement primitive: operators
+ * bring their markets and their own oracle, Stoppage gates fund release
+ * on an on-chain proof verification. Verifiable pricing is the supporting
+ * differentiator, not the product.
  */
 
 export default function OperatorsPage() {
@@ -62,25 +64,26 @@ const reproduced = priceMarket(
 
         <header className="page-head page-head--compact">
           <p className="eyebrow">For operators</p>
-          <h1>License verifiable in-play pricing &amp; settlement</h1>
+          <h1>Settle markets only when a proof verifies</h1>
           <p className="page-lede page-lede--short">
-            Monte-Carlo fair values, market-made bid/ask, proof-gated settlement —
-            Merkle-anchored data, open model, trustless resolution.
+            Bring your markets and your own oracle. Stoppage gates fund release on
+            an on-chain proof verification — no admin keys, no multisigs, no dispute
+            windows. Your users settle on evidence, not authority.
           </p>
         </header>
 
         <section className="op-pillars">
           <div className="op-pillar">
-            <h3>Fair pricing</h3>
-            <p>Live Monte Carlo fair value + confidence interval per in-play market.</p>
+            <h3>Proof-gated settlement</h3>
+            <p>Funds move only after a CPI into your validator returns true. If the proof fails, the whole transaction reverts.</p>
           </div>
           <div className="op-pillar">
-            <h3>Market-making</h3>
-            <p>Bid/ask around fair value, spread by model uncertainty and inventory skew.</p>
+            <h3>Bring your own oracle</h3>
+            <p>The settlement contract is oracle-agnostic. Use the TxLINE reference, or plug in any validator that returns a bool.</p>
           </div>
           <div className="op-pillar">
-            <h3>Verifiable settlement</h3>
-            <p>Resolution only after TxLINE Merkle proof validates on-chain.</p>
+            <h3>Verifiable pricing</h3>
+            <p>Optional open Monte-Carlo fair value + bid/ask, with a snapshot hash anchored on-chain so anyone can reproduce the quote.</p>
           </div>
         </section>
 
@@ -100,15 +103,15 @@ const reproduced = priceMarket(
         <section className="op-moat">
           <h2>Why this is defensible</h2>
           <ul>
-            <li><strong>Data is provable.</strong> TxLINE Merkle anchors the match state.</li>
-            <li><strong>Model is open.</strong> Committed, versioned, deterministic.</li>
-            <li><strong>Settlement is proof-gated.</strong> No operator discretion.</li>
-            <li><strong>P&amp;L is on-chain.</strong> Agent-vs-agent arenas settle trustlessly.</li>
+            <li><strong>Settlement is proof-gated.</strong> No operator discretion, no admin key. The CPI result is the authority.</li>
+            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt.</li>
+            <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof a user can re-verify without trusting anyone.</li>
+            <li><strong>The schlep is the moat.</strong> Borsh encoding, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
           </ul>
         </section>
 
         <section className="op-cta">
-          <p>Want the reference oracle running against your feed?</p>
+          <p>Want to settle your markets on a proof instead of a key?</p>
           <Link href="/calibration" className="op-cta-link">See the calibration board →</Link>
         </section>
       </div>

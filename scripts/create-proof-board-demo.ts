@@ -34,7 +34,8 @@ import {
   buildJoinViaWalletIx,
   buildResolveMarketIx,
   buildSettleFromProofIx,
-  buildValidateStatData,
+  buildTxlineValidateStatData,
+  DEFAULT_ORACLE,
   deriveDailyScoresRootsPda,
   findMarketPdaFromPredicate,
   getMarket,
@@ -161,7 +162,7 @@ async function main() {
     const createAndJoinSig = await sendAndConfirm(
       connection,
       new Transaction().add(
-        buildCreateMarketIx({ creator: payer.publicKey, predicate, closesAt }),
+        buildCreateMarketIx({ creator: payer.publicKey, predicate, closesAt, oracle: DEFAULT_ORACLE }),
         buildJoinViaWalletIx(payer.publicKey, market, "yes", STAKE_LAMPORTS)
       ),
       [payer]
@@ -195,7 +196,7 @@ async function main() {
   const outcome = proof.statToProve.value > THRESHOLD ? "yes" : "no";
   const winner = outcome === "yes" ? payer : opponent;
 
-  const txlineIxData = buildValidateStatData({
+  const txlineIxData = buildTxlineValidateStatData({
     ts: proof.summary.updateStats.minTimestamp,
     fixtureSummary: {
       fixtureId: proof.summary.fixtureId,
@@ -229,7 +230,7 @@ async function main() {
         payer.publicKey,
         market,
         txlineProgramId,
-        dailyScoresRoots,
+        [dailyScoresRoots],
         `Demo proof fixture ${DEMO_FIXTURE_ID} seq ${DEMO_SEQ} stat ${DEMO_STAT_KEY}`,
         eventStatRoot,
         outcome === "yes" ? 0 : 1,

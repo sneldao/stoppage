@@ -61,10 +61,84 @@ codebase supports both; the decision determines what to build next.
   build a general predicate system until two specific predicates have
   settled real markets.
 
-## Current state (2026-07-20)
+## Current state (2026-07-24)
 
-- Monorepo builds end to end (web app, SDK, both Anchor programs).
-- Program-ID discipline tooling in place and green.
+**Strategic pivot: settlement primitive for operators.** The product is no
+longer positioned as a betting app; it's a proof-gated settlement
+infrastructure where operators bring their markets and their own oracles.
+World Cup data access ended July 19; the creative monopoly is the first
+settlement primitive where fund release is cryptographically gated on an
+on-chain proof verification. The /operators page, OPERATORS.md, and
+OPERATOR_PITCH.md now lead with this positioning.
+
+- **Oracle-agnostic settlement implemented (code-complete, not yet
+  deployed).** Settlement program accepts any validator program via
+  remaining_accounts[0], with anchor accounts in remaining_accounts[1..].
+  No hardcoded TxLINE program IDs or account owners on the contract.
+  Market program stores `oracle: Pubkey` on the Market account at creation
+  and cross-checks the resolution receipt's `validator_program` against it
+  in `settle_from_proof` — a market cannot be settled by a foreign proof.
+  Resolution struct now carries validator_program; MarketResolved event
+  carries it too. Added `ResolutionOracleMismatch` error.
+- **SDK oracle adapter layer.** `packages/sdk/src/oracle.ts` exports
+  `txlineOracle` (reference, prepends the 8-byte validate_stat
+  discriminator) and `genericOracle` (custom validator, caller supplies
+  complete instruction data). `SettlementOracle` interface and
+  `buildResolveMarketIxFromOracle` are the operator integration surface.
+  `DEFAULT_ORACLE` (TxLINE devnet program id) used by the web app, agent,
+  and demo scripts.
+- **All call sites updated.** Agent loop, web useMarketActions, and both
+  demo scripts pass `oracle: DEFAULT_ORACLE` to buildCreateMarketIx and
+  use the new oracle-agnostic buildResolveMarketIx signature
+  (validatorProgram + validatorAccounts array + complete validatorIxData).
+  buildValidateStatData renamed internally; buildTxlineValidateStatData
+  is the public builder (discriminator + args, complete).
+- **Operator docs created.** `docs/OPERATORS.md` (integration guide) and
+  `docs/OPERATOR_PITCH.md` (one-pager) document the settlement primitive
+  positioning, code examples for both TxLINE and custom oracles, and
+  current limitations.
+- **TypeScript typecheck green.** `npm run typecheck` passes.
+- **Anchor build not run in this environment** (Solana toolchain not
+  installed). Must run `npm run anchor:build` locally before deploy.
+- **Both programs have stable devnet IDs.** Market:
+  `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
+  `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`.
+  Upgrade authority: `********************************************`.
+- **ProtocolConfig initialized on devnet** (fee_bps=25, 0.25%).
+  Config PDA: `6zVA5T6ioGfCmPV76bz4mTDUpQSJDAA4zUUMs9PXf9EC`,
+  treasury PDA: `5D1G4vg2yPQxZrAFwXb2sR1QLJTjFWSPjUt9d8eSJAxs`.
+- **Public devnet deployment live.** Web app:
+  `https://stoppage.sportwarren.com` (Vercel, auto-deploys on push to
+  main). Autonomous keeper runs as PM2 process `stoppage-agent` on the
+  VPS `nuncio-vultr`, connected to live TxLINE SSE.
+- **M1 (session-key delegation) and M2 (market vault) contract logic
+  code-complete**, M2 program test suite passes against local validator
+  (13 passing, 1 pending). M3 on-chain CPI verified against TxLINE
+  fixture 17952170 pre-pivot (devnet tx
+  `En879uAi8pGPoUDs6tAhvG6hFLAqMg4XHBXHQrYLpUAoGwkqxFAi3ZHUY6gb8mDN8VNMXgQ5TJYwNeU2C2x8hm1`).
+- **TxLINE free-tier subscription** active on devnet; World Cup access
+  ended July 19. Mainnet service levels 1 (60s delay) and 12 (real-time)
+  available for World Cup & International Friendlies only.
+
+**Remaining before operator-ready:**
+
+1. **Deploy oracle-agnostic programs.** Run `scripts/deploy.sh` locally
+   (requires Solana toolchain) to upgrade both programs on devnet.
+   Existing devnet markets lack the oracle field and are not compatible
+   with the new market program — create fresh markets after deploy.
+2. **Re-verify end-to-end settlement.** Run
+   `scripts/create-proof-board-demo.ts` against devnet post-deploy to
+   confirm the oracle-agnostic CPI path works with TxLINE as the
+   reference validator.
+3. **Operator pilot.** Find one prediction-market protocol or fantasy
+   platform to integrate with a custom validator. The milestone is one
+   real operator settling one real market through their own validator,
+   not fifty seeded devnet markets.
+4. **Mainnet deployment.** Requires legal review (see README compliance
+   note) before any funds move to mainnet.
+5. **Operator onboarding expansion.** Flesh out `docs/OPERATORS.md`
+   with a full integration guide: validator requirements, account
+   layout, testing checklist, example validator program.
 - **Both programs have stable devnet IDs.** Market:
   `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
   `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`. Upgrade authority:

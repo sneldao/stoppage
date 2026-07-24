@@ -20,6 +20,9 @@ import {
   buildClaimIx,
   buildCreateMarketIx,
   buildAttestVerificationIx,
+  buildResolveMarketIx,
+  buildTxlineValidateStatData,
+  DEFAULT_ORACLE,
   signAndConfirmWithSessionKey,
   findPositionPda,
   getMarket,
@@ -178,6 +181,7 @@ export function useMarketActions() {
         creator: publicKey,
         predicate,
         closesAt,
+        oracle: DEFAULT_ORACLE,
       });
       return sendWalletTx(ix);
     },

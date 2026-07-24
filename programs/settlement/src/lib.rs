@@ -1,9 +1,17 @@
 // Stoppage settlement program.
 //
-// Sole job: given a predicate outcome claim, CPI into TxLINE's
-// `validate_stat` instruction to confirm it against the cryptographically
-// anchored match data, then emit a proof-carrying event so the market
-// can be settled and the UI can render the proof.
+// Sole job: given a predicate outcome claim, CPI into an operator's
+// validator program to confirm it against cryptographically anchored
+// data, then emit a proof-carrying event so the market can be settled
+// and the UI can render the proof.
+//
+// The contract is oracle-agnostic. A validator is any Solana program
+// that returns a 1-byte bool from a CPI (0x01 = predicate holds) and
+// reads its truth from a readonly anchor account carrying the anchored
+// Merkle root. TxLINE's `validate_stat` is the reference validator; an
+// operator can substitute their own. This program never learns which
+// validator it CPI'd into beyond recording its id on the receipt — the
+// market program is the one that binds a market to an approved oracle.
 //
 // The event emitted on resolution carries the full proof (statement,
 // anchored root, outcome, proof hash) so the Verifiable Resolution UI can
@@ -11,8 +19,8 @@
 // re-verify locally. This is the "proof is the product" differentiator
 // made literal in the contract.
 //
-// The agent submits a single transaction containing:
-//   1. resolve_market  (this program — CPIs into TxLINE validate_stat)
+// The keeper submits a single transaction containing:
+//   1. resolve_market  (this program — CPIs into the validator)
 //   2. settle_from_proof (market program — consumes the resolution receipt)
 //   3. attest_verification (market program — increments verification counter)
 //
@@ -28,38 +36,43 @@ use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 declare_id!("5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF");
 
 const MARKET_PROGRAM_ID: Pubkey = pubkey!("92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG");
-const TXLINE_DEVNET_PROGRAM_ID: Pubkey = pubkey!("6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J");
-
-// TxLINE validate_stat instruction discriminator (from the TxLINE IDL).
-const VALIDATE_STAT_DISCRIMINATOR: [u8; 8] = [107, 197, 232, 90, 191, 136, 105, 185];
 
 #[program]
 pub mod settlement {
     use super::*;
     use anchor_lang::solana_program::program::{invoke, get_return_data};
 
-    /// Resolve a market by verifying a TxLINE Merkle proof on-chain.
+    /// Resolve a market by verifying a proof against an operator's
+    /// validator program on-chain.
     ///
-    /// 1. CPI into TxLINE's `validate_stat` with the full proof data
+    /// 1. CPI into `validator_program` with the caller-supplied
+    ///    instruction data (complete — including its discriminator)
     /// 2. Read the return data (bool) — true means the predicate holds
     /// 3. Verify the result matches the expected outcome
-    /// 4. Emit `MarketResolved` carrying the full proof data
+    /// 4. Record the validator on the receipt and emit `MarketResolved`
+    ///
+    /// Oracle-agnostic: the validator is supplied as the first remaining
+    /// account, followed by the readonly account(s) it reads (the
+    /// carriers of the anchored root). TxLINE's `validate_stat` is the
+    /// reference validator, but any program returning a bool works. This
+    /// program never learns which validator it CPI'd into beyond recording
+    /// its id — the market program binds a market to an approved oracle
+    /// and cross-checks the receipt's validator in `settle_from_proof`.
     ///
     /// Permissionless: any keeper can call this. The proof itself is the
-    /// authority — if `validate_stat` rejects it, the call fails and the
-    /// entire transaction reverts. On success it creates the receipt the
-    /// market program requires for settlement.
+    /// authority — if the validator rejects it, the CPI fails and the
+    /// entire transaction reverts.
     ///
-    /// The `txline_ix_data` is the pre-built instruction data for TxLINE's
-    /// `validate_stat` instruction (discriminator + borsh-serialized args).
-    /// Building it in the SDK keeps the complex TxLINE type serialization
-    /// in TypeScript, where the TxLINE types are already defined.
+    /// The `validator_ix_data` is the complete instruction data for the
+    /// validator (its 8-byte discriminator + borsh-serialized args).
+    /// Building it in the SDK keeps oracle-specific serialization in
+    /// TypeScript, where the oracle types are defined.
     pub fn resolve_market(
         ctx: Context<ResolveMarket>,
         statement: String,
         merkle_root: [u8; 32],
         outcome: u8,
-        txline_ix_data: Vec<u8>,
+        validator_ix_data: Vec<u8>,
     ) -> Result<()> {
         require!(outcome <= 1, SettlementError::InvalidOutcome);
         require_keys_eq!(
@@ -67,56 +80,48 @@ pub mod settlement {
             MARKET_PROGRAM_ID,
             SettlementError::InvalidMarketOwner
         );
-        require_keys_eq!(
-            ctx.accounts.txline_program.key(),
-            TXLINE_DEVNET_PROGRAM_ID,
-            SettlementError::InvalidTxlineProgram
-        );
-        require_keys_eq!(
-            *ctx.accounts.daily_scores_merkle_roots.owner,
-            TXLINE_DEVNET_PROGRAM_ID,
-            SettlementError::InvalidMerkleRootsOwner
-        );
-        // Build the CPI instruction for TxLINE's validate_stat.
-        // The data is pre-built by the SDK (discriminator + borsh args).
-        // We prepend the validate_stat discriminator to make the full
-        // instruction data.
-        let mut ix_data = VALIDATE_STAT_DISCRIMINATOR.to_vec();
-        ix_data.extend_from_slice(&txline_ix_data);
 
+        // The validator program is the first remaining account; the rest
+        // are the readonly accounts it reads (the anchored root carrier(s)).
+        let remaining = &ctx.remaining_accounts;
+        require!(
+            !remaining.is_empty(),
+            SettlementError::MissingValidatorProgram
+        );
+        let validator_info = remaining[0].clone();
+        let validator_program = validator_info.key();
+        let anchor_infos = &remaining[1..];
+
+        // Build the CPI instruction. Data is caller-supplied and complete.
+        let metas = anchor_infos
+            .iter()
+            .map(|a| AccountMeta::new_readonly(a.key(), false))
+            .collect::<Vec<_>>();
         let validate_ix = Instruction {
-            program_id: ctx.accounts.txline_program.key(),
-            data: ix_data,
-            accounts: vec![AccountMeta::new_readonly(
-                ctx.accounts.daily_scores_merkle_roots.key(),
-                false,
-            )],
+            program_id: validator_program,
+            data: validator_ix_data,
+            accounts: metas,
         };
 
-        // Execute the CPI call. If validate_stat fails (proof invalid),
-        // this returns an error and the transaction reverts.
-        invoke(
-            &validate_ix,
-            &[ctx.accounts.daily_scores_merkle_roots.to_account_info()],
-        )?;
+        // Execute the CPI call. If the validator rejects the proof, this
+        // returns an error and the transaction reverts.
+        invoke(&validate_ix, anchor_infos)?;
 
-        // Read the return data. validate_stat returns a bool (1 byte).
+        // Read the return data. The validator returns a bool (1 byte):
         // Anchor serializes bool as 0x01 (true) or 0x00 (false).
         let return_data = get_return_data()
             .ok_or(SettlementError::NoReturnData)?;
 
-        // Verify the return data comes from the TxLINE program.
+        // Verify the return data comes from the validator we CPI'd into.
         require_keys_eq!(
             return_data.0,
-            ctx.accounts.txline_program.key(),
+            validator_program,
             SettlementError::InvalidReturnSource
         );
 
         let validated = return_data.1.first().copied().unwrap_or(0) != 0;
 
-        // The outcome encodes what the agent determined from the proof.
-        // outcome 0 = YES (predicate holds), 1 = NO (predicate doesn't hold).
-        // validate_stat returns true if the predicate holds.
+        // outcome 0 = YES (predicate holds), 1 = NO (predicate doesn't).
         let expected_validated = outcome == 0; // YES = predicate holds
         require!(
             validated == expected_validated,
@@ -128,6 +133,7 @@ pub mod settlement {
         let receipt = &mut ctx.accounts.resolution;
         receipt.market = ctx.accounts.market.key();
         receipt.outcome = outcome;
+        receipt.validator_program = validator_program;
         receipt.merkle_root = merkle_root;
         receipt.resolver = ctx.accounts.resolver.key();
         receipt.resolved_at = clock.unix_timestamp;
@@ -137,6 +143,7 @@ pub mod settlement {
             market: ctx.accounts.market.key(),
             resolution: receipt.key(),
             statement: statement.clone(),
+            validator_program,
             merkle_root,
             outcome,
             proof_hash,
@@ -162,7 +169,9 @@ pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub resolver: Signer<'info>,
     /// The market being resolved. Owned by programs/market.
-    /// CHECK: validated by the caller passing the correct market address.
+    /// CHECK: validated by owner check in resolve_market; the market
+    /// program binds this market to an approved oracle at creation and
+    /// cross-checks the validator recorded on the receipt at settlement.
     #[account(mut)]
     pub market: UncheckedAccount<'info>,
     #[account(
@@ -173,24 +182,22 @@ pub struct ResolveMarket<'info> {
         bump,
     )]
     pub resolution: Account<'info, Resolution>,
-    /// CHECK: TxLINE validation program (6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J on devnet).
-    /// The address is verified by the CPI call — if it's not the real
-    /// TxLINE program, validate_stat will fail.
-    pub txline_program: UncheckedAccount<'info>,
-    /// The daily_scores_merkle_roots PDA from TxLINE. This is the account
-    /// that stores the anchored Merkle root for the given epoch day.
-    /// The PDA is derived as: ["daily_scores_roots", epoch_day_u16_le]
-    /// CHECK: owned by txline_program, verified by the CPI call.
-    pub daily_scores_merkle_roots: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+    // remaining_accounts:
+    //   [0]       validator_program — the oracle program receiving the CPI
+    //   [1..]     anchor accounts the validator reads (anchored root(s))
 }
 
 /// Immutable proof-gated receipt. The market program checks this exact PDA
-/// before it can change a market from open to settled.
+/// before it can change a market from open to settled, and cross-checks
+/// `validator_program` against the oracle the market was created with.
 #[account]
 pub struct Resolution {
     pub market: Pubkey,
     pub outcome: u8,
+    /// The validator program that verified the proof via CPI. Recorded so
+    /// the market program can bind settlement to the market's oracle.
+    pub validator_program: Pubkey,
     pub merkle_root: [u8; 32],
     pub resolver: Pubkey,
     pub resolved_at: i64,
@@ -198,7 +205,7 @@ pub struct Resolution {
 }
 
 impl Resolution {
-    pub const SPACE: usize = 8 + 32 + 1 + 32 + 32 + 8 + 1;
+    pub const SPACE: usize = 8 + 32 + 1 + 32 + 32 + 32 + 8 + 1;
 }
 
 // ── Events ──────────────────────────────────────────────────────────
@@ -215,7 +222,9 @@ pub struct MarketResolved {
     pub resolution: Pubkey,
     /// The raw statement being proven, e.g. "GOAL:FRA:63:00".
     pub statement: String,
-    /// The Merkle root anchored on Solana (from TxLINE's daily_scores_roots PDA).
+    /// The validator program that verified the proof via CPI.
+    pub validator_program: Pubkey,
+    /// The Merkle root anchored on Solana (from the oracle's root PDA).
     pub merkle_root: [u8; 32],
     /// The outcome: 0=YES, 1=NO, 2=VOID.
     pub outcome: u8,
@@ -225,7 +234,7 @@ pub struct MarketResolved {
     pub resolver: Pubkey,
     /// On-chain timestamp of resolution.
     pub timestamp: i64,
-    /// Whether the proof was verified on-chain via validate_stat CPI.
+    /// Whether the proof was verified on-chain via the validator CPI.
     pub validated_on_chain: bool,
 }
 
@@ -233,21 +242,19 @@ pub struct MarketResolved {
 
 #[error_code]
 pub enum SettlementError {
-    /// validate_stat did not return any data.
-    #[msg("TxLINE validate_stat returned no data")]
+    /// The validator CPI did not return any data.
+    #[msg("Validator returned no data")]
     NoReturnData,
     /// Return data came from an unexpected program.
-    #[msg("Return data did not come from the TxLINE program")]
+    #[msg("Return data did not come from the validator program")]
     InvalidReturnSource,
     /// The proof verified but the outcome doesn't match the validation result.
-    #[msg("Proof outcome does not match validate_stat result")]
+    #[msg("Proof outcome does not match validator result")]
     ProofOutcomeMismatch,
     #[msg("Resolution outcome must be YES (0) or NO (1)")]
     InvalidOutcome,
     #[msg("Market is not owned by the Stoppage market program")]
     InvalidMarketOwner,
-    #[msg("TxLINE program does not match the pinned devnet program")]
-    InvalidTxlineProgram,
-    #[msg("Merkle roots account is not owned by the TxLINE program")]
-    InvalidMerkleRootsOwner,
+    #[msg("No validator program supplied in remaining accounts")]
+    MissingValidatorProgram,
 }

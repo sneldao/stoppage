@@ -27,11 +27,12 @@ import {
   buildVoidMarketIx,
   buildAttestVerificationIx,
   buildResolveMarketIx,
-  buildValidateStatData,
+  buildTxlineValidateStatData,
   buildAttestPricingIx,
   signQuote,
   deriveDailyScoresRootsPda,
   findMarketPdaFromPredicate,
+  DEFAULT_ORACLE,
   type MarketPredicate,
   type Side,
   type QuoteSignaturePayload,
@@ -378,6 +379,7 @@ export class Agent {
       creator: wallet.publicKey,
       predicate: action.predicate,
       closesAt,
+      oracle: DEFAULT_ORACLE,
     });
 
     try {
@@ -489,7 +491,7 @@ export class Agent {
             isRightSibling: n.isRightSibling,
           }));
 
-          const txlineIxData = buildValidateStatData({
+          const txlineIxData = buildTxlineValidateStatData({
             // Per TxLINE docs: ts = minTimestamp in milliseconds
             ts: proof.summary.updateStats.minTimestamp,
             fixtureSummary: {
@@ -523,11 +525,13 @@ export class Agent {
           });
 
           // Build the resolve_market instruction
+          // The validator program (TxLINE) and its readonly account (daily_scores_roots PDA)
+          // are passed as remaining_accounts to the settlement program.
           const resolveMarketIx = buildResolveMarketIx(
             wallet.publicKey,
             new PublicKey(market.marketPda),
             txlineProgramId,
-            dailyScoresRoots,
+            [dailyScoresRoots],
             action.label,
             eventStatRootBytes,
             outcome === "yes" ? 0 : 1,

@@ -221,6 +221,7 @@ export interface CreateMarketParams {
   creator: PublicKey;
   predicate: MarketPredicate;
   closesAt: number; // unix seconds
+  oracle: PublicKey;
 }
 
 export function buildCreateMarketIx(
@@ -255,6 +256,7 @@ export function buildCreateMarketIx(
       team,
       encodeU64(paramU64),
       encodeI64(params.closesAt),
+      params.oracle.toBuffer(),
     ]),
   });
 }
@@ -556,6 +558,7 @@ export const MARKET_ACCOUNT_SIZE =
   8 + // team
   8 + // param_u64
   32 + // creator
+  32 + // oracle (validator program)
   8 + // bond_lamports
   1 + // bond_claimed
   8 + // yes_pool
@@ -577,6 +580,7 @@ export function parseMarket(accountData: Buffer, marketAddress: string): Market 
   const teamBuf = accountData.subarray(offset, offset + 8); offset += 8;
   const paramU64 = Number(readU64LE(accountData, offset)); offset += 8;
   const creator = new PublicKey(accountData.subarray(offset, offset + 32)).toString(); offset += 32;
+  const oracle = new PublicKey(accountData.subarray(offset, offset + 32)).toString(); offset += 32;
   const bondLamports = Number(readU64LE(accountData, offset)); offset += 8;
   const bondClaimed = accountData.readUInt8(offset) !== 0; offset += 1;
   const yesPool = Number(readU64LE(accountData, offset)); offset += 8;
@@ -600,6 +604,7 @@ export function parseMarket(accountData: Buffer, marketAddress: string): Market 
       params: { team, windowSeconds: paramU64 },
     },
     creator,
+    oracle,
     bondLamports,
     bondClaimed,
     yesPool,
