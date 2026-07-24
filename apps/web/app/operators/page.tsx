@@ -113,6 +113,14 @@ const reproduced = priceMarket(
         <section className="op-cta">
           <p>Want to settle your markets on a proof instead of a key?</p>
           <Link href="/calibration" className="op-cta-link">See the calibration board →</Link>
+          <a
+            href="https://github.com/sneldao/stoppage/blob/main/docs/OPERATORS.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="op-cta-link"
+          >
+            Read the operator integration guide ↗
+          </a>
         </section>
       </div>
     </main>

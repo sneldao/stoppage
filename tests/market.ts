@@ -22,6 +22,7 @@ const { assert, expect } = chai;
 import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "crypto";
+import { DEFAULT_ORACLE } from "@stoppage/sdk";
 
 // Load the IDL via fs (rule 2 — single source of truth in packages/sdk/idl/)
 // rather than a JSON import, to stay loader-agnostic under Node 22.
@@ -30,6 +31,8 @@ const marketIdl = JSON.parse(
 );
 
 const MARKET_PROGRAM_ID = new PublicKey(marketIdl.address);
+
+
 
 // u8 constants — mirror the program's private constants.
 const SIDE_YES = 0;
@@ -115,7 +118,7 @@ describe("stoppage / market program (M2)", () => {
 
   async function createMarket(creator: Keypair, m: ReturnType<typeof marketFor>) {
     await program.methods
-      .createMarket(m.kind, Buffer.from(m.matchId), Buffer.from(m.team), new BN(m.paramU64), new BN(m.closesAt))
+      .createMarket(m.kind, Buffer.from(m.matchId), Buffer.from(m.team), new BN(m.paramU64), new BN(m.closesAt), DEFAULT_ORACLE)
       .accounts({
         creator: creator.publicKey,
         market: m.marketPda,
@@ -215,6 +218,7 @@ describe("stoppage / market program (M2)", () => {
     assert.equal(market.status, STATUS_OPEN);
     assert.equal(market.bondLamports.toNumber(), BOND);
     assert.equal(market.feeBps, FEE_BPS);
+    assert.deepEqual(market.oracle, DEFAULT_ORACLE);
     // Bond was transferred into the market (vault) account.
     assert.isAtLeast(await balance(m.marketPda), BOND);
   });

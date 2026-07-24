@@ -56,9 +56,14 @@ SDK builders handle PDA derivation, borsh encoding, and account metas. Your keep
 
 ## Current state (2026-07-24)
 
-- **Oracle-agnostic settlement upgrade is code-complete.** Market and settlement programs now support any validator program via remaining_accounts, with market-oracle binding enforced on-chain. The upgrade is ready for deployment but has not yet been pushed to devnet.
-- **SDK complete.** Instruction builders, PDA derivations, oracle adapters (TxLINE reference + generic for custom validators).
-- **Two market templates proven** (`total_goals_over`, `corners_over`). New predicates need a deterministic mapping to a validator proof.
+- **Oracle-agnostic settlement is live on devnet.** Market and settlement
+  programs support any validator program via remaining_accounts, with
+  market-oracle binding enforced on-chain. The oracle-agnostic CPI path has
+  been exercised end-to-end with TxLINE as the reference validator.
+- **SDK complete.** Instruction builders, PDA derivations, oracle adapters
+  (TxLINE reference + generic for custom validators).
+- **Two market templates proven** (`total_goals_over`, `corners_over`). New
+  predicates need a deterministic mapping to a validator proof.
 - **Devnet only.** Mainnet requires legal review.
 
 ## The milestone

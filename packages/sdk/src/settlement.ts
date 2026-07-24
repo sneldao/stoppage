@@ -65,9 +65,13 @@ function encodeVec(items: Buffer[]): Buffer {
 
 function encodeI64(val: number): Buffer {
   const buf = Buffer.alloc(8);
-  // Write as two 32-bit parts to handle full i64 range
-  buf.writeInt32LE(val & 0xffffffff, 0);
-  buf.writeInt32LE(Math.floor(val / 0x100000000), 4);
+  // Use BigInt for an obvious, full-range i64 two's-complement encoding.
+  // Number is safe for the timestamps we send; BigInt.asIntN keeps any
+  // out-of-range value in the i64 ring and asUintN lets us read the bytes.
+  const n = BigInt.asUintN(64, BigInt.asIntN(64, BigInt(val)));
+  for (let i = 0; i < 8; i++) {
+    buf[i] = Number((n >> BigInt(i * 8)) & BigInt(0xff));
+  }
   return buf;
 }
 

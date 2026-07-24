@@ -1,0 +1,4 @@
+{
+  "node-option": ["import=tsx", "no-warnings"],
+  "spec": ["src/**/*.test.ts"]
+}

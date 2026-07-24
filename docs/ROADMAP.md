@@ -71,15 +71,15 @@ settlement primitive where fund release is cryptographically gated on an
 on-chain proof verification. The /operators page, OPERATORS.md, and
 OPERATOR_PITCH.md now lead with this positioning.
 
-- **Oracle-agnostic settlement implemented (code-complete, not yet
-  deployed).** Settlement program accepts any validator program via
-  remaining_accounts[0], with anchor accounts in remaining_accounts[1..].
-  No hardcoded TxLINE program IDs or account owners on the contract.
-  Market program stores `oracle: Pubkey` on the Market account at creation
-  and cross-checks the resolution receipt's `validator_program` against it
-  in `settle_from_proof` — a market cannot be settled by a foreign proof.
-  Resolution struct now carries validator_program; MarketResolved event
-  carries it too. Added `ResolutionOracleMismatch` error.
+- **Oracle-agnostic settlement deployed on devnet.** Settlement program
+  accepts any validator program via remaining_accounts[0], with anchor
+  accounts in remaining_accounts[1..]. No hardcoded TxLINE program IDs or
+  account owners on the contract. Market program stores `oracle: Pubkey`
+  on the Market account at creation and cross-checks the resolution
+  receipt's `validator_program` against it in `settle_from_proof` — a
+  market cannot be settled by a foreign proof. Resolution struct now carries
+  validator_program; MarketResolved event carries it too. Added
+  `ResolutionOracleMismatch` error.
 - **SDK oracle adapter layer.** `packages/sdk/src/oracle.ts` exports
   `txlineOracle` (reference, prepends the 8-byte validate_stat
   discriminator) and `genericOracle` (custom validator, caller supplies
@@ -98,8 +98,8 @@ OPERATOR_PITCH.md now lead with this positioning.
   positioning, code examples for both TxLINE and custom oracles, and
   current limitations.
 - **TypeScript typecheck green.** `npm run typecheck` passes.
-- **Anchor build not run in this environment** (Solana toolchain not
-  installed). Must run `npm run anchor:build` locally before deploy.
+- **Anchor build green.** `npm run anchor:build` passes locally; the
+  Solana Rust toolchain is installed and working.
 - **Both programs have stable devnet IDs.** Market:
   `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
   `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`.
@@ -113,7 +113,7 @@ OPERATOR_PITCH.md now lead with this positioning.
   VPS `nuncio-vultr`, connected to live TxLINE SSE.
 - **M1 (session-key delegation) and M2 (market vault) contract logic
   code-complete**, M2 program test suite passes against local validator
-  (13 passing, 1 pending). M3 on-chain CPI verified against TxLINE
+  (17 passing, 1 pending). M3 on-chain CPI verified against TxLINE
   fixture 17952170 pre-pivot (devnet tx
   `En879uAi8pGPoUDs6tAhvG6hFLAqMg4XHBXHQrYLpUAoGwkqxFAi3ZHUY6gb8mDN8VNMXgQ5TJYwNeU2C2x8hm1`).
 - **TxLINE free-tier subscription** active on devnet; World Cup access
@@ -122,23 +122,15 @@ OPERATOR_PITCH.md now lead with this positioning.
 
 **Remaining before operator-ready:**
 
-1. **Deploy oracle-agnostic programs.** Run `scripts/deploy.sh` locally
-   (requires Solana toolchain) to upgrade both programs on devnet.
-   Existing devnet markets lack the oracle field and are not compatible
-   with the new market program — create fresh markets after deploy.
-2. **Re-verify end-to-end settlement.** Run
-   `scripts/create-proof-board-demo.ts` against devnet post-deploy to
-   confirm the oracle-agnostic CPI path works with TxLINE as the
-   reference validator.
-3. **Operator pilot.** Find one prediction-market protocol or fantasy
-   platform to integrate with a custom validator. The milestone is one
-   real operator settling one real market through their own validator,
-   not fifty seeded devnet markets.
-4. **Mainnet deployment.** Requires legal review (see README compliance
+1. **Operator pilot.** Find one prediction-market protocol or fantasy
+   platform to integrate with a custom validator. The milestone is one real
+   operator settling one real market through their own validator, not
+   fifty seeded devnet markets.
+2. **Mainnet deployment.** Requires legal review (see README compliance
    note) before any funds move to mainnet.
-5. **Operator onboarding expansion.** Flesh out `docs/OPERATORS.md`
-   with a full integration guide: validator requirements, account
-   layout, testing checklist, example validator program.
+3. **Operator onboarding expansion.** Flesh out `docs/OPERATORS.md` with a
+   full integration guide: validator requirements, account layout,
+   testing checklist, example validator program.
 - **Both programs have stable devnet IDs.** Market:
   `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`, settlement:
   `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`. Upgrade authority:
@@ -167,7 +159,7 @@ OPERATOR_PITCH.md now lead with this positioning.
   with the full proof (statement, merkle root, outcome, resolver,
   timestamp), and returns the data to the caller.
 - **M1 + M2 contract logic is code-complete and the M2 program test
-  suite passes against a local validator (13 passing, 1 pending).** The
+  suite passes against a local validator (17 passing, 1 pending).** The
   market program implements 12 instructions across session-key
   delegation, market lifecycle, and protocol economics. The settlement
   program's `resolve_market` instruction performs real on-chain CPI

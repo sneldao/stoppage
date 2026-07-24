@@ -371,6 +371,10 @@
         {
           "name": "closes_at",
           "type": "i64"
+        },
+        {
+          "name": "oracle",
+          "type": "pubkey"
         }
       ]
     },
@@ -466,6 +470,68 @@
         {
           "name": "fund_lamports",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "force_settle",
+      "docs": [
+        "Authority-only settlement override. Used in acceptance tests and as a",
+        "last-resort manual settle path; production settlement should go through",
+        "settle_from_proof with a TxLINE proof receipt."
+      ],
+      "discriminator": [
+        201,
+        10,
+        239,
+        245,
+        47,
+        198,
+        225,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
         }
       ]
     },
@@ -1477,36 +1543,41 @@
     },
     {
       "code": 6026,
+      "name": "ResolutionOracleMismatch",
+      "msg": "Resolution receipt validator does not match market's bound oracle"
+    },
+    {
+      "code": 6027,
       "name": "NotCreator",
       "msg": "Signer is not the market creator"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "BondAlreadyClaimed",
       "msg": "Bond has already been claimed"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "NotProtocolAuthority",
       "msg": "Signer is not the protocol authority"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "NotAgentAuthority",
       "msg": "Signer is not the authorized agent"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "SnapshotHashMismatch",
       "msg": "Provided snapshot does not match the stored hash"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "ModelVersionTooLong",
       "msg": "Model version exceeds 64 bytes"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "EmptyAgentSignature",
       "msg": "Agent signature cannot be empty"
     }
@@ -1605,6 +1676,17 @@
             "type": "pubkey"
           },
           {
+            "name": "oracle",
+            "docs": [
+              "The oracle (validator program) approved to settle this market.",
+              "settle_from_proof cross-checks the resolution receipt's",
+              "validator_program against this — an operator binds a market to",
+              "their own validator at creation, so settlement is gated on the",
+              "market's chosen oracle, not a hard-coded one."
+            ],
+            "type": "pubkey"
+          },
+          {
             "name": "bond_lamports",
             "type": "u64"
           },
@@ -1662,6 +1744,10 @@
           },
           {
             "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
             "type": "pubkey"
           },
           {

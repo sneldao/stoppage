@@ -35,7 +35,6 @@ async function main() {
   const predicate: MarketPredicate = {
     kind: "next_goal_within",
     matchId: "FRA-ESP",
-    team: "",
     params: { windowSeconds: 600 },
   };
 

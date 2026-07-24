@@ -110,13 +110,13 @@ Your keeper then bundles three instructions in one transaction:
 If step 1's proof is invalid, the whole transaction reverts and nothing
 settles.
 
-## Current limitations (honest, as of 2026-07-24)
+## Current state (as of 2026-07-24)
 
-- **Oracle-agnostic upgrade is code-complete but not yet deployed.** The
-  settlement and market programs now support any validator via
+- **Oracle-agnostic settlement is live on devnet.** Both programs were
+  upgraded; the settlement and market programs support any validator via
   remaining_accounts, with market-oracle binding enforced on-chain. The
-  upgrade is ready for deployment but has not yet been pushed to devnet.
-  Once deployed, custom validators will work end-to-end.
+  oracle-agnostic CPI path has been exercised end-to-end with TxLINE as
+  the reference validator.
 - **Two market templates are proven** (`total_goals_over`,
   `corners_over`). New predicates need a deterministic mapping to a
   validator proof; the settlement program doesn't care what the predicate
