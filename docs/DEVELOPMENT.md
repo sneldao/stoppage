@@ -120,9 +120,10 @@ The web app auto-deploys on `git push` via Vercel. The agent does not —
 use the one-command script from your laptop:
 
 ```bash
-./scripts/agent-deploy.sh           # pull + reinstall + restart
+./scripts/agent-deploy.sh                   # pull + reinstall + restart + health checks
 ./scripts/agent-deploy.sh --logs    # same, then tail pm2 logs
-./scripts/agent-deploy.sh --no-pull # restart without git pull
+./scripts/agent-deploy.sh --no-pull         # restart current code
+./scripts/agent-deploy.sh --require-healthy # abort if not already healthy
 ```
 
 The script SSHes to `nuncio-vultr`, pulls `origin/main` into
