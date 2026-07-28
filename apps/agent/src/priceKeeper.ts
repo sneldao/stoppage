@@ -173,18 +173,18 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
       params: { team: "", threshold: Number(thresholdRaw) },
     };
     const [marketPda] = findMarketPdaFromPredicate(predicate);
-    const key = marketPda.toBase58();
-    if (tracked.has(key)) return;
+    const pdaAddress = ******************();
+    if (tracked.has(pdaAddress)) return;
 
     const existing = await config.connection.getAccountInfo(marketPda);
     if (existing) {
-      log(`market already exists: ${key}`);
-      tracked.set(key, { predicate, marketPda, referenceTs, thresholdRaw });
+      log(`market already exists: ${pdaAddress}`);
+      tracked.set(pdaAddress, { predicate, marketPda, referenceTs, thresholdRaw });
       return;
     }
 
     log(
-      `creating market: ${SYMBOL} above $${roundedUsd} at ${new Date(referenceTs * 1000).toISOString()} (${key})`
+      `creating market: ${SYMBOL} above $${roundedUsd} at ${new Date(referenceTs * 1000).toISOString()} (${pdaAddress})`
     );
     if (!config.dryRun) {
       const ix = buildCreateMarketIx({
@@ -202,7 +202,7 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
       if (status.value[0]?.err) throw new Error(`create tx failed on-chain: ${JSON.stringify(status.value[0].err)} (${sig})`);
       log(`market created, tx ${sig}`);
     }
-    tracked.set(key, { predicate, marketPda, referenceTs, thresholdRaw });
+    tracked.set(pdaAddress, { predicate, marketPda, referenceTs, thresholdRaw });
   }
 
   async function settleMarket(m: TrackedPriceMarket): Promise<void> {

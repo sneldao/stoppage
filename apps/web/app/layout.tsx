@@ -14,19 +14,21 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://stoppage.sportwarren.com"),
   applicationName: "Stoppage",
   title: {
-    default: "Stoppage — bet the next moment",
+    default: "Stoppage — markets that settle on proof",
     template: "%s — Stoppage",
   },
   description:
-    "In-play sports micro-markets with session-key betting, TxLINE proofs, and verifiable Solana settlement.",
+    "Oracle-agnostic settlement for prediction markets: proof-gated payouts, session-key UX, and verifiable receipts on Solana.",
   keywords: [
     "Stoppage",
-    "TxLINE",
-    "TxODDS",
     "Solana",
     "prediction markets",
-    "sports data",
+    "decision markets",
+    "futarchy",
+    "oracle-agnostic settlement",
     "verifiable settlement",
+    "Pyth",
+    "TxLINE",
   ],
   icons: {
     icon: [
@@ -39,23 +41,23 @@ export const metadata: Metadata = {
     type: "website",
     url: "https://stoppage.sportwarren.com",
     siteName: "Stoppage",
-    title: "Stoppage — bet the next moment",
+    title: "Stoppage — markets that settle on proof",
     description:
-      "Session-key betting, TxLINE Merkle proofs, and proof-gated Solana settlement for in-play sports micro-markets.",
+      "Proof-gated settlement on Solana. Any validator oracle, one verifiable receipt. Session-key UX, no signing popups.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Stoppage: markets that live inside the match",
+        alt: "Stoppage: markets that settle on proof, not trust",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stoppage — bet the next moment",
+    title: "Stoppage — markets that settle on proof",
     description:
-      "Session-key betting, TxLINE proofs, and verifiable Solana settlement for in-play sports micro-markets.",
+      "Oracle-agnostic settlement for prediction markets. Any validator, one verifiable receipt, on Solana.",
     images: ["/og-image.png"],
   },
 };

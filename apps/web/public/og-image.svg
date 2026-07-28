@@ -29,9 +29,9 @@
   <g transform="translate(736 88)">
     <rect width="348" height="396" rx="28" fill="#0a0a0a" fill-opacity=".72" stroke="#ffffff" stroke-opacity=".16"/>
     <text x="30" y="58" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">VERIFIABLE RECEIPT</text>
-    <text x="30" y="98" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="18">TxLINE proof anchored on Solana</text>
+    <text x="30" y="98" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="18">Any oracle, one proof-anchored receipt</text>
     <rect x="30" y="130" width="288" height="74" rx="14" fill="#052e2b" stroke="#34d399" stroke-opacity=".35"/>
-    <text x="52" y="162" fill="#a7f3d0" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">TOTAL GOALS</text>
+    <text x="52" y="162" fill="#a7f3d0" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">ANY OUTCOME</text>
     <text x="52" y="190" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">settled from proof</text>
     <path d="M50 252h248M50 292h206M50 332h232" stroke="#ffffff" stroke-opacity=".24" stroke-width="12" stroke-linecap="round"/>
     <path d="M50 252h114M50 292h156M50 332h88" stroke="#facc15" stroke-width="12" stroke-linecap="round"/>
@@ -39,8 +39,8 @@
 
   <g transform="translate(74 106)">
     <text x="0" y="0" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="900">Stoppage</text>
-    <text x="4" y="62" fill="#d1d5db" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600">Markets that live inside the match.</text>
-    <text x="4" y="116" fill="#9ca3af" font-family="Inter, Arial, sans-serif" font-size="25">Session-key betting. TxLINE proofs. Solana settlement.</text>
+    <text x="4" y="62" fill="#d1d5db" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600">Markets that settle on proof, not trust.</text>
+    <text x="4" y="116" fill="#9ca3af" font-family="Inter, Arial, sans-serif" font-size="25">Session keys. Any oracle. Verifiable settlement.</text>
   </g>
 
   <g transform="translate(78 518)">
