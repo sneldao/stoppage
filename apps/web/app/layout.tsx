@@ -46,7 +46,7 @@ export const metadata: Metadata = {
       "Proof-gated settlement on Solana. Any validator oracle, one verifiable receipt. Session-key UX, no signing popups.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.png?v=2",
         width: 1200,
         height: 630,
         alt: "Stoppage: markets that settle on proof, not trust",
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     title: "Stoppage — markets that settle on proof",
     description:
       "Oracle-agnostic settlement for prediction markets. Any validator, one verifiable receipt, on Solana.",
-    images: ["/og-image.png"],
+    images: ["/og-image.png?v=2"],
   },
 };
 
