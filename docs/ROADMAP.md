@@ -61,7 +61,52 @@ codebase supports both; the decision determines what to build next.
   build a general predicate system until two specific predicates have
   settled real markets.
 
-## Current state (2026-07-24)
+## Current state (2026-07-28)
+
+**Pyth price oracle — the "oracle-agnostic" claim is now demonstrated live.**
+A third program, `pyth_validator`
+(`73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG`, deployed via
+`scripts/deploy.sh`), verifies a guardian-signed Pyth PriceUpdateV2 account
+(owner, discriminator, feed id, `[closes_at, closes_at + max_staleness]`
+window, threshold) and returns a bool over CPI — the exact `SettlementOracle`
+contract. The market program now accepts `price_above` (kind 4). The agent
+gained a `price` mode (`npx tsx apps/agent/src/index.ts price --live-tx
+--interval=N`) that creates interval SOL/USD markets from free Hermes data
+and settles them through the identical resolve → settle_from_proof →
+attest bundle. End-to-end on devnet: market
+`FEG8wYtZkGJUVTbWEKoJkpQ5XFNSQTMA7bz9FmGFFwDb` (sol_above:74 @ 19:45 UTC)
+joined 0.005 YES
+(`3C5MFYM3pJCyQb5RbpLnBQatvFiNY6vymL7gCMV2g9uVjvUF6727REEbYWsbKdZ7UjpafRkcpX9DfoozWDvRZu3a`),
+settled YES via validator CPI
+(`4TQfzkhS6ydo9pLd1iMMocjxMBRg49dpQWCPgx5hCEZsSuQUYYAbH2xv4b4JfjxCYbEEG2v6x5KuQT98LLMMa5na`,
+logs show `validate_price price=7411500000 threshold=7400000000 -> true`),
+claimed + bond refunded
+(`5N9pRn55rw2WZaTHR3XkRPcdhHEsh98FQ7Fsw5pHXKwJwW6LbvGHSjroAWdXrKBWs2v2DHmiShmp3XGhTsL44b6S`).
+Receipt `merkle_root` carries a digest of the verified observation (no
+Merkle root exists for price oracles — digest semantics documented in
+OPERATORS.md). Web UI: price markets are bettable without fixtures (they
+resolve against a price window, not a match), and render
+`Price above $X on SOL/USD`. PM2 config adds `stoppage-price` for the VPS.
+npm `overrides` pins jito-ts's bundled web3.js to 1.98.4 (its old chain
+breaks ESM module loading on Node 24); the keeper loads the receiver CJS
+entry explicitly (`createRequire`) because pyth's ESM entry imports a
+jito-ts deep path without an extension.
+
+**Proof board root cause fixed.** The degraded board (2 players / 1
+market) was a `dataSize` filter mismatch: the oracle-agnostic pivot added
+the 32-byte `oracle` field (139 → 171 bytes), and the 14 legacy pre-pivot
+markets were silently dropped from scans. The board now scans both
+layouts (`upgradeLegacyMarketData` normalizes legacy buffers; parseMarket
+stays single), retries with backoff, falls back Shyft → Helius → public
+RPC, variants return `degraded: true` instead of partial data. Verified
+locally against devnet: 15 markets / 5 players / 6 verified.
+
+**Toolchain reinstall.** The Solana CLI install dir had been wiped;
+Agave CLI 2.3.0 was reinstalled (matches DEVELOPMENT.md pin) and the
+rustup `solana` toolchain link was repointed at platform-tools v1.48
+(rustc 1.84, consistent with the Cargo.lock pins).
+
+## Previous state (2026-07-24)
 
 **Strategic pivot: settlement primitive for operators.** The product is no
 longer positioned as a betting app; it's a proof-gated settlement
@@ -374,14 +419,11 @@ The differentiator. Built first because the demo lives or dies on it.
 - [x] SDK instruction builders for all 12 market instructions; `getMarket`
       fetches + parses on-chain account; `impliedProbability` derives
       odds from vault balances.
-- [ ] Program tests covering: payout math, double-claim, claim-before-
+- [x] Program tests covering: payout math, double-claim, claim-before-
       settle, join-after-close, session-key join with expired/revoked
-      grant, cumulative-spend-cap breach, side-mismatch guard, void
-      refund path (needs a clock-warp harness). Not yet written — the
-      Anchor.toml `test = "npx mocha"` script is configured but no test
-      files exist. CLAUDE.md verification bar acknowledges this ("program
-      tests once they exist (M2+)"); demo-critical paths are exercised
-      end-to-end on devnet instead.
+      grant, cumulative-spend-cap breach, side-mismatch guard — written
+      in `tests/market.ts` (17 passing, 1 pending: the void refund path,
+      needs a clock-warp harness).
 - [x] Blinks POST returns a real unsigned join transaction.
 - [ ] **Acceptance:** two wallets join opposite sides on devnet; market is
   settled from a TxLINE proof receipt; winner claims; vault drains to zero;

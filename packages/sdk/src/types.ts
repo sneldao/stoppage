@@ -12,7 +12,8 @@ export type PredicateKind =
   | "next_goal_within"
   | "corners_over"
   | "card_shown"
-  | "total_goals_over";
+  | "total_goals_over"
+  | "price_above";
 
 /** Numeric encoding of PredicateKind on-chain (u8). */
 export const PREDICATE_KIND: Record<PredicateKind, number> = {
@@ -20,6 +21,7 @@ export const PREDICATE_KIND: Record<PredicateKind, number> = {
   corners_over: 1,
   card_shown: 2,
   total_goals_over: 3,
+  price_above: 4,
 };
 
 /** Human-readable labels for each PredicateKind (single source of truth). */
@@ -28,6 +30,7 @@ export const PREDICATE_LABEL: Record<PredicateKind, string> = {
   corners_over: "Corners over",
   card_shown: "Card shown",
   total_goals_over: "Total goals over",
+  price_above: "Price above",
 };
 
 export interface MarketPredicate {

@@ -15,6 +15,9 @@ export interface BoardData {
   verifiedMarketCount: number;
   totalAttestations: number;
   entries: BoardEntry[];
+  /** True when the board fell back to a later RPC candidate or dropped an
+   *  unparseable account — surfaced instead of silently returning partial data. */
+  degraded?: boolean;
 }
 
 export interface OddsShift {

@@ -4,10 +4,15 @@
 
 The first settlement primitive where fund release is cryptographically gated
 on an on-chain proof verification. A market can resolve only after the
-settlement program CPIs into TxLINE's `validate_stat` instruction and
-confirms the Merkle proof inside the same transaction that releases the
+settlement program CPIs into a validator program that verifies the proof
+and returns a boolean inside the same transaction that releases the
 vault. No oracle's word, no multisig, no admin key — the proof is the
 authority.
+
+Oracle-agnostic by contract, demonstrated with two live reference oracles:
+TxLINE's Merkle-proof sports validator and a Pyth guardian-verified price
+validator. The same receipt path, the same atomic settle bundle, two
+structurally different oracles.
 
 Built on Solana. Session-key-native for frictionless in-play betting.
 Open-source verifiable quant pricing. The reference UI is a betting app;
@@ -24,9 +29,13 @@ funds. Stoppage can.
 The moat is the schlep: encoding TxLINE's borsh types (ScoreStat,
 StatTerm, ProofNode, TraderPredicate) into the exact byte format
 `validate_stat` expects, aligning fixture IDs / sequence numbers / stat
-keys / JWT credentials, and building the CPI path that makes proof
-verification a settlement precondition, not a courtesy. This is painful,
-un-tutorializable work — which is why no one else has done it.
+keys / JWT credentials, building the CPI path that makes proof
+verification a settlement precondition, not a courtesy — then doing it
+again for a completely different oracle (Pyth's PriceUpdateV2 layout,
+pyth-solana-receiver's posting flow, Hermes observation windows). Each
+oracle is a separate schlep; the settlement primitive stays the same.
+This is painful, un-tutorializable work — which is why no one else has
+done it.
 
 A second proof surface runs alongside settlement: a verifiable quant
 market-maker. Matchkeeper prices each market from a deterministic,
@@ -40,8 +49,9 @@ produced the on-chain price.
 
 ## What it is
 
-- **Proof-gated settlement** — `resolve_market` CPIs into TxLINE
-  `validate_stat`, reads the boolean return, and emits a proof-carrying
+- **Proof-gated settlement** — `resolve_market` CPIs into the market's
+  bound validator program (TxLINE for sports, Pyth for prices, or an
+  operator's own), reads the boolean return, and emits a proof-carrying
   `MarketResolved` event. A failed proof reverts the entire transaction.
   `settle_from_proof` is permissionless but accepts only the canonical
   receipt PDA. No authority-only settlement path exists.
@@ -54,9 +64,9 @@ produced the on-chain price.
   return data, and the Explorer link. Matchkeeper quotes are
   reproducible in-browser.
 - **Operator-facing** — the settlement program + SDK are designed as
-  infrastructure that other betting protocols can integrate. The
-  reference UI proves the loop; the SDK is the product surface for
-  operators.
+  infrastructure that other betting protocols, futarchy platforms, or
+  prediction markets can integrate. The reference UI proves the loop;
+  the SDK is the product surface for operators.
 
 Differentiators, demo script, and judge-facing proof links: [docs/SUBMISSION.md](./docs/SUBMISSION.md).
 Design and module boundaries: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).

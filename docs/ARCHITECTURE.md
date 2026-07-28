@@ -14,12 +14,19 @@ was 2-1 *and* that the proof was verified inside the transaction that
 released the funds. Stoppage can.
 
 The settlement program (`programs/settlement`) is the keystone. Its sole
-job: given a predicate outcome claim, CPI into TxLINE's `validate_stat`
-to confirm it against the cryptographically anchored match data, then
-emit a proof-carrying event so the market can be settled and the UI can
-render the proof. If `validate_stat` rejects the proof, the entire
+job: given a predicate outcome claim, CPI into the market's bound
+validator program to confirm it against cryptographically anchored data,
+then emit a proof-carrying event so the market can be settled and the UI
+can render the proof. If the validator rejects the proof, the entire
 transaction reverts — settlement IS conditional on on-chain proof
 verification, not contingent on an oracle's word.
+
+The contract is oracle-agnostic: the validator is any Solana program
+that returns a 1-byte bool from a CPI. Two reference validators are
+deployed on devnet — TxLINE's `validate_stat` (Merkle-proof sports data)
+and `pyth_validator` (guardian-verified Pyth price observations). The
+market program binds each market to its oracle at creation and
+cross-checks the receipt's validator at settlement.
 
 The reference betting UI exists to prove the loop end-to-end: delegate
 session key → bet with no popup → match ends → agent fetches Merkle
@@ -33,9 +40,12 @@ The moat is the schlep: encoding TxLINE's borsh types (ScoreStat,
 StatTerm, ProofNode, TraderPredicate, Comparison, BinaryExpression,
 Option) into the exact byte format `validate_stat` expects, aligning
 fixture IDs / sequence numbers / stat keys / JWT credentials, and
-building the CPI path. This is the kind of work that takes days, has
-no tutorial, and makes you question your life choices. It's also the
-reason no one else has done it.
+building the CPI path — then doing it again for a structurally different
+oracle (Pyth's PriceUpdateV2 layout, pyth-solana-receiver's posting
+flow, Hermes observation windows). Each oracle is a separate schlep;
+the settlement primitive stays the same. This is the kind of work that
+takes days, has no tutorial, and makes you question your life choices.
+It's also the reason no one else has done it.
 
 ## Design principles
 
@@ -47,23 +57,24 @@ camera.
 ## Core flow
 
 ```
-TxLINE SSE stream
+Data source (TxLINE SSE / Hermes price feed)
       │
       ▼
-@stoppage/txline (packages/txline)  ── auth, SSE, fixtures, validation proofs
-      │  normalizes TxLINE events into NormalizedEvent stream
+@stoppage/txline or direct Hermes fetch  ── auth, SSE, fixtures, proofs / price updates
+      │  normalizes events into NormalizedEvent stream (TxLINE)
+      │  or fetches guardian-signed price updates (Hermes, for price markets)
       ▼
 Autonomous agent (apps/agent)
-      │  evaluates predicates (strategy.ts)
-      │  creates markets on match_started
-      │  on match_ended: fetches Merkle proof from TxLINE (fetchStatValidation)
-      │  submits resolve_market (TxLINE validate_stat CPI), then settles
+      │  sports mode: evaluates predicates (strategy.ts), creates markets on
+      │  match_started, on match_ended fetches Merkle proof, settles via CPI
+      │  price mode: creates interval SOL/USD markets, settles at close via
+      │  Pyth validator CPI against a posted PriceUpdateV2 account
       ▼
 Settlement program + market program
-      │  CPI verifies the TxLINE proof and records MarketResolved
-      │  creates a resolution receipt; settle_from_proof releases the vault
-      │  attest_verification records
-      │  an additional public verification counter
+      │  CPI verifies the proof via the market's bound validator and records
+      │  MarketResolved; creates a resolution receipt; settle_from_proof
+      │  releases the vault; attest_verification records an additional
+      │  public verification counter
       ▼
 Web app: position updated, proof receipt shown, stats/history updated
 ```
@@ -117,12 +128,13 @@ signature check on-chain.
 
 ### Settlement and proof verification
 
-Settlement is gated by TxLINE's on-chain validation primitive:
+Settlement is gated by the market's bound validator program:
 
-1. The agent fetches a Merkle validation proof from TxLINE
-   (`fetchStatValidation`) and verifies it locally before submission.
-2. In the settlement transaction, `resolve_market` CPIs into TxLINE's
-   `validate_stat` instruction and reads its boolean return value.
+1. The agent fetches the proof (a TxLINE Merkle validation proof via
+   `fetchStatValidation`, or a Pyth price update from Hermes) and verifies
+   it locally before submission.
+2. In the settlement transaction, `resolve_market` CPIs into the validator
+   program and reads its boolean return value.
 3. A failed or invalid proof reverts the entire transaction. A valid proof
    creates the one-time `Resolution` receipt PDA and emits a proof-carrying
    `MarketResolved` event.

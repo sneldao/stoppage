@@ -66,9 +66,11 @@ const reproduced = priceMarket(
           <p className="eyebrow">For operators</p>
           <h1>Settle markets only when a proof verifies</h1>
           <p className="page-lede page-lede--short">
-            Bring your markets and your own oracle. Stoppage gates fund release on
-            an on-chain proof verification — no admin keys, no multisigs, no dispute
-            windows. Your users settle on evidence, not authority.
+            Bring your markets and your own oracle — decision markets, futarchy
+            proposals, sportsbooks, anything whose resolution is a predicate over
+            anchored data. Stoppage gates fund release on an on-chain proof
+            verification: no admin keys, no multisigs, no dispute windows.
+            Your users settle on evidence, not authority.
           </p>
         </header>
 
@@ -79,7 +81,7 @@ const reproduced = priceMarket(
           </div>
           <div className="op-pillar">
             <h3>Bring your own oracle</h3>
-            <p>The settlement contract is oracle-agnostic. Use the TxLINE reference, or plug in any validator that returns a bool.</p>
+            <p>The settlement contract is oracle-agnostic, demonstrably: sports markets settle through TxLINE&apos;s Merkle-proof validator, price markets through a Pyth guardian-verified validator — one receipt path, two structurally different oracles. Yours plugs in the same way: any program that returns a bool.</p>
           </div>
           <div className="op-pillar">
             <h3>Verifiable pricing</h3>
@@ -104,7 +106,7 @@ const reproduced = priceMarket(
           <h2>Why this is defensible</h2>
           <ul>
             <li><strong>Settlement is proof-gated.</strong> No operator discretion, no admin key. The CPI result is the authority.</li>
-            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt.</li>
+            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt — proven live with both a Merkle-proof sports oracle (TxLINE) and a guardian-verified price oracle (Pyth).</li>
             <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof a user can re-verify without trusting anyone.</li>
             <li><strong>The schlep is the moat.</strong> Borsh encoding, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
           </ul>

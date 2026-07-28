@@ -26,6 +26,9 @@
  */
 
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { sha256 } from "js-sha256";
+import { PYTH_VALIDATOR_PROGRAM_ID } from "./programIds";
+import { writeI64LE, writeU64LE } from "./escrow";
 import {
   buildResolveMarketIx,
   buildTxlineValidateStatData,
@@ -126,6 +129,113 @@ export const txlineOracle: SettlementOracle = {
       anchorAccounts: [dailyScoresRoots],
       instructionData: buildTxlineValidateStatData(p.validateStat),
       merkleRoot: p.merkleRoot,
+    };
+  },
+};
+
+// ── Pyth price oracle adapter ────────────────────────────────────────
+
+/**
+ * The pyth-solana-receiver program (same address on mainnet and devnet).
+ * https://docs.pyth.network/price-feeds/core/contract-addresses/solana
+ */
+export const PYTH_RECEIVER_PROGRAM_ID =
+  "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ";
+
+/** Well-known Pyth feed ids (hex, no 0x). Look up more on Hermes. */
+export const PYTH_FEED_IDS: Record<string, string> = {
+  "SOL/USD": "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+  "BTC/USD": "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+  "ETH/USD": "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+};
+
+/** Feed exponent for the majors above (fractions of a USD cent). */
+export const PYTH_MAJOR_FEED_EXPO = -8;
+
+/**
+ * sha256("global:validate_price")[..8] — the discriminator of
+ * programs/pyth_validator's validate_price instruction.
+ */
+const PYTH_VALIDATE_PRICE_DISCRIMINATOR = Buffer.from([
+  179, 145, 207, 177, 245, 253, 59, 19,
+]);
+
+/**
+ * Proof payload for the Pyth price oracle. The on-chain fact the
+ * validator CPIs against is a PriceUpdateV2 account posted by
+ * pyth-solana-receiver (Wormhole guardian-signed); the observation
+ * fields are carried into the receipt's audit digest.
+ */
+export interface PythProof {
+  /** The PriceUpdateV2 account posted on-chain via pyth-solana-receiver. */
+  priceUpdateAccount: PublicKey;
+  /** Pyth feed id (hex string, no 0x). */
+  feedId: string;
+  /** Threshold in feed-native units (e.g. USD * 1e8 for the majors). */
+  threshold: bigint;
+  /** The market's closes_at — the observation must be at/after this. */
+  referenceTs: number;
+  /** Observation window after the reference (bounds keeper drift). */
+  maxStalenessSeconds: number;
+  /** Observed aggregate price in feed-native units. */
+  observedPrice: bigint;
+  /** Observed confidence interval in feed-native units. */
+  observedConf: bigint;
+  /** Observed publish_time (unix seconds). */
+  observedPublishTime: number;
+}
+
+/**
+ * The receipts-anchor digest for price settlements. Price oracles have no
+ * Merkle root; the receipt's anchored-root field instead commits to the
+ * exact observation the validator verified (account, feed, price, conf,
+ * publish time). Verification of the bool happens in the CPI; this digest
+ * is the audit trail linking the receipt to one specific verified update.
+ */
+export function pythObservationDigest(proof: {
+  priceUpdateAccount: PublicKey;
+  feedId: string;
+  observedPrice: bigint;
+  observedConf: bigint;
+  observedPublishTime: number;
+}): Uint8Array {
+  const buf = Buffer.concat([
+    Buffer.from("stoppage/pyth-observation/v1", "utf8"),
+    proof.priceUpdateAccount.toBuffer(),
+    Buffer.from(proof.feedId, "hex"),
+    writeI64LE(proof.observedPrice),
+    writeU64LE(proof.observedConf),
+    writeI64LE(BigInt(proof.observedPublishTime)),
+  ]);
+  return new Uint8Array(sha256.arrayBuffer(buf));
+}
+
+/**
+ * Pyth price oracle: settles `price_above` markets against a verified
+ * PriceUpdateV2 account via the pyth_validator program. The instruction
+ * data the settlement program CPIs verbatim is built here (rule 6: one
+ * encoder, matching the Rust arg order in programs/pyth_validator).
+ */
+export const pythOracle: SettlementOracle = {
+  id: "pyth",
+  buildVerifySpec({ proof }): OracleVerifySpec {
+    const p = proof as PythProof;
+    const instructionData = Buffer.concat([
+      PYTH_VALIDATE_PRICE_DISCRIMINATOR,
+      Buffer.from(p.feedId, "hex"),
+      writeI64LE(p.threshold),
+      writeI64LE(BigInt(p.referenceTs)),
+      (() => {
+        const buf = Buffer.alloc(4);
+        buf.writeUInt32LE(p.maxStalenessSeconds, 0);
+        return buf;
+      })(),
+    ]);
+    return {
+      validatorProgram: new PublicKey(PYTH_VALIDATOR_PROGRAM_ID),
+      anchorAccounts: [p.priceUpdateAccount],
+      instructionData,
+      merkleRoot: pythObservationDigest(p),
     };
   },
 };

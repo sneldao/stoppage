@@ -5,10 +5,21 @@ markets and the oracle; Stoppage provides the one thing nobody else does:
 fund release that is **cryptographically gated on an on-chain proof
 verification**, in a single atomic transaction.
 
-This guide is for an operator (a prediction-market protocol, a fantasy
-platform, a data vendor, an on-chain game) that wants its markets to settle
-on a proof the settlement contract itself verified, rather than on a
-multisig, an admin key, or a dispute window.
+This guide is for an operator (a prediction-market protocol, a futarchy or
+governance platform, a fantasy platform, a data vendor, an on-chain game)
+that wants its markets to settle on a proof the settlement contract itself
+verified, rather than on a multisig, an admin key, or a dispute window.
+
+**If your resolution is a predicate over anchored data** —
+`twap_pass > twap_fail * 1.05 over the window`, `feed_price >= threshold at
+T`, `stat_total > N for fixture X` — **it fits this contract as-is.** The
+settlement program does not care what the predicate is; it needs your
+validator to return one bool over CPI.
+
+The primitive is oracle-agnostic **in production, not on paper**: two
+structurally different oracles are live on devnet today, settling through
+the identical receipt path — TxLINE's Merkle-proof sports validator and a
+Pyth guardian-verified price validator (`programs/pyth_validator`).
 
 ## The promise
 
@@ -40,6 +51,7 @@ Two programs, one-way data flow:
 | --- | --- | --- |
 | Market | `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG` | Vault, positions, session keys, fees, claim |
 | Settlement | `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF` | CPI-verify a proof, mint the receipt, emit the event |
+| Pyth validator | `73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG` | Reference price oracle: verifies a Pyth PriceUpdateV2 observation, returns bool |
 
 The settlement program never sets odds and never custodies funds. It
 CPIs into a validator, reads a single boolean return ("did the predicate
@@ -76,12 +88,47 @@ const ix = buildResolveMarketIxFromOracle(
 );
 ```
 
+### Reference oracle 2: Pyth (price feeds)
+
+The deployed `pyth_validator` program settles `price_above` markets against
+a Pyth PriceUpdateV2 account posted on-chain via pyth-solana-receiver
+(guardian-signed). The keeper fetches the signed observation from Hermes
+(free API), posts it on-chain, and the validator re-checks owner, account
+discriminator, feed id, and publication window before returning the bool:
+
+```ts
+import { pythOracle, buildResolveMarketIxFromOracle, PYTH_FEED_IDS } from "@stoppage/sdk";
+
+const ix = buildResolveMarketIxFromOracle(
+  pythOracle,
+  keeperWallet.publicKey,
+  marketPda,
+  "sol_above:74:1790000000",
+  outcome,
+  {
+    priceUpdateAccount: postedUpdatePda, // PriceUpdateV2 posted via receiver
+    feedId: PYTH_FEED_IDS["SOL/USD"],
+    threshold: 74n * 10n ** 8n, // feed-native units (expo -8)
+    referenceTs: market.closesAt,
+    maxStalenessSeconds: 120,
+    observedPrice: price,
+    observedConf: conf,
+    observedPublishTime: publishTime,
+  }
+);
+```
+
+Because price oracles have no Merkle root, the receipt's anchored-root
+field carries a digest of the exact verified observation (account, feed,
+price, conf, publish time) — the validator's CPI is the verification; the
+digest is the audit trail.
+
 ### Bring your own oracle
 
-Run your own validator (a Merkle-anchor program, a Chainlink/Pyth
-adapter, or anything that returns a bool) and settle through the identical
-receipt path. The market program never learns which oracle produced the
-receipt:
+Run your own validator (a Merkle-anchor program, a TWAP verifier for
+futarchy resolution, a Chainlink adapter, or anything that returns a bool)
+and settle through the identical receipt path. The market program never
+learns which oracle produced the receipt:
 
 ```ts
 import { genericOracle, buildResolveMarketIxFromOracle } from "@stoppage/sdk";
@@ -110,21 +157,32 @@ Your keeper then bundles three instructions in one transaction:
 If step 1's proof is invalid, the whole transaction reverts and nothing
 settles.
 
-## Current state (as of 2026-07-24)
+## Current state (as of 2026-07-28)
 
 - **Oracle-agnostic settlement is live on devnet.** Both programs were
   upgraded; the settlement and market programs support any validator via
   remaining_accounts, with market-oracle binding enforced on-chain. The
   oracle-agnostic CPI path has been exercised end-to-end with TxLINE as
   the reference validator.
-- **Two market templates are proven** (`total_goals_over`,
-  `corners_over`). New predicates need a deterministic mapping to a
-  validator proof; the settlement program doesn't care what the predicate
-  is, only that your validator returns a bool.
+- **Two reference oracles, one receipt path.** Sports markets settle via
+  TxLINE's Merkle-proof `validate_stat`; price markets settle via the
+  deployed `pyth_validator` program against Pyth PriceUpdateV2 accounts.
+  Templates proven: `total_goals_over`, `corners_over`, `price_above`.
+  New predicates need a deterministic mapping to a validator proof.
 - **Devnet only.** Mainnet needs a legal review (see README compliance
   note) before any funds move there.
 - **Claim is owner-signed.** Winners claim with their own wallet; there
   is no session-key claim instruction yet.
+- **Validator args vs market params.** The settlement contract binds a
+  market to its oracle *program*, not to the validator's argument bytes —
+  a mismatched keeper could call `validate_price` with a threshold that
+  disagrees with the market's `param_u64`. The receipt's `statement`
+  field (emitted in `MarketResolved`) is the audit defense: it records
+  the exact claim verified, and a keeper/console mismatch is visible
+  on-chain as a contradiction between the event and the market account.
+  A stricter binding (hashing validator args into the market PDA) is a
+  known post-hackathon hardening item; the reference keepers build both
+  from the same predicate object so they cannot drift.
 
 ## The loop to run first
 

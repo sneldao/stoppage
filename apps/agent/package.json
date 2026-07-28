@@ -4,6 +4,7 @@
   "private": true,
   "main": "src/index.ts",
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.57.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.57.0",
@@ -11,10 +12,11 @@
     "@opentelemetry/sdk-metrics": "^1.30.0",
     "@opentelemetry/sdk-node": "^0.57.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
+    "@pythnetwork/pyth-solana-receiver": "^0.16.0",
+    "@solana/web3.js": "^1.98.4",
+    "@stoppage/quant": "*",
     "@stoppage/sdk": "*",
     "@stoppage/txline": "*",
-    "@stoppage/quant": "*",
-    "@solana/web3.js": "^1.98.4",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {

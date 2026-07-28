@@ -108,8 +108,12 @@ export function useMarketBettingState(market: Market | null): MarketBettingState
     };
   }
 
+  // Price markets resolve against a price feed, not a fixture, so they
+  // are bettable whenever open — the fixture gate doesn't apply.
+  const isPriceMarket = market.predicate.kind === "price_above";
+
   // Market must be open AND fixture gate must allow betting
-  const canBet = market.status === "open" && fixtureGate.canBet;
+  const canBet = market.status === "open" && (isPriceMarket || fixtureGate.canBet);
   
   const reason = !canBet ? (() => {
     if (market.status !== "open") {

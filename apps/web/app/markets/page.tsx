@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
-import { impliedProbability, type Market, PREDICATE_LABEL } from "@stoppage/sdk";
+import { impliedProbability, type Market } from "@stoppage/sdk";
+import { formatMarketQuestion } from "@/lib/format";
 import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
@@ -59,15 +60,17 @@ function formatFixtureTime(fixture: FixtureWithMatchId | undefined) {
 function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithMatchId }) {
   const odds = impliedProbability(market);
   const pred = market.predicate;
-  const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
-  const team = pred.params.team ? ` · ${pred.params.team}` : "";
   const total = market.yesPool + market.noPool;
   const isOpen = market.status === "open";
 
-  // Determine betting gate state for this market
+  // Determine betting gate state for this market. Price markets resolve
+  // against a price feed, not a fixture, so they are never gated.
+  const isPriceMarket = pred.kind === "price_above";
   let bettingBlocked = false;
   let blockedReason = "";
-  if (isOpen && fixture) {
+  if (isOpen && isPriceMarket) {
+    // no fixture gate
+  } else if (isOpen && fixture) {
     // Match ended
     if (fixture.GameState > 4) {
       bettingBlocked = true;
@@ -107,8 +110,7 @@ function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithM
     >
       <div className="market-tape-row__title">
         <span>
-          {PREDICATE_LABEL[pred.kind] ?? pred.kind} {param}
-          {team}
+          {formatMarketQuestion(pred)}
           {bettingBlocked && (
             <span className="market-tape-row__blocked" title={blockedReason}>
               ⚠

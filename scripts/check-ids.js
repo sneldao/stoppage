@@ -20,7 +20,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const PROGRAMS = ["market", "settlement"];
+const PROGRAMS = ["market", "pyth_validator", "settlement"];
 
 let failed = false;
 

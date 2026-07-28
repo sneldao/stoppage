@@ -23,10 +23,10 @@ import {
   buildJoinViaWalletIx,
   getMarket,
   impliedProbability,
-  PREDICATE_LABEL,
 } from "@stoppage/sdk";
 import { fetchFixtures, loadCredentials, attachReplayableFlags, matchIdFromFixture } from "@stoppage/txline";
 import { validateFixtureForBettingAsync } from "@/lib/markets/fixtureValidator";
+import { formatMarketQuestion } from "@/lib/format";
 import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/actions/cors";
 
 // Default stake for a Blink join (0.05 SOL). The Actions spec allows a
@@ -62,10 +62,7 @@ export async function GET(
   try {
     const m = await getMarket(connection(), new PublicKey(market));
     const odds = impliedProbability(m);
-    const pred = m.predicate;
-    const param = pred.params.windowSeconds ?? pred.params.threshold ?? "";
-    const team = pred.params.team ? ` · ${pred.params.team}` : "";
-    marketTitle = `${PREDICATE_LABEL[pred.kind] ?? pred.kind} ${param}${team}`;
+    marketTitle = formatMarketQuestion(m.predicate);
     yesPct = (odds.yes * 100).toFixed(0);
     noPct = (odds.no * 100).toFixed(0);
     poolSol = ((m.yesPool + m.noPool) / 1e9).toFixed(2);
@@ -138,24 +135,27 @@ export async function POST(
     }
 
     // HARD GATE: validate fixture availability before building transaction.
-    // Fetch fixtures server-side and validate the specific matchId.
-    const { network, creds } = loadCredentials();
-    const fixtures = await fetchFixtures(network, creds);
-    const enriched = await attachReplayableFlags(network, creds, fixtures);
-    const fixturesWithMatchId = enriched.map((fixture) => ({
-      ...fixture,
-      matchId: matchIdFromFixture(fixture),
-    }));
-    const validation = await validateFixtureForBettingAsync(
-      fixturesWithMatchId,
-      marketPk,
-      async () => m
-    );
-    if (!validation.canBet) {
-      return actionJson(
-        { error: validation.reason ?? "Cannot place bet on this market" },
-        { status: 400 }
+    // Fixtures don't exist for price markets — they resolve against a price
+    // feed window, so the gate doesn't apply.
+    if (m.predicate.kind !== "price_above") {
+      const { network, creds } = loadCredentials();
+      const fixtures = await fetchFixtures(network, creds);
+      const enriched = await attachReplayableFlags(network, creds, fixtures);
+      const fixturesWithMatchId = enriched.map((fixture) => ({
+        ...fixture,
+        matchId: matchIdFromFixture(fixture),
+      }));
+      const validation = await validateFixtureForBettingAsync(
+        fixturesWithMatchId,
+        marketPk,
+        async () => m
       );
+      if (!validation.canBet) {
+        return actionJson(
+          { error: validation.reason ?? "Cannot place bet on this market" },
+          { status: 400 }
+        );
+      }
     }
 
     const ix = buildJoinViaWalletIx(accountPk, marketPk, side, DEFAULT_AMOUNT_LAMPORTS);

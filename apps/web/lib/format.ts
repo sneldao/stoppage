@@ -20,6 +20,11 @@ export function formatSol(lamports: number): string {
  * page.tsx, match/page.tsx, and markets/[market]/page.tsx.
  */
 export function formatMarketQuestion(predicate: MarketPredicate): string {
+  if (predicate.kind === "price_above") {
+    // threshold is in feed-native units (USD * 1e8 for the Pyth majors)
+    const threshold = Number(predicate.params.threshold ?? 0) / 1e8;
+    return `${PREDICATE_LABEL[predicate.kind]} $${threshold} on ${predicate.matchId}`;
+  }
   const param = predicate.params.windowSeconds ?? predicate.params.threshold ?? "";
   const team = predicate.params.team ? ` for ${predicate.params.team}` : "";
   return `${PREDICATE_LABEL[predicate.kind] ?? predicate.kind} ${param}${team}`;

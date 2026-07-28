@@ -1,0 +1,93 @@
+{
+  "address": "73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG",
+  "metadata": {
+    "name": "pyth_validator",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Stoppage price validator: verifies a Pyth PriceUpdateV2 observation against a threshold and returns a bool over CPI"
+  },
+  "instructions": [
+    {
+      "name": "validate_price",
+      "docs": [
+        "Verify a Pyth price observation against a threshold and return",
+        "the result as a 1-byte bool in return data. Fails (reverts) on",
+        "any structural or window violation."
+      ],
+      "discriminator": [
+        179,
+        145,
+        207,
+        177,
+        245,
+        253,
+        59,
+        19
+      ],
+      "accounts": [
+        {
+          "name": "price_update",
+          "docs": [
+            "The Pyth PriceUpdateV2 account posted by pyth-solana-receiver.",
+            "validated in `validate_price`."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "threshold",
+          "type": "i64"
+        },
+        {
+          "name": "reference_ts",
+          "type": "i64"
+        },
+        {
+          "name": "max_staleness_seconds",
+          "type": "u32"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotPythReceiverAccount",
+      "msg": "Account is not owned by the Pyth receiver program"
+    },
+    {
+      "code": 6001,
+      "name": "MalformedUpdate",
+      "msg": "Account data is not a well-formed PriceUpdateV2"
+    },
+    {
+      "code": 6002,
+      "name": "FeedMismatch",
+      "msg": "Observation feed id does not match the claimed feed"
+    },
+    {
+      "code": 6003,
+      "name": "BeforeReference",
+      "msg": "Observation was published before the reference time"
+    },
+    {
+      "code": 6004,
+      "name": "OutsideWindow",
+      "msg": "Observation is outside the staleness window"
+    },
+    {
+      "code": 6005,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    }
+  ]
+}

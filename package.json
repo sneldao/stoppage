@@ -2,7 +2,7 @@
   "name": "stoppage",
   "private": true,
   "version": "0.0.1",
-  "description": "Permissionless, session-key-native settlement protocol for in-play sports micro-markets, powered by TxLINE.",
+  "description": "Permissionless, session-key-native, oracle-agnostic settlement protocol with proof-gated fund release.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -25,6 +25,11 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "jito-ts": {
+      "@solana/web3.js": "^1.98.4"
+    }
   },
   "devDependencies": {
     "react": "^19.2.7",

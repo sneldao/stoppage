@@ -6,16 +6,19 @@
 - Public repo: https://github.com/sneldao/stoppage
 - Devnet market program: `92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG`
 - Devnet settlement program: `5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF`
+- Devnet pyth validator program: `73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG`
 
 ## Core Idea
 
-Stoppage is a devnet protocol demo for proof-gated in-play sports
-micro-markets. The product is not presented as a production sportsbook.
-The important mechanism is deterministic settlement: a market can resolve
-only after the settlement program verifies a TxLINE Merkle proof on-chain
-via CPI into TxLINE's `validate_stat` instruction. The market program then
-consumes the resulting settlement receipt before releasing the peer-funded
-vault.
+Stoppage is a devnet protocol demo for proof-gated markets. The product is
+not presented as a production sportsbook. The important mechanism is
+deterministic settlement: a market can resolve only after the settlement
+program verifies a proof on-chain via CPI into the market's bound validator
+program. Two validators are live: TxLINE's `validate_stat` for sports
+markets (Merkle proof of match stats) and `pyth_validator` for price
+markets (guardian-verified Pyth PriceUpdateV2 observation). The market
+program then consumes the resulting settlement receipt before releasing
+the peer-funded vault.
 
 A second proof surface runs alongside settlement: a verifiable quant market-
 maker. Matchkeeper prices each open market from a deterministic Monte Carlo
@@ -30,9 +33,11 @@ The product is the settlement primitive, not the betting app. The
 reference UI proves the loop end-to-end; the settlement program + SDK
 are the product surface for operators. The creative monopoly is
 narrow and specific: the first settlement primitive where fund release
-is cryptographically gated on an on-chain proof verification for
-sports markets. The expansion path is more stat types → more oracle
-types → more chains.
+is cryptographically gated on an on-chain proof verification. The
+expansion path is more stat types → more oracle types → more chains.
+Oracle-agnosticism is demonstrated, not claimed: two structurally
+different oracles (TxLINE Merkle proofs, Pyth guardian-signed price
+updates) settle through the identical receipt path.
 
 The moat is the schlep. Encoding TxLINE's borsh types into the exact
 byte format `validate_stat` expects, aligning fixture IDs / sequence
@@ -92,21 +97,20 @@ every sportsbook — on-chain or off — silently makes.
 
 ## Verified Devnet Activity
 
-The public board currently has multiple proof-backed demo markets, not just
-one smoke test. It is intentionally small because all activity is devnet
-demo activity created for judging.
+The public board has multiple proof-backed demo markets across two oracles.
 
-Primary proof-board demo market:
+Primary proof-board demo market (TxLINE sports):
 
 - Market: `ABwKxVtpjUDSchiXQca3dieEurXaXaVN5ZsiiYwDHFLj`
 - Settlement tx: `3mgA3vpM5oXZTQb9KDuXkqYujTocx7dpuJg7SgPEcBgVZF7DVqwFcxg8e3FFZ3BoagzDzHT67d3GhhnWzEGzXybD`
 - Winner claim tx: `3vwzwCH7XsSRKtKs9P65SpxzD27Ha7ZRPKH696YYu6yoo8DFfGprapYmCDrWd9ndRyncmYc9mUHfsgmLbab4nkYx`
 
-Latest public board verification:
+Price market (Pyth validator — oracle-agnostic proof):
 
-- `playerCount`: 5
-- `verifiedMarketCount`: 3
-- `totalAttestations`: 3
+- Market: `FEG8wYtZkGJUVTbWEKoJkpQ5XFNSQTMA7bz9FmGFFwDb` (SOL/USD above $74)
+- Settlement tx: `4TQfzkhS6ydo9pLd1iMMocjxMBRg49dpQWCPgx5hCEZsSuQUYYAbH2xv4b4JfjxCYbEEG2v6x5KuQT98LLMMa5na`
+- Claim + bond refund tx: `5N9pRn55rw2WZaTHR3XkRPcdhHEsh98FQ7Fsw5pHXKwJwW6LbvGHSjroAWdXrKBWs2v2DHmiShmp3XGhTsL44b6S`
+- On-chain CPI log: `validate_price price=7411500000 threshold=7400000000 publish_time=1785267904 -> true`
 
 ## Interface Progress
 
@@ -182,8 +186,9 @@ legally permissible in each target jurisdiction.
   traffic.
 - Public board indexing uses Shyft when available and public devnet RPC as
   a fallback; production would need a dedicated indexer or paid indexed RPC.
-- Launch templates are intentionally narrow: total goals and total corners
-  are active because their TxLINE stat-proof mappings are deterministic.
+- Launch templates are intentionally narrow: total goals, total corners
+  (TxLINE sports), and price_above (Pyth). New predicates need a
+  deterministic mapping to a validator proof.
 - Session-key delegation is devnet-proven and scoped by caps/expiry, but
   production mobile custody and recovery UX would need additional review.
 

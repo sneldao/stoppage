@@ -36,11 +36,16 @@ The settlement program is oracle-agnostic at the contract level. It needs:
 
 1. a Solana program reachable by CPI,
 2. a 1-byte bool return (`0x01` = predicate holds),
-3. an account carrying an anchored Merkle root.
+3. a readonly account carrying the anchored truth it verifies against.
 
-**Reference implementation:** TxLINE's `validate_stat` for sports markets (deployed and verified on devnet).
+If your resolution is a predicate over anchored data — `twap_pass > twap_fail`
+for a futarchy proposal, `price_at_close >= threshold`, `goals > N` — it fits.
 
-**Your validator:** run your own Merkle-anchor program, a Chainlink/Pyth adapter, or anything that returns a bool. Swap the oracle adapter in the SDK; the market program never learns which oracle produced the receipt.
+**Two reference oracles live on devnet, one receipt path:**
+- TxLINE's `validate_stat` — Merkle-proof sports data validator.
+- `pyth_validator` — verifies a guardian-signed Pyth PriceUpdateV2 observation for price markets.
+
+**Your validator:** run your own Merkle-anchor program, a TWAP verifier, a Chainlink adapter, or anything that returns a bool. Swap the oracle adapter in the SDK; the market program never learns which oracle produced the receipt.
 
 ## Integration surface
 
@@ -54,16 +59,16 @@ attest_verification   (market — increments public verification counter)
 
 SDK builders handle PDA derivation, borsh encoding, and account metas. Your keeper fetches the proof, builds the verify spec, and sends the transaction. Winners claim; the receipt is the public proof.
 
-## Current state (2026-07-24)
+## Current state (2026-07-28)
 
-- **Oracle-agnostic settlement is live on devnet.** Market and settlement
-  programs support any validator program via remaining_accounts, with
-  market-oracle binding enforced on-chain. The oracle-agnostic CPI path has
-  been exercised end-to-end with TxLINE as the reference validator.
+- **Oracle-agnostic settlement is live on devnet,** exercised end-to-end
+  with two structurally different oracles (TxLINE Merkle proofs; Pyth
+  guardian-signed price updates) through one receipt path.
 - **SDK complete.** Instruction builders, PDA derivations, oracle adapters
-  (TxLINE reference + generic for custom validators).
-- **Two market templates proven** (`total_goals_over`, `corners_over`). New
-  predicates need a deterministic mapping to a validator proof.
+  (TxLINE, Pyth, generic for custom validators).
+- **Three market templates proven** (`total_goals_over`, `corners_over`,
+  `price_above`). New predicates need a deterministic mapping to a
+  validator proof.
 - **Devnet only.** Mainnet requires legal review.
 
 ## The milestone

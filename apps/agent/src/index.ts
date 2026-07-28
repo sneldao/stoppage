@@ -32,6 +32,7 @@ import {
   type NormalizedEvent,
 } from "@stoppage/txline";
 import { Agent } from "./loop";
+import { runPriceKeeper } from "./priceKeeper";
 import {
   createLiveSource,
   createReplaySource,
@@ -51,6 +52,28 @@ async function main() {
   const mode = process.argv[2] ?? "replay";
   const fixtureId = process.argv[3] ? Number(process.argv[3]) : 18237038; // France vs Spain semi-final
   const dryRun = !process.argv.includes("--live-tx");
+  const intervalArg = process.argv.find((arg) => arg.startsWith("--interval="));
+  const priceIntervalSeconds = Math.max(300, Number(intervalArg?.split("=")[1] ?? 1800) || 1800);
+
+  // Price markets: Pyth-verified interval markets, no TxLINE needed.
+  if (mode === "price") {
+    const walletPath = process.env.SOLANA_KEYPAIR_PATH
+      ?? process.env.HOME + "/.config/solana/id.json";
+    const wallet = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
+    );
+    const rpcUrl = process.env.SOLANA_RPC_URL ?? clusterApiUrl("devnet");
+    const connection = new Connection(rpcUrl, "confirmed");
+    console.log(`Mode: price (Pyth) — interval ${priceIntervalSeconds}s`);
+    console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
+    console.log(`Keeper wallet: ${wallet.publicKey.toBase58()}`);
+    if (!dryRun) {
+      const balance = await connection.getBalance(wallet.publicKey);
+      console.log(`Balance: ${balance / 1e9} SOL`);
+    }
+    await runPriceKeeper({ connection, wallet, dryRun, intervalSeconds: priceIntervalSeconds });
+    return;
+  }
   const replaySpeedArg = process.argv.find((arg) => arg.startsWith("--speed="));
   const replaySpeed = Math.max(
     1,

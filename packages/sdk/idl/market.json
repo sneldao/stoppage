@@ -1494,7 +1494,7 @@
     {
       "code": 6016,
       "name": "InvalidPredicateKind",
-      "msg": "Invalid predicate kind (must be 0-3)"
+      "msg": "Invalid predicate kind (must be 0-4)"
     },
     {
       "code": 6017,

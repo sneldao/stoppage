@@ -190,7 +190,9 @@ pub mod market {
     ) -> Result<()> {
         let clock = Clock::get()?;
         require!(closes_at > clock.unix_timestamp, MarketError::ClosesInPast);
-        require!(kind <= 3, MarketError::InvalidPredicateKind);
+        // Kinds 0-3 are the TxLINE sports templates; kind 4 is price_above,
+        // settled against the Pyth validator (see programs/pyth_validator).
+        require!(kind <= 4, MarketError::InvalidPredicateKind);
 
         let config = &ctx.accounts.protocol_config;
         let market = &mut ctx.accounts.market;
@@ -1222,7 +1224,7 @@ pub enum MarketError {
     AlreadyJoinedOtherSide,
     #[msg("Invalid outcome (must be 0=YES or 1=NO)")]
     InvalidOutcome,
-    #[msg("Invalid predicate kind (must be 0-3)")]
+    #[msg("Invalid predicate kind (must be 0-4)")]
     InvalidPredicateKind,
     #[msg("closes_at must be in the future")]
     ClosesInPast,

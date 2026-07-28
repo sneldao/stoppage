@@ -53,6 +53,9 @@ npx tsx apps/agent/src/index.ts replay 18237038
 # Live transactions on devnet (requires funded wallet + Helius RPC):
 npx tsx apps/agent/src/index.ts live --live-tx
 
+# Price markets (Pyth oracle — no TxLINE needed, free Hermes data):
+npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
+
 # TxLINE subscription (one-time, saves credentials to .txline-credentials.json):
 npx tsx scripts/subscribe-txline.ts
 ```

@@ -571,6 +571,37 @@ export const MARKET_ACCOUNT_SIZE =
   4 + // verifications
   1; // bump
 
+/**
+ * Byte size of Market accounts created before the oracle-agnostic pivot,
+ * which added the 32-byte `oracle` field. Those accounts keep their old
+ * size on-chain after the program upgrade, so scans (proof board,
+ * calibration scoreboard) must match BOTH layouts or they silently drop
+ * every pre-pivot market.
+ */
+export const LEGACY_MARKET_ACCOUNT_SIZE = MARKET_ACCOUNT_SIZE - 32;
+
+/**
+ * Normalizes a legacy (pre-oracle) Market account buffer to the current
+ * layout by inserting a zeroed `oracle` field, so `parseMarket` remains the
+ * single parser. Legacy accounts predate oracle binding; the zeroed field
+ * is never used to settle them (the on-chain settlement path requires a
+ * resolution receipt from the settlement program), so it is safe filler.
+ */
+export function upgradeLegacyMarketData(accountData: Buffer): Buffer {
+  if (accountData.length !== LEGACY_MARKET_ACCOUNT_SIZE) {
+    throw new Error(
+      `Expected legacy Market account of ${LEGACY_MARKET_ACCOUNT_SIZE} bytes, got ${accountData.length}`
+    );
+  }
+  // Offset just past `creator`: discriminator + kind + match_id + team + param_u64 + creator.
+  const creatorEnd = 8 + 1 + 32 + 8 + 8 + 32;
+  return Buffer.concat([
+    accountData.subarray(0, creatorEnd),
+    Buffer.alloc(32),
+    accountData.subarray(creatorEnd),
+  ]);
+}
+
 /** Parse a raw account buffer into a Market object. */
 export function parseMarket(accountData: Buffer, marketAddress: string): Market {
   // Skip 8-byte discriminator.
@@ -592,7 +623,7 @@ export function parseMarket(accountData: Buffer, marketAddress: string): Market 
   const feeBps = accountData.readUInt16LE(offset); offset += 2;
   const verifications = accountData.readUInt32LE(offset); offset += 4;
 
-  const kindNames = ["next_goal_within", "corners_over", "card_shown", "total_goals_over"] as const;
+  const kindNames = ["next_goal_within", "corners_over", "card_shown", "total_goals_over", "price_above"] as const;
   const matchId = matchIdBuf.toString("utf8").replace(/\0+$/, "");
   const team = teamBuf.toString("utf8").replace(/\0+$/, "");
 
@@ -601,7 +632,12 @@ export function parseMarket(accountData: Buffer, marketAddress: string): Market 
     predicate: {
       kind: kindNames[kind] ?? "next_goal_within",
       matchId,
-      params: { team, windowSeconds: paramU64 },
+      // price_above stores its threshold in param_u64; sports templates
+      // store a window/threshold that renderers treat as windowSeconds.
+      params:
+        kind === 4
+          ? { team, threshold: paramU64 }
+          : { team, windowSeconds: paramU64 },
     },
     creator,
     oracle,
