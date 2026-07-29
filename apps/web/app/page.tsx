@@ -12,7 +12,7 @@ import { formatSigningSpeed, formatMarketQuestion, formatSol as SOL } from "@/li
 import { useStoppageStore } from "@/store";
 import { SetupPrompt } from "@/components/SetupPrompt";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
-import { LiveInstrument } from "@/components/LiveInstrument";
+import { LiveInstrument, type PreviewBeatHandler } from "@/components/LiveInstrument";
 import { MomentAlert } from "@/components/MomentAlert";
 import { SharpMoves } from "@/components/SharpMoves";
 import { LazyWhenVisible } from "@/components/LazyWhenVisible";
@@ -82,8 +82,8 @@ export default function Home() {
   const replayStatsRef = useRef({ corners: 0, cards: 0 });
 
   const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
-  // Dead time → auto-run a featured replay through the live pipeline.
-  const { status: replayStatus, isReplay, launch: launchReplay, launching: launchingReplay } = useAutoReplay({
+  // Dead time → auto-rotate finished replays through the live pipeline.
+  const { status: replayStatus, isReplay, launch: launchReplay, launching: launchingReplay, error: replayError } = useAutoReplay({
     hasLive,
     fixtures,
     preferTeams: ["france", "spain"],
@@ -159,12 +159,23 @@ export default function Home() {
     handleMatchEvent,
   } = useMatchSignals({ snapshot: liveSnapshot, detect: !isReplay && !isPreview });
 
+  // The scripted preview loop mirrors its goal/corner/card beats into the
+  // instrument's event ticker (registered from within LiveInstrument).
+  const previewBeatRef = useRef<PreviewBeatHandler | null>(null);
+  const registerPreviewBeat = useCallback((cb: PreviewBeatHandler | null) => {
+    previewBeatRef.current = cb;
+  }, []);
+  const handlePreviewBeat = useCallback((kind: "goal" | "corner" | "card", team: string | null) => {
+    previewBeatRef.current?.(kind, team);
+  }, []);
+
   const { previewFixture } = usePreviewLoop({
     active: isPreview,
     setSnapshot: setOverrideSnapshot as (s: LiveMatchSnapshot | null) => void,
     setLastSignalType,
     setSignalVersion,
     setScoringTeam,
+    onBeat: handlePreviewBeat,
   });
 
   const resolvedHeroFixture = isPreview ? previewFixture : heroFixture;
@@ -196,9 +207,14 @@ export default function Home() {
   return (
     <main className="app-shell">
 
-      {/* ── Live moment alert overlay ── */}
+      {/* ── Live moment alert overlay ──
+          Suppressed entirely in preview: a scripted goal firing the
+          full-bleed "Live update" overlay reads as crying wolf. The
+          in-card scoreline flash + event ticker keep the demo lively
+          without impersonating a live feed; the overlay regains its
+          meaning the moment real data is flowing. */}
       <MomentAlert
-        signalType={lastSignalType}
+        signalType={isPreview ? null : lastSignalType}
         signalVersion={signalVersion}
         snapshot={liveSnapshot}
         scoringTeam={scoringTeam}
@@ -275,6 +291,7 @@ export default function Home() {
             lastSignalType={lastSignalType}
             allFixtures={fixtures}
             onNewEvent={handleNewEvent}
+            onPreviewBeat={registerPreviewBeat}
           />
           {isReplay && (
             <div className="replay-control-strip">
@@ -300,7 +317,8 @@ export default function Home() {
           {isPreview && (
             <div className="replay-control-strip">
               <span className="replay-control-status">
-                Preview mode · no live feed — showing a canned demo
+                Demo reel · scripted scenarios (no live feed
+                {replayError ? ` — ${replayError}` : ""})
               </span>
             </div>
           )}

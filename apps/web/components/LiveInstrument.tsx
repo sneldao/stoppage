@@ -31,6 +31,9 @@ interface LastSettled {
   marketId: string;
 }
 
+/** Fired by the scripted preview loop on each goal/corner/card beat. */
+export type PreviewBeatHandler = (kind: "goal" | "corner" | "card", team: string | null) => void;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
@@ -87,6 +90,7 @@ function MatchFace({
   onPhase,
   onNewEvent,
   onEvents,
+  onPreviewBeat,
 }: {
   fixture: Fixture | null;
   snapshot: LiveMatchSnapshot | null;
@@ -98,6 +102,7 @@ function MatchFace({
   onPhase?: (phase: { score: { home: number; away: number }; phaseLabel?: string }) => void;
   onNewEvent?: (evt: LiveEvent) => void;
   onEvents: (evts: LiveEvent[]) => void;
+  onPreviewBeat?: (cb: PreviewBeatHandler | null) => void;
 }) {
   const live = fixture?.GameState === 2 || fixture?.GameState === 4;
   const fresh = snapshotIsFresh(snapshot);
@@ -110,6 +115,27 @@ function MatchFace({
   const handleNewEvent = useCallback((evt: LiveEvent) => {
     onNewEvent?.(evt);
   }, [onNewEvent]);
+
+  // Preview runs its own scripted loop — mirror the beats into the
+  // ticker so the demo card keeps a visible pulse without an SSE feed.
+  useEffect(() => {
+    if (!preview || !onPreviewBeat) return;
+    let seq = 0;
+    onPreviewBeat((kind, team) => {
+      seq += 1;
+      const type = kind === "goal" ? "goal_scored" : kind === "card" ? "card_shown" : "corner_awarded";
+      handleNewEvent({
+        id: `preview-${seq}`,
+        type,
+        label:
+          kind === "goal" ? `GOAL · ${team ?? ""}`.trim()
+          : kind === "card" ? `Card · ${team ?? ""}`.trim()
+          : "Corner",
+        ts: Date.now(),
+      });
+    });
+    return () => onPreviewBeat(null);
+  }, [preview, onPreviewBeat, handleNewEvent]);
 
   // Derive the SSE matchId: explicit override for replays, else from fixture names.
   const resolvedMatchId = matchId ?? (fixture
@@ -137,7 +163,7 @@ function MatchFace({
             <i /> {live ? "Live" : "Next fixture"}
           </span>
         )}
-        <span>{showLive ? (fresh || replay || preview ? "Feed current" : "Feed delayed") : "Live match data"}</span>
+        <span>{showLive ? (replay ? "Feed current" : preview ? "Scripted demo" : fresh ? "Feed current" : "Feed delayed") : "Live match data"}</span>
       </div>
 
       <div className="scoreline">
@@ -318,6 +344,10 @@ interface LiveInstrumentProps {
   lastSignalType: "goal" | "corner" | "card" | null;
   allFixtures: Fixture[];
   onNewEvent?: (evt: any) => void;
+  /** Preview-only: registers the callback the scripted loop fires on each
+   *  goal/corner/card beat (mirrored into the event ticker). Pass null to
+   *  unregister. */
+  onPreviewBeat?: (cb: PreviewBeatHandler | null) => void;
 }
 
 export function LiveInstrument({
@@ -333,6 +363,7 @@ export function LiveInstrument({
   lastSignalType,
   allFixtures,
   onNewEvent,
+  onPreviewBeat,
 }: LiveInstrumentProps) {
   // front = index of the currently visible (top) face
   const [front, setFront] = useState<0 | 1>(0); // 0 = match, 1 = market
@@ -448,6 +479,7 @@ export function LiveInstrument({
               onPhase={onPhase}
               onNewEvent={handleNewEvent}
               onEvents={setEvents}
+              onPreviewBeat={onPreviewBeat}
             />
           </div>
 
