@@ -122,10 +122,66 @@ async function main() {
   }
   console.log();
 
-  // Fetch fixtures for the fixture map
+  // Create the agent infrastructure first, and start the HTTP server
+  // before any blocking network calls (fixture fetch, SSE connect) so the
+  // health endpoint responds immediately on boot. The resolveFixture
+  // callback re-fetches lazily if the fixture map isn't populated yet.
+  const ledger = createMatchEventLedger();
+  const liveStore = new LiveStore();
+  const oddsTracker = new OddsTracker();
+  const quoteTracker = new QuoteTracker();
+  const connection = new Connection(rpcUrl, "confirmed");
+
+  // Track running scores by matchId (shared by the primary agent)
+  const liveScores = new Map<string, { home: number; away: number; homeTeam: string; awayTeam: string }>();
+
+  const replayManager = new ReplayManager({
+    connection,
+    wallet,
+    dryRun,
+    network,
+    creds,
+    ledger,
+    liveStore,
+    oddsTracker,
+  });
+
+  // The fixture map is populated below; resolveFixture re-fetches lazily
+  // if a request arrives before the map is ready.
+  const fixtureMap = new Map<number, Fixture>();
+
+  startEventHttpServer(ledger, liveStore, {
+    replayManager,
+    oddsTracker,
+    quoteTracker,
+    resolveFixture: async (fixtureId) => {
+      const found = fixtureMap.get(fixtureId);
+      if (found) return found;
+      // Re-fetch in case the fixture list has rotated since boot.
+      try {
+        const fresh = await fetchFixtures(network, creds);
+        for (const f of fresh) fixtureMap.set(f.FixtureId, f);
+      } catch { /* network blip — try synthetic below */ }
+      const cached = fixtureMap.get(fixtureId);
+      if (cached) return cached;
+      // Past fixtures (completed matches) aren't in the live snapshot.
+      // Verify the fixture has historical score data, then construct a
+      // synthetic Fixture so the replay can proceed. This mirrors the
+      // CLI replay mode's fallback for the default semi-final fixture.
+      try {
+        const scores = await fetchHistoricalScores(network, creds, fixtureId);
+        if (!scores || scores.length === 0) return null;
+      } catch {
+        return null;
+      }
+      return syntheticFixtureForId(fixtureId);
+    },
+  });
+
+  // Fetch fixtures for the fixture map (after the HTTP server is up so
+  // the health endpoint already responds).
   console.log("Fetching fixtures...");
   const fixtures = await fetchFixtures(network, creds);
-  const fixtureMap = new Map<number, Fixture>();
   for (const f of fixtures) {
     fixtureMap.set(f.FixtureId, f);
   }
@@ -180,54 +236,9 @@ async function main() {
   }
   console.log();
 
-  // Create the agent
-  const ledger = createMatchEventLedger();
-  const liveStore = new LiveStore();
-  const oddsTracker = new OddsTracker();
-  const quoteTracker = new QuoteTracker();
-  const connection = new Connection(rpcUrl, "confirmed");
-
-  // Track running scores by matchId (shared by the primary agent)
-  const liveScores = new Map<string, { home: number; away: number; homeTeam: string; awayTeam: string }>();
-
-  const replayManager = new ReplayManager({
-    connection,
-    wallet,
-    dryRun,
-    network,
-    creds,
-    ledger,
-    liveStore,
-    oddsTracker,
-  });
-
-  startEventHttpServer(ledger, liveStore, {
-    replayManager,
-    oddsTracker,
-    quoteTracker,
-    resolveFixture: async (fixtureId) => {
-      const found = fixtureMap.get(fixtureId);
-      if (found) return found;
-      // Re-fetch in case the fixture list has rotated since boot.
-      try {
-        const fresh = await fetchFixtures(network, creds);
-        for (const f of fresh) fixtureMap.set(f.FixtureId, f);
-      } catch { /* network blip — try synthetic below */ }
-      const cached = fixtureMap.get(fixtureId);
-      if (cached) return cached;
-      // Past fixtures (completed matches) aren't in the live snapshot.
-      // Verify the fixture has historical score data, then construct a
-      // synthetic Fixture so the replay can proceed. This mirrors the
-      // CLI replay mode's fallback for the default semi-final fixture.
-      try {
-        const scores = await fetchHistoricalScores(network, creds, fixtureId);
-        if (!scores || scores.length === 0) return null;
-      } catch {
-        return null;
-      }
-      return syntheticFixtureForId(fixtureId);
-    },
-  });
+  // (ledger, liveStore, oddsTracker, quoteTracker, connection,
+  //  replayManager, and the HTTP server were created above, before the
+  //  fixture fetch, so the health endpoint is already up.)
 
   const agent = new Agent({
     connection,
