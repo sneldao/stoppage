@@ -61,7 +61,92 @@ codebase supports both; the decision determines what to build next.
   build a general predicate system until two specific predicates have
   settled real markets.
 
-## Current state (2026-07-28)
+## Current state (2026-08-03)
+
+**Hackathon result: did not place.** The TxODDS World Cup track
+winners were announced July 29 (Touchline, Onyx, Proofline in
+Prediction Markets & Settlement; TouchLine MM, LineWatch, TxAgent
+in Trading Tools & Agents; Ticker, Mundial, Battlefield in Consumer).
+Stoppage was not among them. The codebase and devnet deployment remain
+intact and the settlement primitive is unchanged in value — the
+post-hackathon identity decision below is now the live question.
+
+**TxLINE data access confirmed live post-hackathon.** The winners'
+announcement stated free data access continues into the season; verified
+Aug 3 2026 against `txline-dev.txodds.com`: guest JWT renewal works
+(no wallet needed, 30-day tokens), fixtures snapshot returns 16
+International Friendlies (Sept–Nov 2026, the post-World-Cup coverage
+window), scores/historical/validation/SSE endpoints all respond. The
+historical-replay window is **rolling** (~2 weeks to ~6 hours ago): the
+World Cup fixtures we demoed against (e.g. `18237038`, FRA-SPA
+semi-final) now return empty from `/scores/historical` and 404 from
+`/scores/stat-validation` — expected, not a regression. MLS is live at
+~50% coverage; full Premier League begins Aug 21.
+
+**Replay default no longer rots.** The agent's `replay` command dropped
+its hardcoded `18237038` default (which silently fails now that the
+fixture is out of window). With no fixtureId argument it auto-discovers
+the most recent replayable fixture inside the rolling window — finished
+fixtures in the current snapshot first, then known past fixtures in
+`PAST_FIXTURES` (reverse-chronological), exiting with a clear message
+if nothing is in window. See `docs/DEVELOPMENT.md` → "TxLINE data access
+& the replay window". The settlement primitive, CPI path, and proof
+encoding are unaffected — they consume whatever proof the API returns
+for a fixture in window.
+
+## Post-hackathon plan (2026-08-03)
+
+The hackathon is over (did not place). The ongoing TxLINE data access
+is the open opportunity — a season of real matches to prove the
+primitive on, not just a one-off tournament. This section records the
+plan so it isn't relitigated each session.
+
+**Identity decision: run the betting-app path as proof-of-primitive,
+hold on the infrastructure/operator push.** The data runway (Int'l
+Friendlies → MLS 50% → full Premier League Aug 21) makes the demo path
+viable for months. A working demo with real users is a stronger pitch
+to operators than a devnet-only one. Let operator interest pull, don't
+push cold.
+
+**The keystone: one real market settled end-to-end on a live match.**
+No real match has gone delegate → bet → settle → prove with real
+(non-seeded) positions on a live fixture. The roadmap has said this
+verbatim under "things that don't scale." The data access unblocks it.
+
+Ordered work:
+
+1. **Capture the first in-window fixture** (Sept 23, first covered
+   Friendly: Azerbaijan vs Tajikistan, fixtureId 18272873). Run
+   `scripts/capture-replayable-fixture.ts` the day it finishes to grab
+   a known-good fixture + seq + statKey into `PAST_FIXTURES`, so the
+   replay demo is never dead on a stale ID again.
+2. **First real live run.** Run the agent in `live --live-tx` on a live
+   covered match; get one market to settle from a real TxLINE proof with
+   a real position. This is the single most useful artifact for any next
+   step.
+3. **Expand predicate coverage** (deferred from the hackathon sprint):
+   `next_goal_within` and `card_shown` are scaffolded in the strategy
+   but inactive. `next_goal_within` is a time-windowed predicate (settles
+   mid-match when a goal is scored or the window expires), structurally
+   different from the over/under predicates that settle at match end —
+   it needs a settle-on-event path, not just settle-on-match-end. Build
+   it against live matches over the season while the borsh/proof schlep
+   is fresh. Each new predicate that settles from a verified proof
+   extends the moat.
+4. **Hold on operator onboarding docs** until an operator asks.
+   OPERATORS.md is solid; the missing piece is a second party actually
+   using it, not more documentation. Demand-pulled, not speculative
+   (CLAUDE.md → "audit before adding").
+5. **Hold on mainnet** (hard rule — legal review first). Devnet data
+   access is sufficient to keep developing and demonstrating.
+
+**Soonest covered match:** Sept 23, 2026 (Azerbaijan vs Tajikistan,
+fixtureId 18272873). The free tier is Friendlies-only (competitionId
+430); MLS (1480) and EPL return 403 ("not in your bundle"). The
+winners' announcement that MLS is at 50% / full EPL Aug 21 refers to
+paid tiers; the free tier's live coverage window is the Friendlies.
+
+## Previous state (2026-07-28)
 
 **Pyth price oracle — the "oracle-agnostic" claim is now demonstrated live.**
 A third program, `pyth_validator`

@@ -81,10 +81,10 @@ npm run dev                                          # web on :3000
 npm run anchor:build
 ```
 
-Agent (dry-run replay):
+Agent (dry-run replay — auto-discovers a fixture in TxLINE's replay window):
 
 ```bash
-npx tsx apps/agent/src/index.ts replay 18237038
+npx tsx apps/agent/src/index.ts replay
 ```
 
 Full toolchain, deploy, and agent ops: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md).

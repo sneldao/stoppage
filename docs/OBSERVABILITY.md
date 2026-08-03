@@ -33,7 +33,7 @@ still emits structured JSON logs to stdout (trace IDs appear once OTel is on).
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 export OTEL_SERVICE_NAME=stoppage-agent
 
-npx tsx apps/agent/src/index.ts replay 18237038
+npx tsx apps/agent/src/index.ts replay
 ```
 
 On the VPS, add the same vars to the PM2 env block in

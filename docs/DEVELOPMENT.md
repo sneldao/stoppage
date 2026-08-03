@@ -47,8 +47,12 @@ devnet RPC when the free Shyft plan rejects indexed `getProgramAccounts`.
 ### Agent commands
 
 ```bash
-# Dry-run replay (default — no on-chain txs, safe for testing):
-npx tsx apps/agent/src/index.ts replay 18237038
+# Dry-run replay (default — no on-chain txs, safe for testing).
+# With no fixtureId, the agent auto-discovers the most recent
+# replayable fixture inside TxLINE's rolling historical window:
+npx tsx apps/agent/src/index.ts replay
+# Or pass an explicit fixtureId:
+npx tsx apps/agent/src/index.ts replay <fixtureId>
 
 # Live transactions on devnet (requires funded wallet + Helius RPC):
 npx tsx apps/agent/src/index.ts live --live-tx
@@ -58,7 +62,48 @@ npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
 
 # TxLINE subscription (one-time, saves credentials to .txline-credentials.json):
 npx tsx scripts/subscribe-txline.ts
+
+# Capture a replayable fixture (run after a covered match finishes):
+# finds a finished fixture in the rolling replay window, probes its
+# historical data + stat-validation path, and prints a ready-to-paste
+# PAST_FIXTURES entry for apps/agent/src/index.ts.
+npx tsx scripts/capture-replayable-fixture.ts
+npx tsx scripts/capture-replayable-fixture.ts --fixture <fixtureId>
 ```
+
+### TxLINE data access & the replay window
+
+TxLINE's free-tier data access **continues past the World Cup hackathon
+into the season** (confirmed live, Aug 2026). The docs state: free access
+to World Cup + International Friendlies data via complimentary tiers,
+real-time and 60-second-delayed options. MLS is live at ~50% coverage;
+full Premier League coverage begins Aug 21. Guest JWTs are 30-day and
+renewable without a wallet (`POST /auth/guest/start`); the API token
+persists across JWT renewals.
+
+**The replay window is rolling, not permanent.** The historical-scores
+endpoint (`GET /api/scores/historical/{fixtureId}`) serves fixtures that
+finished between roughly **2 weeks ago and 6 hours ago**. Fixtures older
+than that return an empty stream, and `stat-validation` returns 404
+(`A valid, processed scores record ... could not be found`). The World
+Cup fixtures we demoed against (e.g. `18237038`, FRA-SPA semi-final) are
+now outside the window — this is expected, not a regression.
+
+Practical consequences:
+
+- **Replay without a fixtureId auto-discovers** a fixture still in the
+  window (finished fixtures in the current snapshot first, then known
+  past fixtures in `PAST_FIXTURES`). If nothing is in window, the agent
+  exits with a clear message and the options above.
+- **To demo against a specific match**, capture a covered fixture that
+  finished within the last ~2 weeks and pass its ID explicitly, or add
+  it to `PAST_FIXTURES` in `apps/agent/src/index.ts`.
+- **Live mode is unaffected** — the SSE stream and fixtures snapshot
+  work for any currently-covered match regardless of age.
+- **The settlement primitive is unaffected** — the CPI path, proof
+  verification, and SDK consume whatever proof the API returns for a
+  fixture in window; the borsh encoding and Merkle logic don't care
+  which fixture.
 
 ### Agent observability
 
@@ -66,7 +111,7 @@ OpenTelemetry export to SigNoz is opt-in. See [OBSERVABILITY.md](./OBSERVABILITY
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-npx tsx apps/agent/src/index.ts replay 18237038
+npx tsx apps/agent/src/index.ts replay
 ```
 
 Without the env var, the agent still logs structured JSON to stdout.

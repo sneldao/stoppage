@@ -200,6 +200,12 @@ What worked well:
   fetch score snapshots, and retrieve validation proofs.
 - The on-chain validation primitive made the settlement story much stronger
   than a normal off-chain oracle callback.
+- **Post-hackathon data access is confirmed live** (verified Aug 3 2026,
+  after the World Cup track closed). Guest JWT renewal works without a
+  wallet; the fixtures snapshot returns International Friendlies coverage
+  (Sept–Nov 2026); scores, historical, validation, and SSE endpoints all
+  respond. The winners' announcement that "free data access continues into
+  the season" holds — MLS at ~50% now, full Premier League from Aug 21.
 
 Friction:
 
@@ -209,3 +215,11 @@ Friction:
   the public board needs a fallback RPC path for judging.
 - Demo setup benefits from known-good fixture/sequence/stat examples because
   live match availability may not line up with judging time.
+- **The historical-replay window is rolling (~2 weeks to ~6 hours ago),
+  not permanent.** The World Cup fixtures we demoed against (e.g.
+  `18237038`, FRA-SPA semi-final) now return empty from `/scores/historical`
+  and 404 from `/scores/stat-validation`. This is expected: the replay API
+  only serves fixtures that finished within the rolling window. The agent's
+  `replay` command now auto-discovers a fixture still in window instead of
+  defaulting to a stale ID. See `docs/DEVELOPMENT.md` → "TxLINE data access
+  & the replay window".

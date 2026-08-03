@@ -26,6 +26,8 @@ import { getMarket } from "@stoppage/sdk";
 import {
   fetchFixtures,
   fetchHistoricalScores,
+  fixtureHasReplayHistory,
+  isFixtureFinished,
   matchIdFromFixture,
   type Fixture,
   type Network,
@@ -50,7 +52,15 @@ import { initTelemetry, logger } from "./telemetry";
 async function main() {
   initTelemetry();
   const mode = process.argv[2] ?? "replay";
-  const fixtureId = process.argv[3] ? Number(process.argv[3]) : 18237038; // France vs Spain semi-final
+  // No hardcoded default fixture: TxLINE's historical-replay window is
+  // rolling (~2 weeks to ~6 hours ago). A baked-in ID rots as the window
+  // moves past it (the old default 18237038, FRA-SPA semi-final, fell
+  // out of the window after the World Cup ended). If no fixtureId is
+  // supplied, we discover the most recent replayable fixture at runtime;
+  // if none is in window, we tell the operator exactly what to do.
+  // See docs/DEVELOPMENT.md → "TxLINE data access & the replay window".
+  const explicitFixtureId = process.argv[3] ? Number(process.argv[3]) : undefined;
+  const fixtureId = explicitFixtureId ?? 0; // 0 = auto-discover at runtime
   const dryRun = !process.argv.includes("--live-tx");
   const intervalArg = process.argv.find((arg) => arg.startsWith("--interval="));
   const priceIntervalSeconds = Math.max(300, Number(intervalArg?.split("=")[1] ?? 1800) || 1800);
@@ -87,7 +97,7 @@ async function main() {
   console.log(`Mode: ${mode}`);
   console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
   if (mode === "replay") {
-    console.log(`Fixture ID: ${fixtureId}`);
+    console.log(`Fixture ID: ${fixtureId || "(auto-discover)"}`);
   }
   console.log();
 
@@ -128,27 +138,45 @@ async function main() {
     source = createLiveSource(network, creds, fixtureMap);
     console.log("Connected to live TxLINE SSE stream");
   } else {
-    // Find the fixture in the map, or create a synthetic one
-    replayFixture = fixtureMap.get(fixtureId) ?? null;
+    // Replay mode. If no fixtureId was supplied, discover the most recent
+    // finished fixture that still has historical score data inside
+    // TxLINE's rolling replay window (~2 weeks to ~6 hours ago). This
+    // replaces the old hardcoded default (18237038, FRA-SPA semi-final)
+    // which fell out of the window after the World Cup ended.
+    let resolvedFixtureId = fixtureId;
+    if (!resolvedFixtureId) {
+      console.log("No fixtureId supplied — discovering a replayable fixture...");
+      resolvedFixtureId = await discoverReplayableFixture(network, creds, fixtures);
+      if (resolvedFixtureId === 0) {
+        console.error(
+          "\nNo replayable fixture found in TxLINE's historical window.\n" +
+          "The replay API serves fixtures that finished between ~2 weeks and ~6 hours ago.\n" +
+          "Options:\n" +
+          "  - Wait for a covered match to finish (check the fixtures snapshot for upcoming matches).\n" +
+          "  - Pass an explicit fixtureId: npx tsx apps/agent/src/index.ts replay <fixtureId>\n" +
+          "  - Use live mode: npx tsx apps/agent/src/index.ts live --live-tx\n"
+        );
+        process.exit(1);
+      }
+      console.log(`Discovered replayable fixture: ${resolvedFixtureId}`);
+    }
+    // Find the fixture in the map, or construct a synthetic one for a
+    // past fixture no longer in the live snapshot.
+    replayFixture = fixtureMap.get(resolvedFixtureId) ?? null;
     if (!replayFixture) {
-      // The semi-final might not be in the current fixtures list (it's past)
-      // Create a synthetic fixture from the schedule data
-      console.log(`Fixture ${fixtureId} not in current list — using synthetic fixture`);
-      replayFixture = {
-        FixtureId: fixtureId,
-        Sport: "Soccer",
-        Country: "International",
-        FixtureGroup: "World Cup > Semi-finals",
-        StartTime: "2026-07-14T19:00:00Z",
-        Participant1: "France",
-        Participant2: "Spain",
-        Participant1IsHome: true,
-        GameState: 1,
-      };
+      console.log(`Fixture ${resolvedFixtureId} not in current snapshot — using synthetic fixture`);
+      replayFixture = syntheticFixtureForId(resolvedFixtureId);
+      if (!replayFixture) {
+        console.error(
+          `Fixture ${resolvedFixtureId} is not a known past fixture and is not in the current snapshot.\n` +
+          "Pass a fixtureId from the current fixtures snapshot, or add it to PAST_FIXTURES."
+        );
+        process.exit(1);
+      }
     }
     const matchId = matchIdFromFixture(replayFixture);
     console.log(`Replaying: ${replayFixture.Participant1} vs ${replayFixture.Participant2} (${matchId})`);
-    source = createReplaySource(network, creds, fixtureId, replayFixture, replaySpeed);
+    source = createReplaySource(network, creds, resolvedFixtureId, replayFixture, replaySpeed);
   }
   console.log();
 
@@ -277,7 +305,7 @@ async function main() {
   // Register the fixture so the agent can fetch validation proofs
   if (mode === "replay" && replayFixture) {
     const matchId = matchIdFromFixture(replayFixture);
-    agent.registerFixture(matchId, fixtureId);
+    agent.registerFixture(matchId, replayFixture.FixtureId);
   }
   for (const f of fixtures) {
     agent.registerFixture(matchIdFromFixture(f), f.FixtureId);
@@ -318,13 +346,53 @@ function formatEvent(event: NormalizedEvent): string {
 }
 
 /**
- * Known past World Cup fixtures that may not appear in the live snapshot.
+ * Known past fixtures that may not appear in the live snapshot.
  * Used as a fallback when resolveFixture can't find the fixture in the
  * current list but historical score data confirms it exists.
+ *
+ * Ordered roughly most-recent-first for discoverReplayableFixture.
+ * Add new finished fixtures here as covered matches complete — the
+ * rolling replay window (~2 weeks) means entries age out. See
+ * docs/DEVELOPMENT.md → "TxLINE data access & the replay window".
  */
 const PAST_FIXTURES: Record<number, { p1: string; p2: string; startTime: string }> = {
   18237038: { p1: "France", p2: "Spain", startTime: "2026-07-14T19:00:00Z" },
 };
+
+/**
+ * Discover the most recent fixture that still has historical score data
+ * inside TxLINE's rolling replay window (~2 weeks to ~6 hours ago).
+ *
+ * The fixtures snapshot only lists upcoming/current matches, so for
+ * replay we probe the historical endpoint. We try finished fixtures in
+ * the current snapshot first, then known past fixtures in
+ * reverse-chronological order. Returns 0 if nothing is in window.
+ */
+async function discoverReplayableFixture(
+  network: Network,
+  creds: TxLineCredentials,
+  fixtures: Fixture[]
+): Promise<number> {
+  // 1. Any finished fixture in the current snapshot (just-ended matches).
+  const finished = fixtures.filter((f) => isFixtureFinished(f));
+  for (const f of finished) {
+    if (await fixtureHasReplayHistory(network, creds, f.FixtureId)) {
+      return f.FixtureId;
+    }
+  }
+  // 2. Known past fixtures, most recent first. These fall out of the
+  //    replay window as time passes; the loop returns the first one
+  //    that still has historical data.
+  const knownPast = Object.entries(PAST_FIXTURES)
+    .map(([id, info]) => ({ id: Number(id), ...info }))
+    .sort((a, b) => b.startTime.localeCompare(a.startTime));
+  for (const f of knownPast) {
+    if (await fixtureHasReplayHistory(network, creds, f.id)) {
+      return f.id;
+    }
+  }
+  return 0;
+}
 
 function syntheticFixtureForId(fixtureId: number): Fixture | null {
   const known = PAST_FIXTURES[fixtureId];

@@ -36,7 +36,7 @@ async function main() {
 
   const agent = spawn(
     "npx",
-    ["tsx", "apps/agent/src/index.ts", "replay", "18237038"],
+    ["tsx", "apps/agent/src/index.ts", "replay"],
     {
       cwd: process.cwd(),
       env: {
