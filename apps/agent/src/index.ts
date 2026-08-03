@@ -32,6 +32,7 @@ import {
   type Fixture,
   type Network,
   type NormalizedEvent,
+  type TxLineCredentials,
 } from "@stoppage/txline";
 import { Agent } from "./loop";
 import { runPriceKeeper } from "./priceKeeper";

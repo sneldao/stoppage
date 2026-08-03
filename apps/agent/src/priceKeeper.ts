@@ -173,7 +173,7 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
       params: { team: "", threshold: Number(thresholdRaw) },
     };
     const [marketPda] = findMarketPdaFromPredicate(predicate);
-    const pdaAddress = ******************();
+    const pdaAddress = marketPda.toBase58();
     if (tracked.has(pdaAddress)) return;
 
     const existing = await config.connection.getAccountInfo(marketPda);
