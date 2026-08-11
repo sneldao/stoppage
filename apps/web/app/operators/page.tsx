@@ -5,6 +5,7 @@ import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { VerifyLatestQuote } from "@/components/VerifyLatestQuote";
 import { CodeBlock } from "@/components/CodeBlock";
+import { ValidatorRail } from "@/components/ValidatorRail";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
@@ -53,6 +54,18 @@ const reproduced = priceMarket(
 
 // 3. Settle through proof-gated on-chain resolution`;
 
+  const interfaceExample = `// What your validator program implements (shape, not literal code):
+fn process_instruction(_pid, _accounts, data) -> ProgramResult {
+    let claim = Claim::try_from_slice(data)?;        // fixture_ref, key, value, reference_ts, op
+    let verdict: bool = verify_your_evidence(claim); // Merkle proof, price read, sig — anything
+    set_return_data(&[verdict as u8]);               // THE interface: one byte of return data
+    Ok(())
+}
+
+// resolve_market CPIs into market.oracle with the claim.
+// Return data [1] -> receipt written, funds become claimable.
+// Anything else     -> the whole transaction reverts.`;
+
   return (
     <main className="page-shell operators-page">
       <div className="page-shell-content">
@@ -87,6 +100,30 @@ const reproduced = priceMarket(
             <h3>Verifiable pricing</h3>
             <p>Optional open Monte-Carlo fair value + bid/ask, with a snapshot hash anchored on-chain so anyone can reproduce the quote.</p>
           </div>
+        </section>
+
+        <section className="op-api">
+          <div className="op-api-head">
+            <h2>The interface: one CPI, one bool</h2>
+            <span className="op-api-sub">your program decides</span>
+          </div>
+          <CodeBlock code={interfaceExample} />
+          <p className="op-api-note">
+            That&apos;s the whole contract. The market CPIs into whatever program
+            is set as <code>oracle</code> on the market account and reads one
+            byte back; anything but <code>[1]</code> reverts the transaction
+            and no funds move. Your validator never touches lamports — it can
+            only say yes or no. Our own attestation validator implementation is{" "}
+            <a
+              href="https://github.com/sneldao/stoppage/tree/main/programs/attestation_validator"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ~40 lines, dependency-free, deployed ↗
+            </a>
+            .
+          </p>
+          <ValidatorRail />
         </section>
 
         <section className="op-api">
