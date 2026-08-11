@@ -24,6 +24,10 @@ import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
+import { useAttestEvent } from "@/lib/match/useAttestEvent";
+import { useAttestEvents } from "@/lib/match/useAttestEvents";
+import { isAttestMatchId } from "@/lib/match/attest";
+import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
 import { useMatchRoomReplay } from "@/lib/replay/useMatchRoomReplay";
 import { snapshotIsFresh, type LiveMatchSnapshot } from "@/lib/match/types";
 
@@ -56,14 +60,24 @@ function MatchRoomContent() {
     return fixtures.find((item) => isFixtureLive(item)) ?? fixtures[0] ?? null;
   }, [fixtures, selectedMatchId]);
 
-  const live = isFixtureLive(fixture);
-  const deadTime = !live && !requestedMatchId;
+  // Operator-attested plane: the selected match may be "tsdb:<id>" (e.g. the
+  // Orlando City vs FC Cincinnati keystone), which has no TxLINE fixture.
+  const attest = useAttestEvent(selectedMatchId);
+  const attestList = useAttestEvents();
+  const attestFixture = attest?.fixture ?? null;
+  const attestInPlay = attest?.inPlay ?? false;
+  const attestSnapshot = attest?.snapshot ?? null;
+
+  const live = isFixtureLive(fixture) || attestInPlay;
+  // Only auto-replay when there's genuinely no match context to focus — a
+  // scheduled (or live) real match shows its own board, not a replay.
+  const deadTime = !live && !fixture && !attestFixture && !requestedMatchId;
   const { isReplay, replayable, launching: launchingReplay } = useMatchRoomReplay({
     enabled: deadTime,
     fixtures,
   });
   const polledSnapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);
-  const snapshot = live ? polledSnapshot : replaySnapshot;
+  const snapshot = live ? (attestSnapshot ?? polledSnapshot) : replaySnapshot;
 
   const { signalVersion, lastSignalType, scoringTeam, handleMatchEvent } = useMatchSignals({
     snapshot,
@@ -124,12 +138,21 @@ function MatchRoomContent() {
 
   const fresh = snapshotIsFresh(snapshot);
 
-  const barMatchId = (isReplay && replayStatus?.matchId) ? replayStatus.matchId : selectedMatchId;
+  // The match the scoreboard is actually showing: a TxLINE fixture or an
+  // operator-attested (tsdb) synthetic one.
+  const effectiveFixture = fixture ?? attestFixture;
+
+  // Operator-attested matches have no TxLINE SSE stream — suppress the bar.
+  const barMatchId = (isReplay && replayStatus?.matchId)
+    ? replayStatus.matchId
+    : isAttestMatchId(selectedMatchId)
+    ? undefined
+    : selectedMatchId;
   const scoreboardMode = live
     ? fresh ? "live" : "delayed"
     : isReplay
     ? "replay"
-    : fixture
+    : effectiveFixture
     ? "scheduled"
     : "idle";
 
@@ -141,12 +164,12 @@ function MatchRoomContent() {
         <header className="match-room-header">
           <div>
             <p className="eyebrow">Match</p>
-            <h1>{fixture ? `${fixture.Participant1} v ${fixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1>
+            <h1>{effectiveFixture ? `${effectiveFixture.Participant1} v ${effectiveFixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1>
           </div>
           <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>
         </header>
 
-        <MatchFixturePicker fixtures={fixtures} matchIds={matchIds} selectedMatchId={selectedMatchId} />
+        <MatchFixturePicker fixtures={fixtures} matchIds={matchIds} selectedMatchId={selectedMatchId} attestByMatchId={attestList.byMatchId} />
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
           <div className="control-scoreboard-top">
@@ -163,9 +186,9 @@ function MatchRoomContent() {
                 : "No live match right now"
               }
             </span>
-            <span>{fixture?.Country ?? (isReplay ? "Replay" : "TxLINE")}</span>
+            <span>{isAttestMatchId(selectedMatchId) ? "TheSportsDB · operator-attested · not TxODDS-verified" : (fixture?.Country ?? (isReplay ? "Replay" : "TxLINE"))}</span>
           </div>
-          <div className="control-scoreline"><strong>{fixture?.Participant1 ?? "Home"}</strong><b key={snapshot ? `${snapshot.score.home}-${snapshot.score.away}` : "vs"} className={snapshot ? "score-flash" : ""}>{snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{fixture?.Participant2 ?? "Away"}</strong></div>
+          <div className="control-scoreline"><strong>{effectiveFixture?.Participant1 ?? "Home"}</strong><b key={snapshot ? `${snapshot.score.home}-${snapshot.score.away}` : "vs"} className={snapshot ? "score-flash" : ""}>{snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{effectiveFixture?.Participant2 ?? "Away"}</strong></div>
           <div className="control-stats"><span>{snapshot ? `Corners ${snapshot.stats.corners}` : "Listening"}</span><span>{snapshot ? `Cards ${snapshot.stats.cards}` : live ? "Do not rely on delayed data" : "Listening for the next match"}</span><span>{snapshot?.updatedAt ? `Updated ${new Date(snapshot.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Listening for the next match"}</span></div>
           {barMatchId && (
             <LiveMatchBar
@@ -197,7 +220,11 @@ function MatchRoomContent() {
             // Determine betting gate state for this market
             let bettingBlocked = false;
             let blockedReason = "";
-            if (market.status === "open" && fixture) {
+            // Operator-attested/price markets resolve outside a TxLINE fixture
+            // gate — bettable whenever open (same rule as useMarketBettingState).
+            if (market.status === "open" && !isFixtureGatedMarket(market)) {
+              // no fixture gate
+            } else if (market.status === "open" && fixture) {
               // Match ended
               if (fixture.GameState > 4) {
                 bettingBlocked = true;

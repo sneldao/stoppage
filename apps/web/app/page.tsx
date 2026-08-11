@@ -25,7 +25,8 @@ import { Achievements } from "@/components/Achievements";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
-import { isFixtureLive, listReplayableFixtures } from "@/lib/match/fixtures";
+import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs, listReplayableFixtures } from "@/lib/match/fixtures";
+import { useAttestHero } from "@/lib/match/useAttestHero";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
 
@@ -81,13 +82,41 @@ export default function Home() {
   // not the SSE phase, so we accumulate them as events stream in).
   const replayStatsRef = useRef({ corners: 0, cards: 0 });
 
-  const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
+  // A TxLINE fixture is in play.
+  const txlineHasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
+
+  // The operator-attested plane (TheSportsDB): the real upcoming/live big game
+  // (e.g. Orlando City vs FC Cincinnati, the Saturday attestation keystone).
+  // `fixture` is synthetic (GameState 1 = scheduled countdown, 2 = in play);
+  // `snapshot` carries the real scoreline once it's live.
+  const { fixture: attestFixture, snapshot: attestSnapshot, inPlay: attestInPlay } = useAttestHero();
+
+  // Pause the auto-replay reel whenever the big game is on the air (a real
+  // live proof-gated settle beats a replay; you don't want to swap the hero
+  // away mid-match).
+  const hasLive = txlineHasLive || attestInPlay;
+
   // Dead time → auto-rotate finished replays through the live pipeline.
   const { status: replayStatus, isReplay, launch: launchReplay, launching: launchingReplay, error: replayError } = useAutoReplay({
     hasLive,
     fixtures,
     preferTeams: ["france", "spain"],
   });
+
+  // Nearest real upcoming TxLINE fixture (scheduled, not yet kicked off).
+  const txlineUpcoming = useMemo(() => {
+    const now = Date.now();
+    return (
+      fixtures
+        .filter((f) => isFixtureScheduled(f) && fixtureStartTimeMs(f) > now)
+        .sort((a, b) => fixtureStartTimeMs(a) - fixtureStartTimeMs(b))[0] ?? null
+    );
+  }, [fixtures]);
+
+  // The "next big game": prefer the attestation keystone, else the nearest
+  // TxLINE scheduled match. During dead time we show its live countdown over
+  // the scripted demo. (A live TxLINE match still wins — see heroFixture.)
+  const nextUpcoming = attestFixture ?? txlineUpcoming;
 
   // Build a synthetic fixture for the replay so LiveInstrument's match face
   // has teams + a live GameState to drive the scoreline.
@@ -112,10 +141,13 @@ export default function Home() {
   }, [replayMatchId]);
 
   // Non-contingent baseline: when nothing is flowing (no live fixture, no
-  // active replay, not launching one), drive the hero from a canned,
-  // looping script so the scoreboard ticks and goal drama fires with zero
-  // external input. Badged honestly as PREVIEW by LiveInstrument.
-  const isPreview = !hasLive && !isReplay && !launchingReplay;
+  // active replay, not launching one) AND there's no real scheduled match to
+  // count down to, drive the hero from a canned, looping script so the
+  // scoreboard ticks and goal drama fires with zero external input. If a real
+  // upcoming fixture exists, we prefer its live countdown instead (see
+  // `nextUpcoming`). Badged honestly as PREVIEW by LiveInstrument.
+  const isPreview =
+    !hasLive && !isReplay && !launchingReplay && !nextUpcoming;
 
   const { market: primaryMarket, position: primaryPosition } = usePrimaryOpenPosition(markets, positions);
 
@@ -137,6 +169,8 @@ export default function Home() {
     ? null
     : isReplay && replayFixture
     ? replayFixture
+    : !txlineHasLive && nextUpcoming
+    ? nextUpcoming
     : featuredFixture;
 
   const polledSnapshot = useFixtureScore(
@@ -144,7 +178,16 @@ export default function Home() {
       ? null
       : featuredFixture.FixtureId
   );
-  const liveSnapshot = isReplay || isPreview ? overrideSnapshot : polledSnapshot;
+
+  // When the operator-attested big game is live and no TxLINE match is on,
+  // the hero reads the real score from the attestation plane instead of the
+  // TxLINE poll (which has no fixture for "tsdb:*" matches).
+  const attestIsLive = !isReplay && !isPreview && !txlineHasLive && attestSnapshot != null;
+  const liveSnapshot = isReplay || isPreview
+    ? overrideSnapshot
+    : attestIsLive
+    ? attestSnapshot
+    : polledSnapshot;
 
   // Detect score/stat changes → fire signal animations. Detection is
   // suspended during replay (events drive signals directly) and preview

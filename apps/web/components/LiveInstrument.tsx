@@ -141,6 +141,13 @@ function MatchFace({
   const resolvedMatchId = matchId ?? (fixture
     ? `${fixture.Participant1.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}-${fixture.Participant2.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}`
     : undefined);
+  // Operator-attested ("tsdb:*") matches have no TxLINE SSE stream — the score
+  // comes from the `snapshot` prop. Suppress the live bar so we don't open an
+  // orphan EventSource for an id the agent will never emit.
+  const feedMatchId = ((fixture as (Fixture & { matchId?: string }) | null)?.matchId ?? "")
+    .startsWith("tsdb:")
+    ? undefined
+    : resolvedMatchId;
 
   return (
     <div className={`instrument-face-content instrument-match-content ${(replay || preview) ? "instrument-match-content--replay" : ""}`}>
@@ -204,7 +211,7 @@ function MatchFace({
 
       {fixture && !preview && (
         <LiveMatchBar
-          matchId={resolvedMatchId}
+          matchId={feedMatchId}
           onNewEvent={handleNewEvent as any}
           onPhase={onPhase as any}
         />

@@ -229,6 +229,17 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .section-heading a:hover { color: #33ff99; text-shadow: 0 0 12px rgba(0,255,136,.4); }
 .tape-match-live { display: inline-flex; align-items: center; gap: 5px; margin-left: 9px; color: var(--lime); font: 700 9px "DM Mono", monospace; font-style: normal; letter-spacing: .08em; }
 .tape-match-live .live-dot { width: 5px; height: 5px; }
+.tape-match-attested {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  color: var(--amber);
+  font: 500 8px "DM Mono", monospace;
+  font-style: normal;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  opacity: .85;
+}
 .app-footer { border-top: 1px solid var(--line); }
 .claim-action { background: var(--blue); color: #fff; box-shadow: 0 0 20px rgba(96,165,250,.25); }
 .claim-action:hover { box-shadow: 0 0 35px rgba(96,165,250,.4); }
@@ -4330,6 +4341,10 @@ body {
   background: rgba(0, 255, 136, .06);
 }
 .match-fixture-chip--live .live-dot { width: 6px; height: 6px; }
+.match-fixture-chip--attest {
+  border-color: rgba(241, 187, 72, .45);
+  color: #f1bb48;
+}
 
 
 

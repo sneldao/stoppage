@@ -21,6 +21,9 @@ import { MarketsEmptyState } from "@/components/MarketsEmptyState";
 import { tapeFilters, type TapeFilter } from "@/lib/markets/tapeFilters";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { useFixtures } from "@/lib/match/useFixtures";
+import { useAttestEvents } from "@/lib/match/useAttestEvents";
+import { isAttestMatchId } from "@/lib/match/attest";
+import type { AttestEventInfo } from "@/lib/match/attest";
 import type { FixtureWithMatchId } from "@/lib/match/types";
 
 const SpinningGrooves = dynamic(
@@ -45,9 +48,7 @@ const STATUS_CLASS: Record<Market["status"], string> = {
   void: "market-tape-row__status--void",
 };
 
-function formatFixtureTime(fixture: FixtureWithMatchId | undefined) {
-  if (!fixture) return null;
-  const ms = fixtureStartTimeMs(fixture);
+function formatKickoffMs(ms: number | null | undefined): string | null {
   if (!ms) return null;
   const d = new Date(ms);
   const now = Date.now();
@@ -57,6 +58,10 @@ function formatFixtureTime(fixture: FixtureWithMatchId | undefined) {
   }
   if (sameDay) return "Today";
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function formatFixtureTime(fixture: FixtureWithMatchId | undefined) {
+  return formatKickoffMs(fixture ? fixtureStartTimeMs(fixture) : null);
 }
 
 function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithMatchId }) {
@@ -156,20 +161,29 @@ function MatchGroup({
   matchId,
   markets,
   fixture,
+  attest,
   expanded,
   onToggle,
 }: {
   matchId: string;
   markets: Market[];
   fixture: FixtureWithMatchId | undefined;
+  attest?: AttestEventInfo;
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const live = isFixtureLive(fixture);
+  const live = isFixtureLive(fixture) || (attest?.inPlay ?? false);
   const label = fixture
     ? `${fixture.Participant1} v ${fixture.Participant2}`
+    : attest
+    ? `${attest.homeTeam} v ${attest.awayTeam}`
     : `Match ${matchId}`;
-  const time = live ? null : formatFixtureTime(fixture);
+  const time = live
+    ? null
+    : fixture
+    ? formatFixtureTime(fixture)
+    : formatKickoffMs(attest?.kickoffTs != null ? attest.kickoffTs * 1000 : null);
+  const isAttest = isAttestMatchId(matchId) && !!attest;
 
   const headingId = `match-heading-${matchId}`;
 
@@ -192,6 +206,9 @@ function MatchGroup({
               <em className="tape-match-live">
                 <i className="live-dot" /> LIVE
               </em>
+            )}
+            {isAttest && !live && (
+              <em className="tape-match-attested">operator-attested</em>
             )}
             {time && <small className="tape-match-heading__time">{time}</small>}
           </span>
@@ -220,12 +237,17 @@ function MatchGroup({
   );
 }
 
-function buildDefaultExpanded(byMatch: [string, Market[]][], fixtures: Map<string, FixtureWithMatchId>) {
+function buildDefaultExpanded(
+  byMatch: [string, Market[]][],
+  fixtures: Map<string, FixtureWithMatchId>,
+  attestByMatchId?: Map<string, AttestEventInfo>
+) {
   const next = new Set<string>();
   let nonLiveCount = 0;
   for (const [matchId] of byMatch) {
     const fixture = fixtures.get(matchId);
-    if (isFixtureLive(fixture)) {
+    const attest = attestByMatchId?.get(matchId);
+    if (isFixtureLive(fixture) || (attest?.inPlay ?? false)) {
       next.add(matchId);
     } else if (nonLiveCount < 3) {
       next.add(matchId);
@@ -245,6 +267,7 @@ export default function MarketsPage() {
   const hasPersonalData = history.length > 0 || Object.keys(positions).length > 0;
   const [filter, setFilter] = useState<TapeFilter>("open");
   const { fixtures, fixturesLoading } = useFixtures();
+  const attestByMatchId = useAttestEvents().byMatchId;
 
   const sorted = useMemo(() => {
     const order: Record<Market["status"], number> = {
@@ -292,7 +315,10 @@ export default function MarketsPage() {
     return map;
   }, [fixtures]);
 
-  const hasLive = useMemo(() => fixtures.some((f) => isFixtureLive(f)), [fixtures]);
+  const hasLive = useMemo(
+    () => fixtures.some((f) => isFixtureLive(f)),
+    [fixtures]
+  ) || [...attestByMatchId.values()].some((a) => a.inPlay);
 
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [showMoreLimit, setShowMoreLimit] = useState(INITIAL_GROUPS_SHOWN);
@@ -302,15 +328,15 @@ export default function MarketsPage() {
   useEffect(() => {
     if (filterRef.current !== filter) {
       filterRef.current = filter;
-      setExpandedMatches(buildDefaultExpanded(byMatch, fixtureByMatchId));
+      setExpandedMatches(buildDefaultExpanded(byMatch, fixtureByMatchId, attestByMatchId));
       setShowMoreLimit(INITIAL_GROUPS_SHOWN);
       return;
     }
     if (!initializedRef.current && !marketsLoading && !fixturesLoading && byMatch.length > 0) {
       initializedRef.current = true;
-      setExpandedMatches(buildDefaultExpanded(byMatch, fixtureByMatchId));
+      setExpandedMatches(buildDefaultExpanded(byMatch, fixtureByMatchId, attestByMatchId));
     }
-  }, [filter, byMatch, fixtureByMatchId, marketsLoading, fixturesLoading]);
+  }, [filter, byMatch, fixtureByMatchId, attestByMatchId, marketsLoading, fixturesLoading]);
 
   const visibleGroups = byMatch.slice(0, showMoreLimit);
   const hasMore = byMatch.length > showMoreLimit;
@@ -391,6 +417,7 @@ export default function MarketsPage() {
                       matchId={matchId}
                       markets={matchMarkets}
                       fixture={fixtureByMatchId.get(matchId)}
+                      attest={attestByMatchId.get(matchId)}
                       expanded={expandedMatches.has(matchId)}
                       onToggle={() =>
                         setExpandedMatches((prev) => {

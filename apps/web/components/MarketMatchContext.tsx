@@ -97,7 +97,7 @@ function TsdbMatchContext({ eventId }: { eventId: number }) {
       <div className="market-match-context-score">
         <span className="mmc-team">{event.homeTeam}</span>
         <b className="mmc-score">
-          {event.finished && event.homeGoals != null && event.awayGoals != null
+          {(event.finished || started) && event.homeGoals != null && event.awayGoals != null
             ? `${event.homeGoals}—${event.awayGoals}`
             : "vs"}
         </b>
