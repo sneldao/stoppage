@@ -60,6 +60,11 @@ npx tsx apps/agent/src/index.ts live --live-tx
 # Price markets (Pyth oracle — no TxLINE needed, free Hermes data):
 npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
 
+# Attestation markets (operator-signed, ed25519 — TheSportsDB source,
+# covers MLS/EPL which TxLINE's free bundle doesn't; see
+# docs/ATTESTATION-ORACLE.md):
+npx tsx apps/agent/src/index.ts attest --event=<theSportsDbEventId> --line=2 --live-tx
+
 # TxLINE subscription (one-time, saves credentials to .txline-credentials.json):
 npx tsx scripts/subscribe-txline.ts
 
@@ -264,3 +269,17 @@ predecessor repo, which accumulated three divergent "live" program IDs.
    shadows them otherwise. Every anchor script here prefixes
    `PATH="$HOME/.cargo/bin:$PATH"`, but that only helps once a default
    toolchain exists for the shim to dispatch to.
+
+5. **The Solana CLI install has been wiped twice** (Jul 28 and Aug 10,
+   2026). Symptoms: `solana-keygen: command not found`,
+   `~/.local/share/solana` absent, rustup `solana` link dangling
+   (`override toolchain 'solana' is not installed`), and `anchor
+   --version` failing with "error decoding response body" while
+   auto-installing agave-install. Repair (worked Aug 10):
+   `curl -sSfL https://release.anza.xyz/v2.3.0/install -o /tmp/agave.sh
+   && sh /tmp/agave.sh`, then run `~/.local/share/solana/install/active_release/bin/cargo-build-sbf`
+   once from the repo root — it re-downloads platform-tools and
+   re-links rustup's `solana` toolchain itself (set
+   `rustup default solana` afterwards). If `cargo-build-sbf` first
+   fails on `cargo metadata`, temporarily
+   `rustup default stable-aarch64-apple-darwin`, rerun, then switch back.

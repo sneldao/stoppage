@@ -9,6 +9,8 @@
  *   npx tsx apps/agent/src/index.ts live
  *   npx tsx apps/agent/src/index.ts replay <fixtureId>
  *   npx tsx apps/agent/src/index.ts replay <fixtureId> --live-tx --speed=10
+ *   npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
+ *   npx tsx apps/agent/src/index.ts attest --event=<tsdbEventId> --line=2 --live-tx
  *
  * Environment:
  *   SOLANA_KEYPAIR_PATH — path to the agent wallet keypair
@@ -36,6 +38,7 @@ import {
 } from "@stoppage/txline";
 import { Agent } from "./loop";
 import { runPriceKeeper } from "./priceKeeper";
+import { loadAttestor, runAttestationKeeper } from "./attestationKeeper";
 import {
   createLiveSource,
   createReplaySource,
@@ -48,7 +51,7 @@ import { LiveStore } from "./liveStore";
 import { OddsTracker } from "./oddsTracker";
 import { ReplayManager } from "./replayManager";
 import { QuoteTracker } from "./quoteTracker";
-import { initTelemetry, logger } from "./telemetry";
+import { initTelemetry, logger, shutdownTelemetry } from "./telemetry";
 
 async function main() {
   initTelemetry();
@@ -83,6 +86,52 @@ async function main() {
       console.log(`Balance: ${balance / 1e9} SOL`);
     }
     await runPriceKeeper({ connection, wallet, dryRun, intervalSeconds: priceIntervalSeconds });
+    return;
+  }
+
+  // Attestation markets: operator-signed (ed25519) sports settlement via
+  // the attestation_validator oracle — MLS/EPL and other leagues TxLINE's
+  // free bundle doesn't cover. One TheSportsDB event per run.
+  if (mode === "attest") {
+    const eventArg = process.argv.find((arg) => arg.startsWith("--event="));
+    const lineArg = process.argv.find((arg) => arg.startsWith("--line="));
+    if (!eventArg) {
+      console.error(
+        "attest mode requires --event=<theSportsDB eventId> " +
+          "(find ids via https://www.thesportsdb.com or eventsnextleague.php?id=4387 for MLS)"
+      );
+      process.exit(1);
+    }
+    const eventId = Number(eventArg.split("=")[1]);
+    const line = Number(lineArg?.split("=")[1] ?? 2);
+    if (!Number.isInteger(eventId) || eventId <= 0) {
+      console.error(`--event must be a positive integer (got ${eventArg.split("=")[1]})`);
+      process.exit(1);
+    }
+    if (!Number.isInteger(line) || line < 0) {
+      console.error(`--line must be a non-negative integer goal line (got ${lineArg?.split("=")[1]})`);
+      process.exit(1);
+    }
+    const walletPath = process.env.SOLANA_KEYPAIR_PATH
+      ?? process.env.HOME + "/.config/solana/id.json";
+    const wallet = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
+    );
+    const attestor = loadAttestor();
+    const rpcUrl = process.env.SOLANA_RPC_URL ?? clusterApiUrl("devnet");
+    const connection = new Connection(rpcUrl, "confirmed");
+    console.log(`Mode: attest (operator-signed, ed25519) — event ${eventId}, line ${line}`);
+    console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
+    console.log(`Keeper wallet: ${wallet.publicKey.toBase58()}`);
+    console.log(`Attestor key:  ${attestor.publicKey.toBase58()}`);
+    if (!dryRun) {
+      const balance = await connection.getBalance(wallet.publicKey);
+      console.log(`Balance: ${balance / 1e9} SOL`);
+    }
+    await runAttestationKeeper({ connection, wallet, attestor, dryRun, eventId, line });
+    // One-shot mode: flush pending spans/metrics before the process can
+    // exit on an empty event loop (BatchSpanProcessor timer is unref'd).
+    await shutdownTelemetry();
     return;
   }
   const replaySpeedArg = process.argv.find((arg) => arg.startsWith("--speed="));

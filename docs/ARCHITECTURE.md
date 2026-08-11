@@ -22,11 +22,14 @@ transaction reverts — settlement IS conditional on on-chain proof
 verification, not contingent on an oracle's word.
 
 The contract is oracle-agnostic: the validator is any Solana program
-that returns a 1-byte bool from a CPI. Two reference validators are
-deployed on devnet — TxLINE's `validate_stat` (Merkle-proof sports data)
-and `pyth_validator` (guardian-verified Pyth price observations). The
-market program binds each market to its oracle at creation and
-cross-checks the receipt's validator at settlement.
+that returns a 1-byte bool from a CPI. Three reference validators are
+deployed on devnet — TxLINE's `validate_stat` (Merkle-proof sports
+data), `pyth_validator` (guardian-verified Pyth price observations),
+and `attestation_validator` (operator-key ed25519-signed sports
+observations; covers leagues outside TxLINE's bundle — see
+docs/ATTESTATION-ORACLE.md). The market program binds each market to
+its oracle at creation and cross-checks the receipt's validator at
+settlement.
 
 The reference betting UI exists to prove the loop end-to-end: delegate
 session key → bet with no popup → match ends → agent fetches Merkle
@@ -42,7 +45,9 @@ Option) into the exact byte format `validate_stat` expects, aligning
 fixture IDs / sequence numbers / stat keys / JWT credentials, and
 building the CPI path — then doing it again for a structurally different
 oracle (Pyth's PriceUpdateV2 layout, pyth-solana-receiver's posting
-flow, Hermes observation windows). Each oracle is a separate schlep;
+flow, Hermes observation windows; then a third time for operator-signed
+attestations — ed25519 precompile binding, instructions-sysvar
+introspection, claim windows). Each oracle is a separate schlep;
 the settlement primitive stays the same. This is the kind of work that
 takes days, has no tutorial, and makes you question your life choices.
 It's also the reason no one else has done it.

@@ -1,0 +1,240 @@
+{
+  "address": "CJ5VvvWqFeP6MfNyyDPvZ3kNNj4h1bbQrv1iQsPF4TDp",
+  "metadata": {
+    "name": "attestation_validator",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Stoppage attestation validator: verifies an operator-signed sports statistic observation (ed25519 precompile, same transaction) and returns a bool over CPI"
+  },
+  "instructions": [
+    {
+      "name": "initialize_config",
+      "docs": [
+        "One-time init of the Config PDA pinning the operator authority",
+        "whose ed25519 signatures this validator accepts. Permissionless,",
+        "first-init-wins (devnet reference implementation; an operator",
+        "deploying their own would init this themselves)."
+      ],
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "validate_attestation",
+      "docs": [
+        "Verify an operator-signed observation against the claimed",
+        "predicate and return the result as a 1-byte bool in return data.",
+        "Fails (reverts) on any binding or window violation.",
+        "",
+        "`reference_ts`/`window_seconds` bound the observation to",
+        "[reference_ts, reference_ts + window_seconds] — for match-end",
+        "predicates, reference is the scheduled full-time; the window",
+        "stops a stale observation answering a fresh claim."
+      ],
+      "discriminator": [
+        250,
+        232,
+        36,
+        143,
+        149,
+        1,
+        73,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "docs": [
+            "The Config PDA carrying the pinned authority. Anchor checks",
+            "owner + discriminator; seeds pin it to the canonical PDA."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "instructions"
+        }
+      ],
+      "args": [
+        {
+          "name": "fixture_ref",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "stat_key",
+          "type": "u32"
+        },
+        {
+          "name": "op",
+          "type": "u8"
+        },
+        {
+          "name": "threshold",
+          "type": "i64"
+        },
+        {
+          "name": "value",
+          "type": "i64"
+        },
+        {
+          "name": "obs_ts",
+          "type": "i64"
+        },
+        {
+          "name": "reference_ts",
+          "type": "i64"
+        },
+        {
+          "name": "window_seconds",
+          "type": "u32"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MissingInstructionsSysvar",
+      "msg": "Instructions account is not the instructions sysvar"
+    },
+    {
+      "code": 6001,
+      "name": "MissingEd25519Instruction",
+      "msg": "Preceding instruction is not the ed25519 precompile"
+    },
+    {
+      "code": 6002,
+      "name": "MalformedSigIx",
+      "msg": "Ed25519 precompile instruction is malformed"
+    },
+    {
+      "code": 6003,
+      "name": "CrossInstructionReference",
+      "msg": "Ed25519 verification must be self-contained in one instruction"
+    },
+    {
+      "code": 6004,
+      "name": "SignerMismatch",
+      "msg": "Signer is not the pinned attestation authority"
+    },
+    {
+      "code": 6005,
+      "name": "MessageMismatch",
+      "msg": "Signed message does not match the claimed observation"
+    },
+    {
+      "code": 6006,
+      "name": "BeforeReference",
+      "msg": "Observation timestamp is before the reference time"
+    },
+    {
+      "code": 6007,
+      "name": "OutsideWindow",
+      "msg": "Observation is outside the committed window"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidOp",
+      "msg": "Unknown predicate operator"
+    },
+    {
+      "code": 6009,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The operator key whose ed25519-precompile-verified observations",
+              "this validator accepts."
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}

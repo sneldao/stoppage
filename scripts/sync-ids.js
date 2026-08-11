@@ -10,7 +10,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const PROGRAMS = ["market", "pyth_validator", "settlement"];
+const PROGRAMS = ["market", "pyth_validator", "settlement", "attestation_validator"];
 
 const ids = {};
 for (const program of PROGRAMS) {

@@ -33,6 +33,10 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: "production",
+        // .env.agent sets OTEL_SERVICE_NAME=stoppage-agent for the main
+        // keeper; without this override the price keeper's telemetry
+        // would be misattributed to it.
+        OTEL_SERVICE_NAME: "stoppage-price",
       },
     },
   ],

@@ -1,5 +1,10 @@
 [workspace]
-members = ["programs/market", "programs/pyth_validator", "programs/settlement"]
+members = [
+    "programs/market",
+    "programs/pyth_validator",
+    "programs/settlement",
+    "programs/attestation_validator",
+]
 resolver = "2"
 
 [profile.release]

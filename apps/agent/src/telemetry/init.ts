@@ -47,3 +47,17 @@ export function initTelemetry(): void {
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);
 }
+
+/**
+ * Flush pending telemetry and shut the SDK down. One-shot modes
+ * (attest, replay) must call this before returning — otherwise the
+ * process exits when the event loop drains (BatchSpanProcessor's timer
+ * is unref'd) and unflushed spans are silently dropped. Diagnosed
+ * 2026-08-11: dry-run attest emitted spans that never reached SigNoz
+ * because the process exited inside the 5s batch window.
+ */
+export async function shutdownTelemetry(): Promise<void> {
+  if (!sdk) return;
+  await sdk.shutdown();
+  sdk = null;
+}

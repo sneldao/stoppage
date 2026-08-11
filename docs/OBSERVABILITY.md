@@ -3,6 +3,24 @@
 OpenTelemetry instrumentation for the Matchkeeper agent (`apps/agent`).
 Export target: [SigNoz](https://signoz.io/) (self-hosted or cloud).
 
+## Status (2026-08-11): wired and verified landing
+
+End-to-end landing was verified for the first time on 2026-08-11 with a
+one-shot OTLP probe on the VPS (span visible in
+`signoz_traces.distributed_signoz_index_v3`). Two findings worth
+remembering:
+
+- **Empty tables since Aug 3 were not a pipeline failure.** No covered
+  TxLINE fixtures → no non-heartbeat events → zero spans emitted. Before
+  that, World Cup-era spans DID land — SigNoz's default **15-day
+  retention TTL dropped them**. If demo/operator history should live
+  longer, raise retention in SigNoz Settings.
+- **The SigNoz ingester is bound to `0.0.0.0:4317-4318`** — the OTLP
+  endpoint is publicly reachable on the VPS IP. Follow-up: restrict to
+  localhost and export from off-box via
+  `ssh -L 4318:127.0.0.1:4318 nuncio-vultr`. Until then, any host can
+  push spans into the store.
+
 ## Why
 
 The keeper runs 24/7 on a VPS with `--live-tx`. Today, failures (settlement

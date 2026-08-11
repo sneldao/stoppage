@@ -123,6 +123,18 @@ field carries a digest of the exact verified observation (account, feed,
 price, conf, publish time) — the validator's CPI is the verification; the
 digest is the audit trail.
 
+### Reference custom oracle: operator attestation (ed25519)
+
+`programs/attestation_validator` is the worked example of a custom
+validator: it accepts observations signed by a single operator key
+pinned in its Config PDA, verified via the ed25519 precompile in the
+same transaction as settlement. Its receipt digest commits to
+(authority, fixture_ref, stat_key, value, obs_ts, signature). Use it
+directly (via `attestationOracle` in the SDK) for operator-attested
+feeds, or copy its shape for your own signing scheme. The trust model —
+atomicity guaranteed, epistemic truth on the operator — is spelled out
+in docs/ATTESTATION-ORACLE.md; present it that way to users.
+
 ### Bring your own oracle
 
 Run your own validator (a Merkle-anchor program, a TWAP verifier for

@@ -27,6 +27,7 @@ mkdir -p target/deploy
 cp keys/market-keypair.json target/deploy/market-keypair.json
 cp keys/pyth_validator-keypair.json target/deploy/pyth_validator-keypair.json
 cp keys/settlement-keypair.json target/deploy/settlement-keypair.json
+cp keys/attestation_validator-keypair.json target/deploy/attestation_validator-keypair.json
 
 echo "── 3/5 anchor build"
 anchor build
@@ -36,6 +37,7 @@ mkdir -p packages/sdk/idl
 cp target/idl/market.json packages/sdk/idl/market.json
 cp target/idl/pyth_validator.json packages/sdk/idl/pyth_validator.json
 cp target/idl/settlement.json packages/sdk/idl/settlement.json
+cp target/idl/attestation_validator.json packages/sdk/idl/attestation_validator.json
 
 echo "── 5/5 anchor deploy (devnet)"
 anchor deploy --provider.cluster devnet
@@ -45,3 +47,4 @@ echo "Deployed. Verify with:"
 echo "  solana program show $(solana-keygen pubkey keys/market-keypair.json) --url devnet"
 echo "  solana program show $(solana-keygen pubkey keys/pyth_validator-keypair.json) --url devnet"
 echo "  solana program show $(solana-keygen pubkey keys/settlement-keypair.json) --url devnet"
+echo "  solana program show $(solana-keygen pubkey keys/attestation_validator-keypair.json) --url devnet"

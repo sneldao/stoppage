@@ -25,9 +25,9 @@
  * and PDAs only. No React, no Next, no wallet adapter.
  */
 
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey, TransactionInstruction, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
 import { sha256 } from "js-sha256";
-import { PYTH_VALIDATOR_PROGRAM_ID } from "./programIds";
+import { ATTESTATION_VALIDATOR_PROGRAM_ID, PYTH_VALIDATOR_PROGRAM_ID } from "./programIds";
 import { writeI64LE, writeU64LE } from "./escrow";
 import {
   buildResolveMarketIx,
@@ -236,6 +236,190 @@ export const pythOracle: SettlementOracle = {
       anchorAccounts: [p.priceUpdateAccount],
       instructionData,
       merkleRoot: pythObservationDigest(p),
+    };
+  },
+};
+
+// ── Operator attestation oracle adapter ─────────────────────────────
+
+/**
+ * sha256("global:validate_attestation")[..8] — the discriminator of
+ * programs/attestation_validator's validate_attestation instruction.
+ */
+const ATTESTATION_VALIDATE_DISCRIMINATOR = Buffer.from(
+  sha256.array("global:validate_attestation").slice(0, 8)
+);
+
+/**
+ * Signed observation message contract (byte-for-byte with the Rust
+ * reconstruction in programs/attestation_validator — one format, two
+ * encoders that MUST stay in lockstep; covered by oracle.test.ts):
+ *
+ *   "stoppage/attest-observation/v1" (30) || fixture_ref[16]
+ *   || stat_key(u32 LE) || value(i64 LE) || obs_ts(i64 LE)
+ */
+export const ATTESTATION_MSG_PREFIX = Buffer.from(
+  "stoppage/attest-observation/v1",
+  "utf8"
+);
+export const ATTESTATION_MSG_LEN = 30 + 16 + 4 + 8 + 8;
+
+/** Predicate operators — mirror programs/attestation_validator. */
+export const ATTESTATION_OPS = { gte: 0, lte: 1, eq: 2 } as const;
+export type AttestationOp = (typeof ATTESTATION_OPS)[keyof typeof ATTESTATION_OPS];
+
+/** The observation the operator signs (the fact being attested). */
+export interface AttestationObservation {
+  /** 16-byte fixture reference, e.g. sha256("tsdb:<eventId>")[..16]. */
+  fixtureRef: Uint8Array;
+  /** Statistic scale key (opaque to the validator; registry lives in
+   * the agent's attestation source module). */
+  statKey: number;
+  /** Observed value in the statistic's native integer units. */
+  value: bigint;
+  /** Observation timestamp (unix seconds). */
+  obsTs: number;
+}
+
+/** Build the exact bytes the operator signs. Pure, no key material. */
+export function buildAttestationMessage(o: AttestationObservation): Buffer {
+  if (o.fixtureRef.length !== 16) {
+    throw new Error("fixtureRef must be 16 bytes");
+  }
+  const msg = Buffer.alloc(ATTESTATION_MSG_LEN);
+  ATTESTATION_MSG_PREFIX.copy(msg, 0);
+  Buffer.from(o.fixtureRef).copy(msg, 30);
+  msg.writeUInt32LE(o.statKey, 46);
+  msg.writeBigInt64LE(o.value, 50);
+  msg.writeBigInt64LE(BigInt(o.obsTs), 58);
+  return msg;
+}
+
+/**
+ * Proof payload for the attestation oracle. The on-chain facts the
+ * validator CPIs against are (a) the Config PDA pinning the authority
+ * and (b) the ed25519 precompile instruction that MUST immediately
+ * precede the resolve_market instruction in the same transaction (the
+ * agent bundle builder splices it in; the validator enforces position,
+ * self-contained offsets, signer, and message equality).
+ */
+export interface AttestationProof extends AttestationObservation {
+  /** The pinned authority that signed `buildAttestationMessage(...)`. */
+  authority: PublicKey;
+  /** 64-byte ed25519 signature over the observation message. Carried
+   * into the receipt digest (the precompile ix, not this buffer, is
+   * what the validator cryptographically checks). */
+  signature: Uint8Array;
+  /** The claim: comparison over the observed value. */
+  op: AttestationOp;
+  threshold: bigint;
+  /** Claim window: obs_ts must satisfy
+   * reference_ts <= obs_ts <= reference_ts + windowSeconds. */
+  referenceTs: number;
+  windowSeconds: number;
+}
+
+/** Derive the attestation validator's Config PDA. */
+export function deriveAttestationConfigPda(programId: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    programId
+  );
+}
+
+/**
+ * Build the one-time initialize_config instruction for the attestation
+ * validator. First-init-wins: the Config PDA pins the operator authority
+ * whose ed25519 signatures the validator accepts. Returns null if the
+ * config already exists (caller checks on-chain state first — this
+ * guards against racing a successful init, not against a malicious one:
+ * the transaction would fail on-chain anyway).
+ */
+export function buildInitializeAttestationConfigIx(
+  payer: PublicKey,
+  authority: PublicKey
+): TransactionInstruction {
+  const programId = new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID);
+  const [configPda] = deriveAttestationConfigPda(programId);
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: configPda, isSigner: false, isWritable: true },
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false },
+    ],
+    data: Buffer.concat([
+      Buffer.from(sha256.array("global:initialize_config").slice(0, 8)),
+      authority.toBuffer(),
+    ]),
+  });
+}
+
+/**
+ * The receipts-anchor digest for attestation settlements. Attestations
+ * have no Merkle root; the receipt's anchored-root field instead commits
+ * to the exact attested observation (authority, payload, signature) —
+ * the audit trail linking the receipt to one specific signature.
+ */
+export function attestationObservationDigest(proof: {
+  authority: PublicKey;
+  fixtureRef: Uint8Array;
+  statKey: number;
+  value: bigint;
+  obsTs: number;
+  signature: Uint8Array;
+}): Uint8Array {
+  if (proof.signature.length !== 64) {
+    throw new Error("signature must be 64 bytes");
+  }
+  const statKeyBuf = Buffer.alloc(4);
+  statKeyBuf.writeUInt32LE(proof.statKey, 0);
+  const buf = Buffer.concat([
+    Buffer.from("stoppage/attestation-observation/v1", "utf8"),
+    proof.authority.toBuffer(),
+    Buffer.from(proof.fixtureRef),
+    statKeyBuf,
+    writeI64LE(proof.value),
+    writeI64LE(BigInt(proof.obsTs)),
+    Buffer.from(proof.signature),
+  ]);
+  return new Uint8Array(sha256.arrayBuffer(buf));
+}
+
+/**
+ * Attestation oracle: settles markets against an operator-signed
+ * observation verified via the ed25519 precompile (same transaction).
+ * The instruction data the settlement program CPIs verbatim is built
+ * here (rule 6: one encoder, matching the Rust arg order in
+ * programs/attestation_validator).
+ */
+export const attestationOracle: SettlementOracle = {
+  id: "attestation",
+  buildVerifySpec({ proof }): OracleVerifySpec {
+    const p = proof as AttestationProof;
+    const windowBuf = Buffer.alloc(4);
+    windowBuf.writeUInt32LE(p.windowSeconds, 0);
+    const statKeyBuf = Buffer.alloc(4);
+    statKeyBuf.writeUInt32LE(p.statKey, 0);
+    const instructionData = Buffer.concat([
+      ATTESTATION_VALIDATE_DISCRIMINATOR,
+      Buffer.from(p.fixtureRef),
+      statKeyBuf,
+      Buffer.from([p.op]),
+      writeI64LE(p.threshold),
+      writeI64LE(p.value),
+      writeI64LE(BigInt(p.obsTs)),
+      writeI64LE(BigInt(p.referenceTs)),
+      windowBuf,
+    ]);
+    const [configPda] = deriveAttestationConfigPda(
+      new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID)
+    );
+    return {
+      validatorProgram: new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID),
+      anchorAccounts: [configPda, SYSVAR_INSTRUCTIONS_PUBKEY],
+      instructionData,
+      merkleRoot: attestationObservationDigest(p),
     };
   },
 };

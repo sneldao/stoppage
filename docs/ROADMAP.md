@@ -56,12 +56,78 @@ codebase supports both; the decision determines what to build next.
 - Hand-seeded devnet markets. One real user loop on a real match is
   worth more than 50 seeded markets. Target: one real match in the
   KeeperHub hackathon window (through Aug 13) with real bets and real
-  proof-gated settlement.
+  proof-gated settlement. (Amended 2026-08-10: free-tier TxLINE has no
+  live coverage until Sept 23, so this window is served by the
+  attestation oracle instead — Orlando City vs FC Cincinnati, Aug 15.
+  Operator-attested, not TxODDS-verified; say so wherever it's shown.)
 - Hardcoded launch templates (corners_over, total_goals_over). Don't
   build a general predicate system until two specific predicates have
   settled real markets.
 
-## Current state (2026-08-03)
+## Current state (2026-08-10)
+
+**Attestation oracle shipped: proof-gated sports settlement no longer
+waits for TxLINE coverage.** New validator program
+`attestation_validator` (devnet, deployed via `scripts/deploy.sh`,
+first-deploy slot 482742825) verifies an operator-signed sports
+observation via the ed25519 precompile in the same transaction as
+settlement (precompile ix immediately precedes `resolve_market`; signer
+pinned in the Config PDA; message bound byte-for-byte; window bounded).
+Trust model documented honestly in docs/ATTESTATION-ORACLE.md: 1-of-1
+operator attestation — the *atomicity* guarantee is unchanged, epistemic
+truth is the operator's. Sept 23 TxLINE Friendlies remain the
+third-party-verified milestone. 10 program tests + 4 SDK tests green;
+existing 27 market/SDK tests unaffected.
+
+**First attestation market live on devnet.** Orlando City vs FC
+Cincinnati (MLS, TheSportsDB event 2406978, kickoff 2026-08-15 23:30
+UTC): `total_goals_over:2`, oracle = attestation_validator, market PDA
+`5Ji2788zjyk5jC2JxSWcCxDFA2vtqJMQqgDHjmiBLryL`, real second-wallet YES
+position 0.005 SOL (join tx
+`nZrn16nzaGxhS5N2jQqQo2YQVzS8dVd3FdrbvwMCZ5atjHtZAr3zvT5Gz36eRfD7hXeCoitScUKfiQsBE1AzpCr`).
+**Match-day runbook:** after kickoff, rerun
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://144.202.117.160:4318 npx tsx apps/agent/src/index.ts attest --event=2406978 --line=2 --live-tx`
+(OTL endpoint = VPS SigNoz, so the first attestation settle lands in
+the `Matchkeeper Ops` dashboard) — the keeper resumes ("market exists"
+branch), polls TheSportsDB until full-time, signs, submits the atomic
+bundle. Then claim from the opponent wallet and verify the receipt
+digest. This is the KeeperHub-
+window real match, delivered via operator attestation instead of
+TxLINE (see the amended note under "Things that don't scale").
+
+**TxLINE access: probed live Aug 10 + docs reviewed.** Bundle contains
+exactly competition 430 (Friendlies, 26 fixtures, earliest Sept 23);
+`competitionId=1480` (MLS) → 403 "not in your bundle". Docs
+(subscription-tiers + quickstart) confirm: **paid tiers are mainnet-only**
+($500+/28d) and useless for the devnet CPI path even if purchased —
+TxLINE proofs must verify against the same cluster's program. Only
+TxODDS widening the DEVNET bundle unblocks earlier TxLINE live runs
+(ask in Discord). Free subscriptions are 28-day and **lapse silently** —
+standing reminder: re-run `scripts/subscribe-txline.ts` every ~3.5 weeks
+so the Sept 23 keystone can't die at kickoff. For later: mainnet service
+level 12 is free AND real-time (WC + Friendlies) if legal review clears.
+
+**Deployer wallet thin; full redeploy deferred.** Deployer
+(~/.config/solana/id.json) holds ~1.24 devnet SOL; the faucet rate-limit
+hit mid-deploy. attestation_validator (the only changed program)
+deployed; market/pyth/settlement bytecode is semantically unchanged and
+was NOT redeployed. Next full `deploy:programs` run needs ~3 SOL —
+retry the airdrop or top up first.
+
+**Local environment note.** The Solana CLI had been wiped AGAIN
+(~/.local/share/solana was absent). Reinstalled Agave 2.3.0 (pinned);
+`cargo-build-sbf` re-downloaded platform-tools and self-healed the
+rustup `solana` link. Also: `node_modules` was absent; `npm ci` restored
+from the lockfile.
+
+**Delphi Agent Arena (Gensyn) assessed → Icebox.** Wrong chain (EVM
+testnet), wrong role (price taker on their markets, not settlement
+infrastructure), and its Aug 10–24 window collides with the attestation
+keystone's first live week. The one asset that would transfer
+(packages/txline as a sports-data edge) only covers the sports slice.
+Not entering.
+
+## Previous state (2026-08-03)
 
 **Hackathon result: did not place.** The TxODDS World Cup track
 winners were announced July 29 (Touchline, Onyx, Proofline in
@@ -598,10 +664,25 @@ during M1/M2.
 - [x] Public app icon for Blinks is present and referenced
       (`/icon-512x512.png`, 512x512 PNG).
 
-## M7 — Agent observability (in progress)
+## M7 — Agent observability (wired; landing verified 2026-08-11)
 
 SigNoz / OpenTelemetry for the Matchkeeper keeper. See
 [OBSERVABILITY.md](./OBSERVABILITY.md).
+
+2026-08-11: first confirmed end-to-end landing (OTLP probe span queried
+in ClickHouse), then real agent spans (`attest.ensure_config`,
+`attest.event_fetch`, service `stoppage-agent`) after two real bugs
+were found and fixed: (1) the attestation keeper had NO span
+instrumentation — added `withSpan` around config/event/create/settle
+plus `recordAction` counters; (2) one-shot modes (attest, replay) exited
+inside the BatchSpanProcessor's 5s window before flushing — added
+`shutdownTelemetry()`, called at the end of attest mode. Empty tables
+since Aug 3 were absence of traffic (an idle live agent emits nothing —
+BatchSpanProcessor has no ended spans and the metric reader skips empty
+collections), not a pipeline failure; WC-era spans were dropped by the
+default 15-day retention TTL. Open hygiene items: ingester publicly
+reachable on 0.0.0.0:4317-4318 (restrict to localhost + ssh tunnel);
+raise retention if demo history matters.
 
 - [x] OTel SDK + structured JSON logger in `apps/agent/src/telemetry/`
 - [x] Spans around `handleEvent`, `executeAction`, proof fetch, tx submit
@@ -614,7 +695,11 @@ SigNoz / OpenTelemetry for the Matchkeeper keeper. See
 ## Icebox (explicitly not now)
 
 Recorded so they stop tempting us mid-sprint (see CLAUDE.md → Scope
-discipline): SPL-token stakes, AMM/LMSR pricing (vault-ratio odds are
+discipline): Delphi Agent Arena (Gensyn trading competition, assessed
+2026-08-10 — wrong chain, wrong role, window collides with the
+attestation keystone; revisit only if a future edition is
+settlement-infrastructure-shaped), SPL-token stakes, AMM/LMSR pricing
+(vault-ratio odds are
 enough for the demo), mainnet anything (legal review first — see README
 compliance note), mobile app, ELO/agent-vs-agent markets, market
 creation UI for arbitrary predicates (launch templates are hardcoded),

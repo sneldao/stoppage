@@ -14,11 +14,13 @@ skip-lint = false
 market = "92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG"
 pyth_validator = "73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG"
 settlement = "5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF"
+attestation_validator = "CJ5VvvWqFeP6MfNyyDPvZ3kNNj4h1bbQrv1iQsPF4TDp"
 
 [programs.devnet]
 market = "92TmrM6wKEUWnnH9QAo7VNjzHhTFeAxz8MB7v2wQzjLG"
 pyth_validator = "73co8qb1DPiQP9zphReVNdsUPsHJZ5EoD3RpfKWUoQQG"
 settlement = "5vCo4bXgUJrDiYLs8Lg4s5CGp1D9CBCBr5WsKCUnkLcF"
+attestation_validator = "CJ5VvvWqFeP6MfNyyDPvZ3kNNj4h1bbQrv1iQsPF4TDp"
 
 [registry]
 url = "https://api.apr.dev"
