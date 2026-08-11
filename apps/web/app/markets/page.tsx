@@ -8,6 +8,7 @@ import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import { formatMarketQuestion } from "@/lib/format";
 import { isBaselineOracle, oracleInfoFor } from "@/lib/oracle";
+import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
 import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
@@ -64,12 +65,13 @@ function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithM
   const total = market.yesPool + market.noPool;
   const isOpen = market.status === "open";
 
-  // Determine betting gate state for this market. Price markets resolve
-  // against a price feed, not a fixture, so they are never gated.
-  const isPriceMarket = pred.kind === "price_above";
+  // Determine betting gate state for this market. Markets that don't
+  // resolve via a TxLINE fixture (price feeds, tsdb operator-attested)
+  // are never fixture-gated — same rule as useMarketBettingState.
+  const fixtureGated = isFixtureGatedMarket(market);
   let bettingBlocked = false;
   let blockedReason = "";
-  if (isOpen && isPriceMarket) {
+  if (isOpen && !fixtureGated) {
     // no fixture gate
   } else if (isOpen && fixture) {
     // Match ended

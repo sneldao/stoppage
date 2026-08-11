@@ -96,9 +96,24 @@ export interface MarketBettingState extends BettingGateState {
   marketStatus: Market["status"];
 }
 
+/**
+ * True when a market resolves via a TxLINE fixture and therefore needs
+ * the betting gate (data availability, match state, 2h pre-match window).
+ * Price markets resolve against a price feed and tsdb-linked markets
+ * resolve from the operator's attested observation — neither has a
+ * TxLINE fixture to gate on, so they are bettable whenever open. (Rule 6:
+ * this is the single source for that exemption; the markets tape reuses it.)
+ */
+export function isFixtureGatedMarket(market: Market): boolean {
+  return (
+    market.predicate.kind !== "price_above" &&
+    !market.predicate.matchId.startsWith("tsdb:")
+  );
+}
+
 export function useMarketBettingState(market: Market | null): MarketBettingState {
   const fixtureGate = useBettingGate(market?.predicate.matchId ?? "");
-  
+
   if (!market) {
     return {
       ...fixtureGate,
@@ -108,12 +123,9 @@ export function useMarketBettingState(market: Market | null): MarketBettingState
     };
   }
 
-  // Price markets resolve against a price feed, not a fixture, so they
-  // are bettable whenever open — the fixture gate doesn't apply.
-  const isPriceMarket = market.predicate.kind === "price_above";
-
-  // Market must be open AND fixture gate must allow betting
-  const canBet = market.status === "open" && (isPriceMarket || fixtureGate.canBet);
+  // Market must be open AND (for fixture-resolved markets) the fixture
+  // gate must allow betting.
+  const canBet = market.status === "open" && (!isFixtureGatedMarket(market) || fixtureGate.canBet);
   
   const reason = !canBet ? (() => {
     if (market.status !== "open") {
