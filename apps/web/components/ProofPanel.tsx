@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Market } from "@stoppage/sdk";
+import { oracleInfoFor } from "@/lib/oracle";
 import { buildProofTweet, buildTweetIntent } from "@/lib/share/tweet";
 
 interface ProofPanelProps {
@@ -40,6 +41,7 @@ function shortHash(hex: string | undefined, chars = 6): string {
 
 export function ProofPanel({ market }: ProofPanelProps) {
   const [verify, setVerify] = useState<VerifyState>({ kind: "idle" });
+  const oracle = oracleInfoFor(market.oracle);
   const explorerUrl = `https://explorer.solana.com/address/${market.id}?cluster=devnet`;
 
   if (market.status === "void") {
@@ -47,7 +49,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
       <section className="proof-panel">
         <div className="proof-panel-head">
           <div>
-            <p className="eyebrow">TxLINE verified</p>
+            <p className="eyebrow">{oracle.verifiedEyebrow}</p>
             <h2>Proof status</h2>
           </div>
           <span className="proof-status">Voided</span>
@@ -65,15 +67,12 @@ export function ProofPanel({ market }: ProofPanelProps) {
       <section className="proof-panel">
         <div className="proof-panel-head">
           <div>
-            <p className="eyebrow">TxLINE proof path</p>
+            <p className="eyebrow">{oracle.proofPathEyebrow}</p>
             <h2>Resolution is waiting.</h2>
           </div>
           <span className="proof-status">Open</span>
         </div>
-        <p>
-          Matchkeeper is watching for TxLINE confirmation. It can submit this
-          market&apos;s settlement only after the required proof validates on-chain.
-        </p>
+        <p>{oracle.waitingParagraph}</p>
         <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">
           Inspect market account <span>↗</span>
         </a>
@@ -133,10 +132,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
         </div>
         <span className="proof-status verified">Receipt available</span>
       </div>
-      <p>
-        The program settled this market only after TxLINE proof validation on-chain.
-        This view checks the settlement receipt against the recorded outcome.
-      </p>
+      <p>{oracle.settledParagraph}</p>
 
       <div className="proof-details">
         <div>

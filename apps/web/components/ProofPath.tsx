@@ -1,6 +1,8 @@
 "use client";
 
 import type { MarketStatus } from "@stoppage/sdk";
+import { DEFAULT_ORACLE } from "@stoppage/sdk";
+import { oracleInfoFor } from "@/lib/oracle";
 
 const STEPS = [
   {
@@ -55,10 +57,13 @@ function stepState(index: number, status: MarketStatus): "complete" | "active" |
   return "pending";
 }
 
-export function ProofPath({ status }: { status: MarketStatus }) {
+export function ProofPath({ status, oracle }: { status: MarketStatus; oracle?: string }) {
+  // The match-scope page has no market account; its instrument is the
+  // TxLINE-anchored fixture, so default the label to the TxLINE validator.
+  const info = oracleInfoFor(oracle ?? DEFAULT_ORACLE.toBase58());
   return (
     <section className="proof-path" aria-label="Resolution path">
-      <p className="eyebrow">TxLINE proof path</p>
+      <p className="eyebrow">{info.proofPathEyebrow}</p>
       <ol className="proof-path-steps">
         {STEPS.map((step, i) => {
           const state = stepState(i, status);

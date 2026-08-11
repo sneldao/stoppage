@@ -8,6 +8,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Keypair } from "@solana/web3.js";
 import { getMarket, impliedProbability, type Market, type Side } from "@stoppage/sdk";
 import { useMarketActions } from "@/lib/markets/useMarketActions";
+import { oracleInfoFor } from "@/lib/oracle";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
@@ -316,6 +317,12 @@ export default function MarketDetailPage() {
                 {market.status === "open" && <i className="live-dot" style={{ width: 6, height: 6, marginRight: 6 }} />}
                 {market.status.replace("_", " ")}
               </span>
+              <span
+                className="market-oracle-badge"
+                title={`Settlement validator program: ${market.oracle}`}
+              >
+                settles via {oracleInfoFor(market.oracle).name}
+              </span>
               <MarketWindow closesAt={market.closesAt} status={market.status} />
             </div>
 
@@ -353,7 +360,7 @@ export default function MarketDetailPage() {
                 <ul>
                   {bettingGate.gate === "awaiting_fixture" && (
                     <>
-                      <li>The Matchkeeper is waiting for TxLINE to confirm this fixture</li>
+                      <li>The Matchkeeper is waiting for {oracleInfoFor(market.oracle).name} to confirm this fixture</li>
                       <li>Once confirmed, the proof path will be established</li>
                       <li>Betting will open automatically</li>
                     </>
@@ -685,8 +692,8 @@ export default function MarketDetailPage() {
       {/* ── Settlement path — always visible, not behind a toggle ── */}
       <div className="market-settlement-path">
         <div className="market-settlement-path-inner">
-          <MatchkeeperStatus marketPhase={market.status} compact />
-          <ProofPath status={market.status} />
+          <MatchkeeperStatus marketPhase={market.status} oracle={market.oracle} compact />
+          <ProofPath status={market.status} oracle={market.oracle} />
         </div>
       </div>
 

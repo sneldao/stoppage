@@ -12,7 +12,112 @@ function asMilliseconds(ts: number) {
   return ts < 1_000_000_000_000 ? ts * 1_000 : ts;
 }
 
+// ── Operator-attested (TheSportsDB) match context ───────────────────
+// Markets created by the attestation keeper carry matchId "tsdb:<id>";
+// they never resolve against the TxLINE fixture list. This renders the
+// same context card from /api/tsdb-event, labeled honestly — operator
+// attestation, not TxODDS verification (docs/ATTESTATION-ORACLE.md).
+
+interface TsdbEvent {
+  eventId: number;
+  label: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  status: string;
+  kickoffTs: number | null;
+  finished: boolean;
+  homeGoals: number | null;
+  awayGoals: number | null;
+}
+
+function useTsdbEvent(eventId: number | null) {
+  const [event, setEvent] = useState<TsdbEvent | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (eventId === null) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/tsdb-event/${eventId}`);
+        if (!res.ok) throw new Error(`tsdb-event ${res.status}`);
+        const data = (await res.json()) as TsdbEvent;
+        if (!cancelled) setEvent(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    };
+    void load();
+    // Refresh while the match could still be in progress — the final
+    // score only appears here once TheSportsDB marks it finished.
+    const id = window.setInterval(() => {
+      if (!event?.finished) void load();
+    }, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [eventId, event?.finished]);
+  return { event, failed };
+}
+
+function TsdbMatchContext({ eventId }: { eventId: number }) {
+  const { event, failed } = useTsdbEvent(eventId);
+  const kickoff = event?.kickoffTs ? new Date(event.kickoffTs * 1000) : null;
+  const started = kickoff !== null && kickoff.getTime() <= Date.now();
+  const countdown = useCountdown(started ? null : kickoff);
+
+  if (failed) {
+    return (
+      <section className="market-match-context market-match-context-warning" aria-label="Match context">
+        Match data unavailable. Confirm the market condition before entering.
+      </section>
+    );
+  }
+  if (!event) {
+    return (
+      <section className="market-match-context market-match-context-loading" aria-label="Match context">
+        <div className="mmc-skeleton" aria-hidden="true" />
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="market-match-context market-match-context-scheduled"
+      aria-label="Match context"
+    >
+      <div className="market-match-context-top">
+        <span>{event.league}</span>
+        <strong className="mmc-status">
+          {event.finished ? "Full-time" : started ? "In play" : countdown ? `⏱ ${countdown}` : "Fixture"}
+        </strong>
+      </div>
+
+      <div className="market-match-context-score">
+        <span className="mmc-team">{event.homeTeam}</span>
+        <b className="mmc-score">
+          {event.finished && event.homeGoals != null && event.awayGoals != null
+            ? `${event.homeGoals}—${event.awayGoals}`
+            : "vs"}
+        </b>
+        <span className="mmc-team">{event.awayTeam}</span>
+      </div>
+
+      <div className="market-match-context-stats">
+        <span className="mmc-ts">TheSportsDB · operator-attested settlement</span>
+      </div>
+    </section>
+  );
+}
+
 export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | number; onSnapshot?: (snapshot: LiveMatchSnapshot | null) => void }) {
+  const tsdbId = String(matchId).startsWith("tsdb:")
+    ? Number(String(matchId).slice(5))
+    : null;
+  if (tsdbId !== null && Number.isInteger(tsdbId)) {
+    return <TsdbMatchContext eventId={tsdbId} />;
+  }
   const { fixtures, fixturesLoading } = useFixtures();
   const [scoreFlash, setScoreFlash] = useState(0);
   const prevScore = useMemo(() => ({ home: -1, away: -1 }), []);

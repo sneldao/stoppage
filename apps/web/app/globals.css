@@ -2827,6 +2827,27 @@ body {
   background: rgba(255,85,85,.06);
 }
 
+/* Which validator program settles this market — the "one contract,
+   many oracles" differentiator surfaced per market (oracle-agnostic
+   labeling; see lib/oracle.ts). */
+.market-oracle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tape-oracle-tag {
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
 .market-instrument-meta .market-window {
   margin: 0;
   padding: 4px 10px;

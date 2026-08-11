@@ -356,7 +356,8 @@ export default function Home() {
           <Link href="/" className="wordmark">STOPPAGE<span>.</span></Link>
           <span>© 2026</span>
         </div>
-        <p>Built on Solana devnet · Match data from TxLINE</p>
+        <p>Built on Solana devnet · Match data from TxLINE · Pyth prices · operator-attested MLS</p>
+        <p>One settlement contract, three live proof paths: TxLINE sports, Pyth prices, operator attestation. <Link href="/operators">Built for operators →</Link></p>
         <p className="footer-safety">Use only where permitted. Set limits and take breaks.</p>
       </footer>
 

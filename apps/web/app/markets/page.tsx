@@ -7,6 +7,7 @@ import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import { formatMarketQuestion } from "@/lib/format";
+import { isBaselineOracle, oracleInfoFor } from "@/lib/oracle";
 import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
@@ -117,7 +118,12 @@ function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithM
             </span>
           )}
         </span>
-        <small>pool {SOL(total)}</small>
+        <small>
+          pool {SOL(total)}
+          {!isBaselineOracle(market.oracle) && (
+            <> · <span className="tape-oracle-tag" title={`Settlement validator: ${market.oracle}`}>{oracleInfoFor(market.oracle).name}</span></>
+          )}
+        </small>
       </div>
 
       <div className="market-tape-row__odds">

@@ -81,7 +81,7 @@ const reproduced = priceMarket(
           </div>
           <div className="op-pillar">
             <h3>Bring your own oracle</h3>
-            <p>The settlement contract is oracle-agnostic, demonstrably: sports markets settle through TxLINE&apos;s Merkle-proof validator, price markets through a Pyth guardian-verified validator — one receipt path, two structurally different oracles. Yours plugs in the same way: any program that returns a bool.</p>
+            <p>The settlement contract is oracle-agnostic, demonstrably: sports markets settle through TxLINE&apos;s Merkle-proof validator, price markets through a Pyth guardian-verified validator, off-feed matches through an operator&apos;s ed25519-signed observation verified by the precompile — one receipt path, three structurally different oracles. Yours plugs in the same way: any program that returns a bool.</p>
           </div>
           <div className="op-pillar">
             <h3>Verifiable pricing</h3>
@@ -106,7 +106,7 @@ const reproduced = priceMarket(
           <h2>Why this is defensible</h2>
           <ul>
             <li><strong>Settlement is proof-gated.</strong> No operator discretion, no admin key. The CPI result is the authority.</li>
-            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt — proven live with both a Merkle-proof sports oracle (TxLINE) and a guardian-verified price oracle (Pyth).</li>
+            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt — proven live with a Merkle-proof sports oracle (TxLINE), a guardian-verified price oracle (Pyth), and an ed25519-signed operator attestor.</li>
             <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof a user can re-verify without trusting anyone.</li>
             <li><strong>The schlep is the moat.</strong> Borsh encoding, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
           </ul>
