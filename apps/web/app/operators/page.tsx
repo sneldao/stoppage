@@ -151,6 +151,7 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
 
         <section className="op-cta">
           <p>Want to settle your markets on a proof instead of a key?</p>
+          <Link href="/launch" className="op-cta-link">Launch a devnet market →</Link>
           <Link href="/calibration" className="op-cta-link">See the calibration board →</Link>
           <a
             href="https://github.com/sneldao/stoppage/blob/main/docs/OPERATORS.md"
