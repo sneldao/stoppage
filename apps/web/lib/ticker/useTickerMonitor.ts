@@ -20,6 +20,7 @@ import { priorityFor, sortTickerItems } from "@/store/tickerSlice";
 import { formatSol } from "@/lib/format";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { relTime } from "@/lib/activity/useActivityFeed";
+import { KEYSTONE, keystonePhase, keystoneTimes, keystoneMarketIds } from "@/lib/campaign/keystone";
 
 const TICKER_CAP = 20;
 
@@ -134,6 +135,44 @@ function poolItem(): TickerItem[] {
 }
 
 /**
+ * The campaign match — always in the ticker for the whole window, unlike
+ * the generic fixture rail (4h lookahead). Same lifecycle as the banner:
+ * disappears once both receipts have landed. Facts come from
+ * lib/campaign/keystone.ts; nothing campaign-specific is hardcoded here.
+ */
+function keystoneItem(): TickerItem[] {
+  const now = Date.now();
+  const times = keystoneTimes();
+  const { txline, attest } = keystoneMarketIds();
+  const markets = useStoppageStore.getState().markets;
+  const bothSettled =
+    markets[txline]?.status === "settled" && markets[attest]?.status === "settled";
+  const phase = keystonePhase(now, bothSettled);
+  if (phase === "receipts") return [];
+
+  const matchup = `${KEYSTONE.homeTeam} v ${KEYSTONE.awayTeam}`;
+  const label =
+    phase === "countdown"
+      ? `Sat · ${matchup} · betting opens in ${timeUntil(times.bettingOpensMs)}`
+      : phase === "betting_open"
+      ? `${matchup} · betting open · kickoff in ${timeUntil(times.kickoffMs)}`
+      : phase === "in_play"
+      ? `LIVE · ${matchup}`
+      : `${matchup} FT · settlement proofs landing`;
+
+  return [{
+    id: "keystone:cit-cin",
+    source: "fixture",
+    label,
+    // Fresh ts while the campaign is actively progressing, kickoff ts while
+    // it's still a countdown — keeps it near the top without outranking
+    // genuinely newer protocol events.
+    ts: phase === "countdown" || phase === "betting_open" ? now : times.kickoffMs,
+    priority: priorityFor("fixture") + 8,
+  }];
+}
+
+/**
  * Merge internal rails + external items (set by useTickerEnrichment)
  * into a single sorted, deduped, capped list.
  */
@@ -142,6 +181,7 @@ function mergeItems(external: TickerItem[]): TickerItem[] {
     ...protocolItems(),
     ...oddsItems(),
     ...fixtureItems(),
+    ...keystoneItem(),
     ...poolItem(),
     ...external,
   ];
