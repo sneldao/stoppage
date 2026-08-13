@@ -13,6 +13,7 @@ import { useStoppageStore } from "@/store";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchCalendar } from "@/components/MatchCalendar";
+import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { formatSol as SOL } from "@/lib/format";
 import { ProofBoard } from "@/components/ProofBoard";
 import { MatchPulse } from "@/components/MatchPulse";
@@ -393,6 +394,10 @@ export default function MarketsPage() {
         </div>
 
         <OpenPositionsBanner />
+
+        {/* Campaign surface: Sat's keystone match settles two ways.
+            Phase-aware; disappears once the receipts are in. */}
+        <KeystoneBanner />
 
         <div className="tape-body">
           <div className="tape-list-col">

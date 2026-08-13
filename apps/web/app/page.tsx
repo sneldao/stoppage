@@ -22,6 +22,7 @@ import { RightNowLine } from "@/components/RightNowLine";
 import { PersonalizedHero, usePrimaryOpenPosition } from "@/components/PersonalizedHero";
 import { StreakCelebration } from "@/components/StreakCelebration";
 import { Achievements } from "@/components/Achievements";
+import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
@@ -318,6 +319,7 @@ export default function Home() {
             </>
           )}
           <OpenPositionsBanner />
+          <KeystoneBanner compact />
           {state.delegated && lastSigningMs !== null && (
             <p className="hero-speed-note">
               <i className="live-dot" /> Last bet {formatSigningSpeed(lastSigningMs)}

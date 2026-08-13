@@ -114,6 +114,16 @@ at `match_started` instead of creating a duplicate (loop.ts dedup):
 Betting opens ~2h before kickoff per the fixture gate; settlement runs
 recorded after the Aug 15 settle.
 
+**Keystone campaign surface live (2026-08-14).** `/keystone` is the
+public campaign page for the Aug 15 match: dual-oracle comparison
+(TxLINE Merkle path vs operator attestation, honest labeling),
+phase-aware timeline (countdown → betting open → in play → receipts),
+lead capture via Formspree (`NEXT_PUBLIC_FORMSPREE_ID` env — unset
+falls back to an .ics calendar CTA), and a receipts section that fills
+in on settlement. All facts (predicates, PDAs, timestamps) live in one
+place: `lib/campaign/keystone.ts`; PDAs are derived, never hardcoded.
+`KeystoneBanner` surfaces the match on the tape and the home hero.
+
 **Same match, two oracles (deliberate, one weekend only).** The existing
 attestation market (`tsdb:2406978`, PDA
 `5Ji2788zjyk5jC2JxSWcCxDFA2vtqJMQqgDHjmiBLryL`, real 0.005 SOL YES) is

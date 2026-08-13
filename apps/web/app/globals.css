@@ -4651,3 +4651,105 @@ body {
   .tape-match-heading__title { font-size: 15px; }
   .market-tape-row__odds { gap: 8px; font-size: 12px; }
 }
+
+/* ================================================================
+   KEYSTONE CAMPAIGN — /keystone + banner surfaces
+   One match, two proof paths (lib/campaign/keystone.ts owns facts).
+   ================================================================ */
+
+/* ── Banner (markets tape + home hero) ── */
+.keystone-banner { position: relative; display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 13px 16px; border: 1px solid rgba(0,255,136,.35); border-radius: 3px; background: linear-gradient(120deg, rgba(0,255,136,.07), rgba(17,29,58,.6) 55%); color: var(--ink); text-decoration: none; transition: border-color 180ms var(--ease), transform 180ms var(--ease); }
+.keystone-banner:hover { border-color: var(--lime); transform: translateY(-1px); }
+.keystone-banner-dot { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid rgba(0,255,136,.4); border-radius: 50%; background: rgba(0,255,136,.08); }
+.keystone-banner-dot .live-dot { width: 6px; height: 6px; }
+.keystone-banner-body { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.keystone-banner-body strong { font: 400 19px/1.05 "Instrument Serif", Georgia, serif; }
+.keystone-banner-sub { color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.keystone-banner-cta { flex-shrink: 0; color: var(--lime); font: 700 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.keystone-banner--compact { margin-top: 14px; padding: 10px 13px; }
+.keystone-banner--compact .keystone-banner-body strong { font-size: 15px; }
+
+/* ── Page shell ── */
+.keystone-page { width: min(100% - 32px, 760px); margin: 0 auto; padding: 42px 0 70px; display: grid; gap: 34px; }
+
+/* ── Hero ── */
+.keystone-hero { position: relative; padding: 30px 26px; }
+.keystone-hero h1 { margin: 10px 0 0; font: 400 clamp(34px, 6vw, 56px)/1.02 "Instrument Serif", Georgia, serif; }
+.keystone-hero-status { margin: 12px 0 0; color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.keystone-hero-score { margin: 6px 0 0; color: var(--ink); font: 400 clamp(22px, 4vw, 34px)/1.1 "DM Mono", monospace; }
+.keystone-lede { margin: 14px 0 0; max-width: 560px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+
+/* ── Story ── */
+.keystone-story h2 { margin: 0 0 12px; font: 400 28px/1.1 "Instrument Serif", Georgia, serif; }
+.keystone-story p { margin: 0 0 12px; max-width: 620px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.keystone-story strong { color: var(--ink); }
+
+/* ── Timeline ── */
+.keystone-timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.keystone-timeline-step { display: grid; gap: 4px; padding: 12px 12px 14px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); position: relative; }
+.keystone-timeline-step i { position: absolute; top: 8px; right: 10px; color: var(--lime); font: 700 10px "DM Mono", monospace; font-style: normal; }
+.keystone-timeline-step strong { color: var(--ink); font: 500 10px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.keystone-timeline-step small { color: var(--muted-dim); font: 400 10px "DM Mono", monospace; }
+.keystone-timeline-step--past { opacity: .66; }
+.keystone-timeline-step--current { border-color: var(--lime); background: rgba(0,255,136,.05); }
+
+/* ── Market cards ── */
+.keystone-markets { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; }
+.keystone-markets-vs { align-self: center; color: var(--muted-dim); font: 400 22px "Instrument Serif", Georgia, serif; font-style: italic; }
+.keystone-market-card { display: grid; gap: 10px; align-content: start; padding: 18px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
+.keystone-market-card--open { border-color: rgba(0,255,136,.4); }
+.keystone-market-card--awaiting_settlement { border-color: var(--amber); }
+.keystone-market-card--settled { border-color: var(--blue); }
+.keystone-market-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.keystone-market-card h3 { margin: 0; font: 400 22px/1.15 "Instrument Serif", Georgia, serif; }
+.keystone-market-card-oracle { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.keystone-market-card-oracle strong { color: var(--ink); font: 500 10px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+.keystone-market-card-odds { display: flex; gap: 12px; color: var(--muted); font: 500 10px "DM Mono", monospace; letter-spacing: .03em; text-transform: uppercase; }
+.keystone-market-card-odds span:first-child { color: var(--lime); }
+.keystone-market-card-prebet { margin: 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted-dim); font-size: 11px; line-height: 1.6; }
+.keystone-market-card-cta { color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
+.keystone-market-card-cta:hover { text-decoration: underline; }
+.keystone-market-card-cta--dead { color: var(--muted-dim); cursor: default; text-decoration: none; }
+
+/* ── Notify / lead capture ── */
+.keystone-notify { padding: 20px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel-warm); }
+.keystone-notify-form { display: flex; gap: 8px; margin-top: 10px; }
+.keystone-notify-form input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 3px; background: #0c1428; color: var(--ink); font: 400 12px Manrope, sans-serif; }
+.keystone-notify-form input:focus { outline: none; border-color: var(--lime); }
+.keystone-notify-form button { padding: 10px 16px; border: 1px solid var(--lime); border-radius: 3px; background: rgba(0,255,136,.1); color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.keystone-notify-form button:hover { background: rgba(0,255,136,.2); }
+.keystone-notify-form button:disabled { opacity: .55; cursor: not-allowed; }
+.keystone-notify-success { margin: 12px 0 0; color: var(--lime); font-size: 12px; line-height: 1.6; }
+.keystone-notify-error { margin: 10px 0 0; color: #ff9c91; font-size: 11px; }
+.keystone-notify-error a { color: inherit; }
+.keystone-notify-note { margin: 12px 0 0; color: var(--muted-dim); font-size: 11px; line-height: 1.6; }
+.keystone-notify .quiet-link { display: inline-block; margin-top: 10px; }
+.keystone-calendar-cta { display: inline-block; margin-top: 10px; padding: 10px 14px; border: 1px solid var(--lime); border-radius: 3px; background: rgba(0,255,136,.1); color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
+
+/* ── Receipts ── */
+.keystone-receipts-head { display: grid; gap: 8px; }
+.keystone-receipts-head h2 { margin: 0; font: 400 26px/1.1 "Instrument Serif", Georgia, serif; }
+.keystone-receipts-note { margin: 10px 0 16px; max-width: 620px; color: var(--muted-dim); font-size: 11px; line-height: 1.6; }
+.keystone-receipt-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); margin-bottom: 8px; }
+.keystone-receipt-row > span:first-child { color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.keystone-receipt-row > span:nth-child(2) { color: var(--ink); font-size: 12px; }
+.keystone-receipt-row a { color: var(--lime); font: 700 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
+.keystone-receipt-row a:hover { text-decoration: underline; }
+.keystone-receipt-row--pending { color: var(--muted-dim) !important; font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+
+/* ── Footer ── */
+.keystone-foot { padding-top: 22px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.keystone-foot p { margin: 0; color: var(--muted-dim); font-size: 11px; line-height: 1.65; }
+.keystone-foot a { color: var(--lime); }
+
+/* ── Responsive ── */
+@media (max-width: 800px) {
+  .keystone-page { width: min(100% - 24px, 620px); padding: 28px 0 60px; gap: 26px; }
+  .keystone-hero { padding: 22px 18px; }
+  .keystone-timeline { grid-template-columns: repeat(2, 1fr); }
+  .keystone-markets { grid-template-columns: 1fr; }
+  .keystone-markets-vs { justify-self: center; }
+  .keystone-receipt-row { grid-template-columns: 1fr auto; }
+  .keystone-receipt-row > span:nth-child(2) { grid-column: 1 / -1; }
+  .keystone-banner-body strong { font-size: 16px; }
+}
