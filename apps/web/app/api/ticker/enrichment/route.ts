@@ -47,10 +47,12 @@ async function fetchSolPrice(): Promise<EnrichmentItem | null> {
     >;
     const price = data[solMint]?.usdPrice;
     if (price == null || !Number.isFinite(price)) return null;
+    // Jupiter's priceChange24h is already in percentage points (1.2 = 1.2%),
+    // not a ratio — multiplying by 100 would show +120% on a 1% move.
     const change = data[solMint]?.priceChange24h;
     const changeStr =
       change != null && Number.isFinite(change)
-        ? ` ${change >= 0 ? "+" : ""}${(change * 100).toFixed(1)}% 24h`
+        ? ` ${change >= 0 ? "+" : ""}${change.toFixed(1)}% 24h`
         : "";
     return {
       id: "sol:price",
