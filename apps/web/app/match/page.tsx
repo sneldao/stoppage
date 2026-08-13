@@ -79,7 +79,7 @@ function MatchRoomContent() {
   const polledSnapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);
   const snapshot = live ? (attestSnapshot ?? polledSnapshot) : replaySnapshot;
 
-  const { signalVersion, lastSignalType, scoringTeam, handleMatchEvent } = useMatchSignals({
+  const { signalVersion, lastSignalType, scoringTeam, handleMatchEvent, setLastSignalType } = useMatchSignals({
     snapshot,
     detect: live,
   });
@@ -160,10 +160,19 @@ function MatchRoomContent() {
     <main className="app-shell">
       <div className="match-room">
         <MatchPulse live={live || isReplay} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--match" />
-        <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={snapshot} scoringTeam={scoringTeam} />
+        {/* Same honesty rule as the home hero: the full-bleed overlay is for
+            real live signals. During replays the score flash + badged event
+            ticker keep the room lively without impersonating a live feed. */}
+        <MomentAlert
+          signalType={isReplay ? null : lastSignalType}
+          signalVersion={signalVersion}
+          snapshot={snapshot}
+          scoringTeam={scoringTeam}
+          onDismiss={() => setLastSignalType(null)}
+        />
         <header className="match-room-header">
           <div>
-            <p className="eyebrow">Match</p>
+            <p className="eyebrow">Match room</p>
             <h1>{effectiveFixture ? `${effectiveFixture.Participant1} v ${effectiveFixture.Participant2}` : selectedMatchId ? `Match ${selectedMatchId}` : "Live match"}</h1>
           </div>
           <Link href="/markets" className="explorer-back">Markets <span>→</span></Link>

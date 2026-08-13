@@ -207,8 +207,13 @@ function MatchGroup({
                 <i className="live-dot" /> LIVE
               </em>
             )}
-            {isAttest && !live && (
-              <em className="tape-match-attested">operator-attested</em>
+            {isAttest && (
+              <em
+                className="tape-match-attested"
+                title="Settlement is still proof-gated and atomic — the ed25519 signature is verified on-chain before any payout. But the observation itself is operator-attested (TheSportsDB data), not network-verified."
+              >
+                operator-attested
+              </em>
             )}
             {time && <small className="tape-match-heading__time">{time}</small>}
           </span>

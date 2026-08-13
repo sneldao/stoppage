@@ -27,6 +27,12 @@ export interface OracleInfo {
   waitingParagraph: string;
   /** Paragraph for the settled proof panel. */
   settledParagraph: string;
+  /** Pre-bet trust line shown in the bet slip before the stake is placed:
+   *  the settlement guarantee, in one sentence, per validator. */
+  preBetLine: string;
+  /** Short validator-aware line for market faces/cards (home instrument,
+   *  tape rows) where the full trust sentence is too long. */
+  instrumentLine: string;
 }
 
 const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
@@ -39,6 +45,9 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
       "Matchkeeper is watching for TxLINE confirmation. It can submit this market's settlement only after the required proof validates on-chain.",
     settledParagraph:
       "The program settled this market only after TxLINE proof validation on-chain. This view checks the settlement receipt against the recorded outcome.",
+    preBetLine:
+      "Your payout releases only after a TxLINE Merkle proof verifies on-chain, in the same transaction that settles this market. No admin key, no committee vote.",
+    instrumentLine: "settles on a TxLINE Merkle proof verified on-chain",
   },
   [PYTH_VALIDATOR_PROGRAM_ID]: {
     name: "Pyth",
@@ -49,6 +58,9 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
       "Settles from a Pyth price observation (guardian-attested, 30s freshness) read by the Pyth validator program on-chain.",
     settledParagraph:
       "The program settled this market only after a guardian-verified Pyth price observation validated on-chain. This view checks the settlement receipt against the recorded outcome.",
+    preBetLine:
+      "Your payout releases only after a guardian-verified Pyth price observation validates on-chain, in the same transaction that settles this market. No admin key, no committee vote.",
+    instrumentLine: "settles on a guardian-verified Pyth price, checked on-chain",
   },
   [ATTESTATION_VALIDATOR_PROGRAM_ID]: {
     name: "Operator attestor",
@@ -59,6 +71,9 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
       "Settles at full-time from an observation signed by the operator's attestor key (data source: TheSportsDB). The ed25519 signature is verified on-chain before settlement.",
     settledParagraph:
       "The program settled this market against an observation signed by the operator's attestor key, verified on-chain via the ed25519 precompile. Operator-attested — not TxODDS- or network-verified. This view checks the settlement receipt against the recorded outcome.",
+    preBetLine:
+      "Your payout releases only after the operator's ed25519-signed observation verifies on-chain, in the same transaction that settles this market. The settlement is atomic and proof-gated — but the observation itself is operator-attested (TheSportsDB data), not network-verified.",
+    instrumentLine: "operator-attested · ed25519 signature verified on-chain before payout",
   },
 };
 
@@ -71,6 +86,9 @@ const CUSTOM_ORACLE_INFO: OracleInfo = {
     "Matchkeeper is watching for validator confirmation. It can submit this market's settlement only after the designated validator program verifies the outcome on-chain.",
   settledParagraph:
     "The program settled this market only after its designated validator program returned true on-chain. This view checks the settlement receipt against the recorded outcome.",
+  preBetLine:
+    "Your payout releases only after this market's designated validator program verifies the outcome on-chain, in the same transaction that settles it. No admin key, no committee vote.",
+  instrumentLine: "settles only after on-chain validator proof",
 };
 
 /** Resolve UI copy for a market's `oracle` program id (from the parsed market account). */

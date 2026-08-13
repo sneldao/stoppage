@@ -112,12 +112,35 @@ docs/OPERATORS.md) as the worked "operators bring their own oracle"
 example. No longer the primary path for MLS/EPL once one TxLINE MLS
 market settles; homepage dual plane (`useAttestHero`) demotes then.
 
+**Product-assessment response pass (2026-08-13).** Four UX/positioning
+gaps from the internal assessment are addressed in the web app (no
+program changes): (1) bet-slip error recovery — failures are classified
+(`lib/markets/betErrors.ts`) into a structured card
+(`components/SlipErrorCard.tsx`) with the one recovery action that
+applies (forced wallet path for expired/revoked grants, refresh for
+closed markets, honest "nothing was submitted" for wallet rejection);
+rule-9 caps get enforcement copy, not a bypass button; the mobile dock
+points at the card instead of blindly re-submitting. (2) Nav clarity —
+"Live"/"Match" renamed to "Home"/"Match room" with tooltips on all six
+routes; `/match` eyebrow matches. (3) Visual restraint — the full-bleed
+MomentAlert fires only on real live signals: suppressed during replays
+on `/match` (matching the existing preview suppression on home), and
+dismissible via an explicit × on all three pages. (4) Proof as pre-bet
+trust signal — the oracle registry (`lib/oracle.ts`) gained per-validator
+`preBetLine`/`instrumentLine` copy; the bet slip shows the settlement
+guarantee before the stake is placed, the home market face and the
+oracle badge use validator-aware copy, the tape's `operator-attested`
+chip shows even when live (with the atomicity-vs-epistemic-truth
+tooltip), and the hero lede leads with the proof-gated guarantee.
+Follow-ups not addressed (scoped out by choice): globals.css
+decomposition, homepage hero simplification, session-fund sweep, CI.
+
 Free subscriptions are still 28-day and lapse silently — re-run
 `scripts/subscribe-txline.ts` every ~3.5 weeks. Paid tiers remain
 mainnet-only (useless for the devnet CPI path). Mainnet still needs
 legal review.
 
-## Current state (2026-08-10)
+## Previous state (2026-08-10)
 
 **Attestation oracle shipped: proof-gated sports settlement no longer
 waits for TxLINE coverage.** New validator program

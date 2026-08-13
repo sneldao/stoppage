@@ -6,6 +6,7 @@ import { impliedProbability, type Market } from "@stoppage/sdk";
 import type { Fixture } from "@stoppage/txline";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { LiveMatchBar } from "@/components/LiveMatchBar";
+import { oracleInfoFor } from "@/lib/oracle";
 import { formatSol as SOL, formatMarketQuestion, countryFlag } from "@/lib/format";
 import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
 import { useStoppageStore } from "@/store";
@@ -291,7 +292,7 @@ function MarketFace({
 
       <h2 className="instrument-market-title">{formatMarketQuestion(market.predicate)}</h2>
       <p className="market-meta">
-        Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · independently resolvable
+        Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {oracleInfoFor(market.oracle).instrumentLine}
       </p>
 
       <div className="outcome-cells">

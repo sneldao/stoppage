@@ -265,6 +265,7 @@ export default function Home() {
         signalVersion={signalVersion}
         snapshot={liveSnapshot}
         scoringTeam={scoringTeam}
+        onDismiss={() => setLastSignalType(null)}
       >
         {/* Your-position line — if you have a stake on the featured market */}
         {lastSignalType === "goal" && publicKey && featuredMarket && (() => {
@@ -308,8 +309,9 @@ export default function Home() {
             <>
               <h1>Bet on what happens next.</h1>
               <p className="lede">
-                Choose a live football outcome, stake devnet SOL, and watch the
-                result verify automatically.
+                Pick a live football outcome and stake devnet SOL. Your payout
+                only moves when the result&apos;s proof verifies on-chain — no
+                admin key, no committee vote.
               </p>
               <RightNowLine />
               <SetupPrompt marketHref={marketHref} />

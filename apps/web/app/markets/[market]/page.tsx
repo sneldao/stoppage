@@ -8,6 +8,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Keypair } from "@solana/web3.js";
 import { getMarket, impliedProbability, type Market, type Side } from "@stoppage/sdk";
 import { useMarketActions } from "@/lib/markets/useMarketActions";
+import { classifyBetError, simpleBetError, type BetErrorInfo } from "@/lib/markets/betErrors";
 import { oracleInfoFor } from "@/lib/oracle";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
@@ -16,6 +17,7 @@ import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
 import { SettlementMoment } from "@/components/SettlementMoment";
 import { OddsSurgeCallout } from "@/components/OddsSurgeCallout";
+import { SlipErrorCard } from "@/components/SlipErrorCard";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
 import { ShareBar } from "@/components/ShareBar";
@@ -95,7 +97,7 @@ export default function MarketDetailPage() {
 
   const [liveMarket, setLiveMarket] = useState<Market | null>(storeMarket ?? null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<BetErrorInfo | null>(null);
   const [amountSol, setAmountSol] = useState(() => {
     if (typeof window === "undefined") return "0.05";
     return localStorage.getItem(LAST_STAKE_KEY) ?? "0.05";
@@ -137,6 +139,9 @@ export default function MarketDetailPage() {
   const [submittedWithSession, setSubmittedWithSession] = useState(false);
   const [receipt, setReceipt] = useState<ExecutionReceipt | null>(null);
   const [lockedCall, setLockedCall] = useState<LockedCall | null>(null);
+  // Which run() label produced the current error — so the claim block only
+  // surfaces claim failures and the bet slip only surfaces join failures.
+  const [lastAction, setLastAction] = useState<string | null>(null);
 
   // Live drama layer — MarketMatchContext already polls the match score;
   // lift its snapshot here so goals/cards/corners ripple the pulse and fire
@@ -144,17 +149,25 @@ export default function MarketDetailPage() {
   const [matchSnapshot, setMatchSnapshot] = useState<SignalSnapshot | null>(null);
   const onMatchSnapshot = useCallback((snapshot: SignalSnapshot | null) => setMatchSnapshot(snapshot), []);
   const marketOpen = (liveMarket ?? storeMarket)?.status === "open";
-  const { signalVersion, lastSignalType, scoringTeam } = useMatchSignals({
+  const { signalVersion, lastSignalType, scoringTeam, setLastSignalType } = useMatchSignals({
     snapshot: matchSnapshot,
     detect: marketOpen,
   });
+
+  // Non-submit failures (market load, delegation, resume, revoke) — classify
+  // the same way as bets so the slip card stays the single error surface.
+  const loadBetError = (cause: unknown): BetErrorInfo => classifyBetError(cause, { viaSession: false });
+
+  const refreshMarket = useCallback(async () => {
+    try { setLiveMarket(await getMarket(connection, new PublicKey(marketAddr))); } catch {}
+  }, [connection, marketAddr]);
 
   useEffect(() => {
     if (storeMarket) { setLiveMarket(storeMarket); return; }
     let cancelled = false;
     void getMarket(connection, new PublicKey(marketAddr))
       .then((m) => { if (!cancelled) setLiveMarket(m); })
-      .catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+      .catch((cause) => { if (!cancelled) { setError(loadBetError(cause)); setLastAction("load"); } });
     return () => { cancelled = true; };
   }, [connection, marketAddr, storeMarket]);
 
@@ -193,9 +206,10 @@ export default function MarketDetailPage() {
         // First one-tap bet celebration — one time only
         if (viaSession && !hasAnyHistory && !justOnboarded) setJustOnboarded(true);
       }
-      try { setLiveMarket(await getMarket(connection, new PublicKey(marketAddr))); } catch {}
+      void refreshMarket();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(classifyBetError(cause, { viaSession }));
+      setLastAction(label);
     } finally {
       setBusy(null);
     }
@@ -206,9 +220,9 @@ export default function MarketDetailPage() {
   }, [joinViaSessionKey, publicKey, marketAddr]);
 
   const onJoin = () => {
-    if (!selectedSide) { setError("Choose YES or NO first"); return; }
-    if (!publicKey) { setError("Connect your wallet first"); return; }
-    if (amountLamports <= 0) { setError("Enter a stake amount"); return; }
+    if (!selectedSide) { setError(simpleBetError("Choose YES or NO first.")); setLastAction("join"); return; }
+    if (!publicKey) { setError(simpleBetError("Connect your wallet first.")); setLastAction("join"); return; }
+    if (amountLamports <= 0) { setError(simpleBetError("Enter a stake amount.")); setLastAction("join"); return; }
 
     // Already delegated and session valid → straight to one-tap
     const signer = getSessionSigner();
@@ -239,6 +253,18 @@ export default function MarketDetailPage() {
       joinViaWallet({ market: new PublicKey(marketAddr), side: selectedSide, amountLamports }));
   };
 
+  // Forced wallet path — the recovery action when the session key failed
+  // on-chain (expired/revoked grant, allowlist miss, session fund empty).
+  // Bypasses delegation bundling so the user gets exactly one popup.
+  const onJoinWithWallet = () => {
+    if (!selectedSide || !publicKey) { onJoin(); return; }
+    setSubmittedWithSession(false);
+    setReceipt(null);
+    setLockedCall(null);
+    void run(`join-${selectedSide}-wallet`, () =>
+      joinViaWallet({ market: new PublicKey(marketAddr), side: selectedSide, amountLamports }));
+  };
+
   const onPauseSession = () => {
     pause();
     setSessionNotice(null);
@@ -248,7 +274,7 @@ export default function MarketDetailPage() {
     setBusy("resume");
     setError(null);
     void resume()
-      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause) => { setError(loadBetError(cause)); setLastAction("resume"); })
       .finally(() => setBusy(null));
   };
 
@@ -258,7 +284,7 @@ export default function MarketDetailPage() {
     setBusy("revoke");
     setError(null);
     void revoke()
-      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause) => { setError(loadBetError(cause)); setLastAction("revoke"); })
       .finally(() => setBusy(null));
   };
 
@@ -266,7 +292,15 @@ export default function MarketDetailPage() {
     return (
       <main className="market-shell market-loading">
         <p>Loading market…</p>
-        {error && <p className="market-error">{error}</p>}
+        {error && (
+          <SlipErrorCard
+            error={error}
+            busy={busy !== null}
+            onRetry={() => void refreshMarket()}
+            onRefresh={() => void refreshMarket()}
+            onDismiss={() => setError(null)}
+          />
+        )}
         <Link href="/markets">Back to markets</Link>
       </main>
     );
@@ -280,13 +314,16 @@ export default function MarketDetailPage() {
   const canClaim = (market.status === "settled" || market.status === "void") && myPosition && myPosition.amountLamports > 0;
   const isWinner = market.status === "settled" && myPosition && myPosition.side === market.outcome;
   const executionBusy = busy?.startsWith("join");
+  // True when the current error belongs to the bet slip (not claim/load/revoke) —
+  // the slip card and the mobile dock must agree on who owns the failure.
+  const slipError = Boolean(error) && (lastAction === null || lastAction.startsWith("join"));
   const selectedOdds = selectedSide ? odds[selectedSide] : 0;
   const variant = borderVariant(market.status);
 
   return (
     <main className="market-shell">
       <MatchPulse live={market.status === "open"} signalVersion={signalVersion} lastSignalType={lastSignalType} className="match-pulse match-pulse--detail" />
-      <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={matchSnapshot} scoringTeam={scoringTeam} />
+      <MomentAlert signalType={lastSignalType} signalVersion={signalVersion} snapshot={matchSnapshot} scoringTeam={scoringTeam} onDismiss={() => setLastSignalType(null)} />
 
       {/* ── Nav ── */}
       <header className="market-nav">
@@ -319,7 +356,7 @@ export default function MarketDetailPage() {
               </span>
               <span
                 className="market-oracle-badge"
-                title={`Settlement validator program: ${market.oracle}`}
+                title={`${oracleInfoFor(market.oracle).instrumentLine} · validator program: ${market.oracle}`}
               >
                 settles via {oracleInfoFor(market.oracle).name}
               </span>
@@ -495,6 +532,15 @@ export default function MarketDetailPage() {
                 </div>
               </div>
 
+              {/* Pre-bet trust signal — the settlement guarantee BEFORE the
+                  stake is placed, validator-aware (lib/oracle.ts registry).
+                  Links down to the proof path so the claim is inspectable. */}
+              <div className="slip-trust-row">
+                <i aria-hidden="true">🔒</i>
+                <span>{oracleInfoFor(market.oracle).preBetLine}</span>
+                <a href="#settlement-path">Proof path ↓</a>
+              </div>
+
               {/* Step 3: Confirm — risk summary + place button */}
               <div className="slip-step-label">
                 <span className="slip-step-num">3</span>
@@ -555,14 +601,17 @@ export default function MarketDetailPage() {
                 </label>
               )}
 
-              {/* Inline error — where the click happened, not page bottom */}
-              {error && (
-                <p className="slip-error" role="alert">
-                  {error}
-                  <button type="button" className="slip-error-retry" onClick={onJoin} disabled={busy !== null}>
-                    Retry
-                  </button>
-                </p>
+              {/* Structured error card — classified failure with the one
+                  recovery action that applies, not a blind retry. */}
+              {slipError && error && (
+                <SlipErrorCard
+                  error={error}
+                  busy={busy !== null}
+                  onRetry={onJoin}
+                  onRetryWallet={onJoinWithWallet}
+                  onRefresh={() => void refreshMarket()}
+                  onDismiss={() => setError(null)}
+                />
               )}
 
               {/* Place bet */}
@@ -664,14 +713,14 @@ export default function MarketDetailPage() {
                 {busy === "claim" ? "Claiming…" : "Claim payout"}
               </button>
               <span className="claim-note">Payouts require one wallet signature (owner-signed on-chain).</span>
-              {error && busy === null && (
-                <p className="slip-error" role="alert">
-                  {error}
-                  <button type="button" className="slip-error-retry"
-                    onClick={() => void run("claim", () => claim(new PublicKey(marketAddr)))}>
-                    Retry
-                  </button>
-                </p>
+              {error && lastAction === "claim" && busy === null && (
+                <SlipErrorCard
+                  error={error}
+                  busy={busy !== null}
+                  onRetry={() => void run("claim", () => claim(new PublicKey(marketAddr)))}
+                  onRefresh={() => void refreshMarket()}
+                  onDismiss={() => setError(null)}
+                />
               )}
             </div>
           )}
@@ -690,7 +739,7 @@ export default function MarketDetailPage() {
       )}
 
       {/* ── Settlement path — always visible, not behind a toggle ── */}
-      <div className="market-settlement-path">
+      <div id="settlement-path" className="market-settlement-path">
         <div className="market-settlement-path-inner">
           <MatchkeeperStatus marketPhase={market.status} oracle={market.oracle} compact />
           <ProofPath status={market.status} oracle={market.oracle} />
@@ -704,13 +753,29 @@ export default function MarketDetailPage() {
       {/* ── Proof panel ── */}
       <div id="proof"><ProofPanelLazy market={market} /></div>
 
-      {error && <p className="market-error">{error}</p>}
+      {/* Non-slip failures (load / resume / revoke) surface here instead of
+          duplicating inside the bet slip. */}
+      {error && (lastAction === "load" || lastAction === "resume" || lastAction === "revoke") && (
+        <SlipErrorCard
+          error={error}
+          busy={busy !== null}
+          onRetry={() => {
+            if (lastAction === "load") void refreshMarket();
+            else if (lastAction === "resume") onResumeSession();
+            else onEndSession();
+          }}
+          onRefresh={() => void refreshMarket()}
+          onDismiss={() => setError(null)}
+        />
+      )}
 
       {canJoin && (
-        <div className="mobile-market-dock mobile-bet-dock">
+        <div className={`mobile-market-dock mobile-bet-dock${slipError ? " mobile-bet-dock--error" : ""}`}>
           <span>
             <i aria-hidden="true" />
-            {selectedSide
+            {slipError
+              ? "Bet failed — see details"
+              : selectedSide
               ? `${selectedSide.toUpperCase()} · ${amountSol || "0"} SOL`
               : "Choose YES or NO"}
           </span>
@@ -719,6 +784,12 @@ export default function MarketDetailPage() {
             className="mobile-bet-dock-action"
             disabled={busy !== null}
             onClick={() => {
+              // When a bet just failed, jump to the error card instead of
+              // blindly re-submitting from the dock.
+              if (slipError) {
+                document.getElementById("bet-slip")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                return;
+              }
               if (selectedSide) {
                 void onJoin();
                 return;
@@ -726,7 +797,7 @@ export default function MarketDetailPage() {
               document.getElementById("bet-slip")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           >
-            {executionBusy ? "Signing…" : selectedSide ? "Place bet →" : "Open slip →"}
+            {executionBusy ? "Signing…" : slipError ? "Resolve error →" : selectedSide ? "Place bet →" : "Open slip →"}
           </button>
         </div>
       )}

@@ -15,15 +15,15 @@ const WalletMultiButton = dynamic(
 );
 
 const primaryRoutes = [
-  { href: "/", label: "Live" },
-  { href: "/match", label: "Match" },
-  { href: "/markets", label: "Markets" },
-  { href: "/positions", label: "Positions" },
+  { href: "/", label: "Home", title: "Live desk — featured match and open markets" },
+  { href: "/match", label: "Match room", title: "Scoreboard and every market for a match" },
+  { href: "/markets", label: "Markets", title: "All markets, grouped by match" },
+  { href: "/positions", label: "Positions", title: "Your open bets and history" },
 ];
 
 const secondaryRoutes = [
-  { href: "/calibration", label: "Calibration" },
-  { href: "/operators", label: "Operators" },
+  { href: "/calibration", label: "Calibration", title: "Model pricing calibration" },
+  { href: "/operators", label: "Operators", title: "Validator integration for operators" },
 ];
 
 export function InstrumentNav() {
@@ -58,7 +58,13 @@ export function InstrumentNav() {
         {primaryRoutes.map((route) => {
           const active = route.href === "/" ? pathname === "/" : pathname.startsWith(route.href);
           return (
-            <Link className={`nav-route ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>
+            <Link
+              className={`nav-route ${active ? "active" : ""}`}
+              href={route.href}
+              key={route.href}
+              title={route.title}
+              aria-current={active ? "page" : undefined}
+            >
               {route.label}
             </Link>
           );
@@ -66,7 +72,13 @@ export function InstrumentNav() {
         {secondaryRoutes.map((route) => {
           const active = pathname.startsWith(route.href);
           return (
-            <Link className={`nav-route nav-route--secondary ${active ? "active" : ""}`} href={route.href} key={route.href} aria-current={active ? "page" : undefined}>
+            <Link
+              className={`nav-route nav-route--secondary ${active ? "active" : ""}`}
+              href={route.href}
+              key={route.href}
+              title={route.title}
+              aria-current={active ? "page" : undefined}
+            >
               {route.label}
             </Link>
           );
