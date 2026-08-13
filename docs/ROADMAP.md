@@ -98,6 +98,22 @@ on fixture 17615188, oracle = TxLINE devnet validator, real second-wallet
 session-key bet, settle from Merkle proof (retry queue — validation
 often opens ~6h after FT). Tx signatures recorded here after the run.
 
+**Keystone market created (2026-08-13).** Fixture confirmed via TxLINE
+devnet API: Orlando City vs FC Cincinnati, FixtureId 17615188,
+CompetitionId 33 (MLS), kickoff 2026-08-15 23:30 UTC,
+matchId `CIT-CIN-17615188` (matchIdFromFixture). Market created with
+the agent's exact MLS template (`total_goals_over`, threshold 3,
+`team: ""`) so the deterministic PDA matches and Matchkeeper adopts it
+at `match_started` instead of creating a duplicate (loop.ts dedup):
+- Market PDA: `6yCQDodZwwnLX9zXVYjjuUt4LSazBvcWZvzWrWvjSX3W`
+- Oracle: `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` (TxLINE devnet validator)
+- closes_at: 2026-08-16T01:30:00Z (kickoff + 2h)
+- Create tx: `4QXf5eRjw5M35kVgiQw86UrrehVqg1ps4h9UsqAigEwU6JcQD3jGtqFn8gLEEE3piQptxzW6UaPhM32ofjgmEN2s`
+- Creator: `G33naaudTAyEWFnfLET51aWGNLry5BwUtZt6KwcniFoj` (0.01 SOL bond,
+  claimable post-settle)
+Betting opens ~2h before kickoff per the fixture gate; settlement runs
+recorded after the Aug 15 settle.
+
 **Same match, two oracles (deliberate, one weekend only).** The existing
 attestation market (`tsdb:2406978`, PDA
 `5Ji2788zjyk5jC2JxSWcCxDFA2vtqJMQqgDHjmiBLryL`, real 0.005 SOL YES) is
