@@ -4350,10 +4350,15 @@ body {
 /* === UX PASS — match fixture picker === */
 .match-fixture-picker {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 22px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+.match-fixture-picker::-webkit-scrollbar { height: 4px; }
+.match-fixture-picker::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
 .match-fixture-chip {
   display: inline-flex;
   align-items: center;
@@ -4367,6 +4372,8 @@ body {
   letter-spacing: .04em;
   text-transform: uppercase;
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: border-color .15s, color .15s;
 }
 .match-fixture-chip:hover { border-color: var(--blue); color: var(--ink); }
@@ -4379,6 +4386,29 @@ body {
 .match-fixture-chip--attest {
   border-color: rgba(241, 187, 72, .45);
   color: #f1bb48;
+}
+/* Summary chip: price-feed/custom markets, one link instead of N raw ids. */
+.match-fixture-chip--other {
+  border-style: dashed;
+  color: var(--muted-dim);
+}
+.match-fixture-chip--other:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Quiet empty states for the match room (no fabricated filler rows). */
+.matchkeeper-timeline-empty {
+  margin: 14px 0 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted-dim);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.control-scoreboard-idle {
+  margin: 16px 0 4px;
+  color: #9db0c3;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 

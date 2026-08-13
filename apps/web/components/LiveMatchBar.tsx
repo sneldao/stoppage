@@ -196,6 +196,20 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
 
   if (!matchId) return null;
 
+  // Progressive disclosure: until the stream delivers a phase or an event,
+  // show one quiet connected strip instead of a block full of "--" and
+  // "Listening" placeholders.
+  if (!phase && events.length === 0) {
+    return (
+      <div className="live-match-bar live-match-bar--idle" aria-label="Live match feed">
+        <div className="live-bar-meta live-bar-meta--idle">
+          <span className={`live-bar-dot ${connected ? "live" : "dead"}`} title={connected ? "Connected" : "Disconnected"} />
+          <span className="live-bar-events-count">{connected ? "Feed connected · waiting for the first event" : "Connecting to match feed…"}</span>
+        </div>
+      </div>
+    );
+  }
+
   const phaseColor = phase ? PHASE_COLORS[phase.phaseLabel] ?? "#64748b" : "#64748b";
   const stopped = phase?.phaseLabel === "Full Time" || phase?.phaseLabel === "Halftime" || phase?.phaseLabel === "Penalties";
   const isStoppage = phase && !stopped && elapsed > 45;
@@ -265,6 +279,12 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
         .live-match-bar.phase-transition {
           border-color: var(--phase-color, var(--lime));
           box-shadow: 0 0 24px color-mix(in srgb, var(--phase-color, var(--lime)) 20%, transparent);
+        }
+        .live-match-bar--idle {
+          padding: 8px 14px;
+        }
+        .live-bar-meta--idle {
+          margin-top: 0;
         }
         .live-bar-main {
           display: flex;

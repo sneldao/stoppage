@@ -63,6 +63,5 @@ export function useMatchRoomReplay({ enabled, fixtures }: UseMatchRoomReplayOpti
     error,
     launch,
     isReplay: isActive && enabled,
-    replayable,
   };
 }
