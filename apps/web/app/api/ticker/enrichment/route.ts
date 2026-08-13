@@ -134,7 +134,9 @@ async function fetchSportsFixtures(): Promise<EnrichmentItem[]> {
  * Strict sports keyword patterns for filtering Wikipedia "On this day"
  * events. Uses compound/unambiguous terms to avoid false positives on
  * non-sports historical events. Avoids words like "shooting", "polo",
- * "archery", "race" that match non-sports contexts.
+ * "archery", "race", "sailing", "rally" that match non-sports contexts
+ * (steamship records, naval battles, political rallies) — sport-specific
+ * terms like "regatta" and "rallying" are used instead.
  */
 const SPORTS_PATTERNS: ReadonlyArray<RegExp> = [
   /\bworld cup\b/i, /\bolympic/i, /\bchampionship\b/i, /\bgrand slam\b/i,
@@ -147,9 +149,9 @@ const SPORTS_PATTERNS: ReadonlyArray<RegExp> = [
   /\bfootball\b/i, /\bsoccer\b/i, /\bbaseball\b/i, /\bbasketball\b/i,
   /\bhockey\b/i, /\btennis\b/i, /\bboxing\b/i, /\bcricket\b/i, /\brugby\b/i,
   /\bgolf\b/i, /\bcycling\b/i, /\bswimming\b/i, /\bmarathon\b/i, /\bchess\b/i,
-  /\bformula 1\b/i, /\bf1\b/i, /\bnascar\b/i, /\brally\b/i,
+  /\bformula 1\b/i, /\bf1\b/i, /\bnascar\b/i, /\brallying\b/i, /\bworld rally\b/i,
   /\bskiing\b/i, /\bskating\b/i, /\bjudo\b/i, /\bkarate\b/i, /\btaekwondo\b/i,
-  /\bwrestling\b/i, /\bgymnastics\b/i, /\browing\b/i, /\bsailing\b/i, /\bclimbing\b/i,
+  /\bwrestling\b/i, /\bgymnastics\b/i, /\browing\b/i, /\bregatta\b/i, /\bclimbing\b/i,
   /\bsnooker\b/i, /\bdarts\b/i, /\btable tennis\b/i, /\bbadminton\b/i,
   /\bvolleyball\b/i, /\bhandball\b/i, /\bnetball\b/i,
   /\btour de france\b/i, /\bgiro d.italia\b/i, /\bvuelta\b/i,
