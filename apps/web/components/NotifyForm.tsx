@@ -5,14 +5,13 @@ import Link from "next/link";
 import { keystoneCalendarHref } from "@/lib/campaign/keystone";
 
 /**
- * Formspree endpoint for the keystone "notify me" lead capture.
- * Create the form at https://formspree.io, then set this (or the
- * NEXT_PUBLIC_FORMSPREE_ID env var, which takes precedence). Until it's
- * configured the component renders the calendar-link fallback instead —
- * the page never shows a form that submits into nowhere.
+ * Formspree endpoint for the keystone "notify me" lead capture
+ * (https://formspree.io/f/mppalqoo — AJAX pattern: JSON POST with
+ * Accept: application/json). Override via NEXT_PUBLIC_FORMSPREE_ID only
+ * when pointing a future campaign at a different form. Setting the
+ * placeholder value falls back to the calendar-link CTA.
  */
-const FORMSPREE_ID =
-  process.env.NEXT_PUBLIC_FORMSPREE_ID ?? "YOUR_FORM_ID";
+const FORMSPREE_ID = process.env.NEXT_PUBLIC_FORMSPREE_ID ?? "mppalqoo";
 
 const FORMSPREE_URL = `https://formspree.io/f/${FORMSPREE_ID}`;
 const IS_CONFIGURED = !FORMSPREE_ID.includes("YOUR_FORM_ID");
@@ -27,6 +26,7 @@ type NotifyState = "idle" | "sending" | "done" | "error";
  */
 export function NotifyForm() {
   const [state, setState] = useState<NotifyState>("idle");
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   if (!IS_CONFIGURED) {
     return (
@@ -41,7 +41,9 @@ export function NotifyForm() {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const email = new FormData(e.currentTarget).get("email");
+    setFieldError(null);
+    const data = new FormData(e.currentTarget);
+    const email = data.get("email");
     if (typeof email !== "string" || !email.includes("@")) return;
     setState("sending");
     try {
@@ -52,9 +54,22 @@ export function NotifyForm() {
           email,
           campaign: "keystone-cit-cin-17615188",
           page: typeof window !== "undefined" ? window.location.href : "/keystone",
+          _subject: "Stoppage keystone notify — Orlando City v FC Cincinnati",
+          // Formspree honeypot — non-empty means a bot filled it; dropped.
+          _gotcha: typeof data.get("_gotcha") === "string" ? data.get("_gotcha") : "",
         }),
       });
-      setState(res.ok ? "done" : "error");
+      if (res.ok) {
+        setState("done");
+        return;
+      }
+      // Formspree returns { errors: { email: [{ message }] } } on field-level
+      // failures (invalid address, rate limit) — surface them inline.
+      const body = await res.json().catch(() => null);
+      const emailErrors = (body as { errors?: { email?: { message: string }[] } } | null)
+        ?.errors?.email;
+      setFieldError(emailErrors?.[0]?.message ?? null);
+      setState("error");
     } catch {
       setState("error");
     }
@@ -78,6 +93,16 @@ export function NotifyForm() {
             aria-label="Email address"
             disabled={state === "sending"}
           />
+          {/* Formspree honeypot — bots fill it, submissions are silently
+              dropped. Visually hidden, never shown to humans. */}
+          <input
+            type="text"
+            name="_gotcha"
+            tabIndex={-1}
+            autoComplete="off"
+            className="keystone-gotcha"
+            aria-hidden="true"
+          />
           <button type="submit" disabled={state === "sending"}>
             {state === "sending" ? "Adding…" : "Notify me"}
           </button>
@@ -85,7 +110,10 @@ export function NotifyForm() {
       )}
       {state === "error" && (
         <p className="keystone-notify-error" role="alert">
-          That didn&apos;t go through. Try again, or{" "}
+          {fieldError
+            ? `Formspree: ${fieldError}`
+            : "That didn't go through."}{" "}
+          Try again, or{" "}
           <a href={keystoneCalendarHref()} download="stoppage-keystone.ics">
             grab the calendar file
           </a>{" "}
