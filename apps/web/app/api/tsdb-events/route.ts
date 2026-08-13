@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { listUpcomingEvents, FEATURED_LEAGUES } from "@/lib/tsdb";
 
 /**
- * Upcoming operator-attested (TheSportsDB) fixtures — MLS + Premier League.
- * This is the second match-plane the hero reads: TxLINE feeds /api/fixtures
- * (Friendlies only on the free bundle), while the "big game on Saturday"
- * (the attestation keystone, e.g. Orlando City vs FC Cincinnati) lives on
- * this plane. See docs/ATTESTATION-ORACLE.md.
+ * Upcoming operator-attested (TheSportsDB) fixtures for attestation_validator
+ * markets (tsdb:* matchIds). TxLINE MLS/EPL now feed /api/fixtures; this
+ * plane remains while open attestation markets need labels/kickoffs.
+ * See docs/ATTESTATION-ORACLE.md.
  */
 
 export async function GET() {

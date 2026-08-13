@@ -67,6 +67,20 @@ export interface StrategyResult {
 
 // ── Strategy config ─────────────────────────────────────────────────
 
+/**
+ * Per-match market templates. `null` skips that market and the strategy
+ * emits a DecisionNote so the omission is visible in the ledger.
+ */
+export interface MatchTemplates {
+  totalGoalsOver: number | null;
+  cornersOver: number | null;
+}
+
+export const DEFAULT_TEMPLATES: MatchTemplates = {
+  totalGoalsOver: 3,
+  cornersOver: 9,
+};
+
 // ── Strategy ────────────────────────────────────────────────────────
 
 /**
@@ -75,22 +89,45 @@ export interface StrategyResult {
  *
  * @param event - The normalized TxLINE event
  * @param openMarkets - Currently open markets (predicates + metadata)
+ * @param templates - Per-match create templates (defaults = goals 3 + corners 9)
  * @returns Actions to execute + decision notes to log
  */
 export function decideActions(
   event: NormalizedEvent,
-  openMarkets: OpenMarket[]
+  openMarkets: OpenMarket[],
+  templates: MatchTemplates = DEFAULT_TEMPLATES
 ): StrategyResult {
   const actions: AgentAction[] = [];
   const notes: DecisionNote[] = [];
 
   switch (event.type) {
     case "match_started":
-      // Create initial markets for the match
-      actions.push(
-        createTotalGoalsMarket(event.matchId, event.ts, 3),
-        createCornersMarket(event.matchId, event.ts, 9)
-      );
+      if (templates.totalGoalsOver !== null) {
+        actions.push(
+          createTotalGoalsMarket(event.matchId, event.ts, templates.totalGoalsOver)
+        );
+      } else {
+        notes.push(
+          noActionNote(
+            event.matchId,
+            event.fixtureId,
+            "Goals template disabled for this competition"
+          )
+        );
+      }
+      if (templates.cornersOver !== null) {
+        actions.push(
+          createCornersMarket(event.matchId, event.ts, templates.cornersOver)
+        );
+      } else {
+        notes.push(
+          noActionNote(
+            event.matchId,
+            event.fixtureId,
+            "Corners template disabled for this competition — stat coverage unproven"
+          )
+        );
+      }
       break;
 
     case "goal_scored":

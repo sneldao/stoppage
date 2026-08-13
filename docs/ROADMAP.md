@@ -59,10 +59,63 @@ codebase supports both; the decision determines what to build next.
   proof-gated settlement. (Amended 2026-08-10: free-tier TxLINE has no
   live coverage until Sept 23, so this window is served by the
   attestation oracle instead — Orlando City vs FC Cincinnati, Aug 15.
-  Operator-attested, not TxODDS-verified; say so wherever it's shown.)
+  Operator-attested, not TxODDS-verified; say so wherever it's shown.
+  Amended 2026-08-13: free/devnet TxLINE now includes MLS — see Current
+  state below. Aug 15 is dual-oracle: TxLINE + attestation on the same
+  fixture.)
 - Hardcoded launch templates (corners_over, total_goals_over). Don't
   build a general predicate system until two specific predicates have
   settled real markets.
+
+## Current state (2026-08-13)
+
+**TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding
+was a wrong-ID false negative.** Live probe against `txline-dev` with
+project credentials: MLS is competitionId **33**, not 1480 (1480 still
+403 "not in your bundle" — it is not MLS). Snapshot: 415 fixtures. MLS
+77 fixtures, first kickoff 2026-08-15 23:30 UTC (Orlando City vs FC
+Cincinnati, fixtureId **17615188**, plus four simultaneous MLS
+kickoffs). Premier League is competitionId **8** with 280 fixtures,
+earliest Arsenal vs Coventry 2026-08-21 19:00 UTC. Friendlies (430, 26
+fixtures) unchanged. Free service levels 1 and 12 list "MLS, World Cup
+& Int Friendlies". The schedule docs page is slightly stale against the
+API — trust the API. Competition IDs live in
+`packages/txline` `Competition` enum (single source of truth).
+
+**Repo wired for MLS (2026-08-13).** `Competition` enum +
+`fetchFixturesForCompetitions` / free-bundle `/api/fixtures` filter;
+fixture-scoped matchIds (`City-Cincinnati-17615188` shape);
+`TXLINE_COMPETITIONS` / `--competitions=` agent filter (dry-run
+confirmed `Loaded 77/415 fixtures (filtered): MLS=77`); MLS templates
+goals-only until corners proven; settlement retry queue for the ~6h
+proof window; homepage prefers TxLINE league countdown. No finished MLS
+fixture in the rolling replay window yet (expected pre-Aug-15) — corners
+verdict deferred to post-match capture of 17615188.
+
+**Keystone reset: the soonest third-party-verified live settle is Aug 15
+MLS via TxLINE**, not Sept 23 Friendlies. Planned: goals-over-3 market
+on fixture 17615188, oracle = TxLINE devnet validator, real second-wallet
+session-key bet, settle from Merkle proof (retry queue — validation
+often opens ~6h after FT). Tx signatures recorded here after the run.
+
+**Same match, two oracles (deliberate, one weekend only).** The existing
+attestation market (`tsdb:2406978`, PDA
+`5Ji2788zjyk5jC2JxSWcCxDFA2vtqJMQqgDHjmiBLryL`, real 0.005 SOL YES) is
+settled as planned via the Aug 10 attest runbook; a separate
+TxLINE-oracle market on the same fixture settles from a TxODDS Merkle
+proof. Two oracles, one match, two receipts — comparison artifact, not
+a permanent dual plane.
+
+**Attestation oracle → reference custom oracle (after TxLINE settle).**
+Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
+docs/OPERATORS.md) as the worked "operators bring their own oracle"
+example. No longer the primary path for MLS/EPL once one TxLINE MLS
+market settles; homepage dual plane (`useAttestHero`) demotes then.
+
+Free subscriptions are still 28-day and lapse silently — re-run
+`scripts/subscribe-txline.ts` every ~3.5 weeks. Paid tiers remain
+mainnet-only (useless for the devnet CPI path). Mainnet still needs
+legal review.
 
 ## Current state (2026-08-10)
 
@@ -97,15 +150,15 @@ TxLINE (see the amended note under "Things that don't scale").
 
 **TxLINE access: probed live Aug 10 + docs reviewed.** Bundle contains
 exactly competition 430 (Friendlies, 26 fixtures, earliest Sept 23);
-`competitionId=1480` (MLS) → 403 "not in your bundle". Docs
-(subscription-tiers + quickstart) confirm: **paid tiers are mainnet-only**
-($500+/28d) and useless for the devnet CPI path even if purchased —
-TxLINE proofs must verify against the same cluster's program. Only
-TxODDS widening the DEVNET bundle unblocks earlier TxLINE live runs
-(ask in Discord). Free subscriptions are 28-day and **lapse silently** —
-standing reminder: re-run `scripts/subscribe-txline.ts` every ~3.5 weeks
-so the Sept 23 keystone can't die at kickoff. For later: mainnet service
-level 12 is free AND real-time (WC + Friendlies) if legal review clears.
+`competitionId=1480` → 403 "not in your bundle" (we thought 1480 was
+MLS — it is not). Docs (subscription-tiers + quickstart) confirm:
+**paid tiers are mainnet-only** ($500+/28d) and useless for the
+devnet CPI path even if purchased — TxLINE proofs must verify against
+the same cluster's program. Free subscriptions are 28-day and **lapse
+silently** — standing reminder: re-run `scripts/subscribe-txline.ts`
+every ~3.5 weeks. **Amended 2026-08-13:** free/devnet bundle includes
+MLS as competitionId **33** (see Current state 2026-08-13). The Aug 10
+probe was a wrong-ID false negative, not a coverage gap.
 
 **Deployer wallet thin; full redeploy deferred.** Deployer
 (~/.config/solana/id.json) holds ~1.24 devnet SOL; the faucet rate-limit
@@ -206,11 +259,12 @@ Ordered work:
 5. **Hold on mainnet** (hard rule — legal review first). Devnet data
    access is sufficient to keep developing and demonstrating.
 
-**Soonest covered match:** Sept 23, 2026 (Azerbaijan vs Tajikistan,
-fixtureId 18272873). The free tier is Friendlies-only (competitionId
-430); MLS (1480) and EPL return 403 ("not in your bundle"). The
-winners' announcement that MLS is at 50% / full EPL Aug 21 refers to
-paid tiers; the free tier's live coverage window is the Friendlies.
+**Soonest covered match (as of Aug 3):** Sept 23, 2026 (Azerbaijan vs
+Tajikistan, fixtureId 18272873). **Superseded 2026-08-13:** free/devnet
+TxLINE includes MLS (competitionId 33) from Aug 15 and EPL fixtures
+(competitionId 8) from Aug 21 — see Current state 2026-08-13. The Aug 3
+belief that free tier was Friendlies-only used the wrong MLS competition
+ID (1480).
 
 ## Previous state (2026-07-28)
 

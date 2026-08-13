@@ -180,7 +180,7 @@ export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | 
       aria-label="Current match context"
     >
       <div className="market-match-context-top">
-        <span>{countryFlag(fixture.Country)} {fixture.Country}</span>
+        <span>{countryFlag(fixture.Country ?? fixture.Competition ?? "")} {fixture.Competition ?? fixture.Country ?? "Match"}</span>
         <strong className="mmc-status">
           {live ? (
             <>

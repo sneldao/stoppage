@@ -56,13 +56,15 @@ npx tsx apps/agent/src/index.ts replay <fixtureId>
 
 # Live transactions on devnet (requires funded wallet + Helius RPC):
 npx tsx apps/agent/src/index.ts live --live-tx
+# MLS-only (competition IDs: see Competition in @stoppage/txline):
+npx tsx apps/agent/src/index.ts live --live-tx --competitions=33
 
 # Price markets (Pyth oracle — no TxLINE needed, free Hermes data):
 npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
 
-# Attestation markets (operator-signed, ed25519 — TheSportsDB source,
-# covers MLS/EPL which TxLINE's free bundle doesn't; see
-# docs/ATTESTATION-ORACLE.md):
+# Attestation markets (operator-signed, ed25519 — TheSportsDB source;
+# reference custom-oracle path for non-TxLINE data / OPERATORS demos —
+# see docs/ATTESTATION-ORACLE.md):
 npx tsx apps/agent/src/index.ts attest --event=<theSportsDbEventId> --line=2 --live-tx
 
 # TxLINE subscription (one-time, saves credentials to .txline-credentials.json):
@@ -74,17 +76,22 @@ npx tsx scripts/subscribe-txline.ts
 # PAST_FIXTURES entry for apps/agent/src/index.ts.
 npx tsx scripts/capture-replayable-fixture.ts
 npx tsx scripts/capture-replayable-fixture.ts --fixture <fixtureId>
+npx tsx scripts/capture-replayable-fixture.ts --competition 33
 ```
 
 ### TxLINE data access & the replay window
 
 TxLINE's free-tier data access **continues past the World Cup hackathon
-into the season** (confirmed live, Aug 2026). The docs state: free access
-to World Cup + International Friendlies data via complimentary tiers,
-real-time and 60-second-delayed options. MLS is live at ~50% coverage;
-full Premier League coverage begins Aug 21. Guest JWTs are 30-day and
-renewable without a wallet (`POST /auth/guest/start`); the API token
-persists across JWT renewals.
+into the season** (confirmed live, Aug 2026). Free service levels 1 and
+12 cover **MLS, World Cup & International Friendlies** (real-time or
+60-second-delayed). Probed 2026-08-13 on `txline-dev`: snapshot returns
+MLS (`Competition.MLS` = 33), Friendlies (430), and Premier League
+fixtures (8) with earliest EPL kickoff Aug 21. Competition IDs live in
+`packages/txline` (`Competition` enum) — never hardcode. Guest JWTs are
+30-day and renewable without a wallet (`POST /auth/guest/start`); the
+API token persists across JWT renewals. Free subscriptions are 28-day
+and lapse silently — re-run `scripts/subscribe-txline.ts` every ~3.5
+weeks.
 
 **The replay window is rolling, not permanent.** The historical-scores
 endpoint (`GET /api/scores/historical/{fixtureId}`) serves fixtures that
@@ -92,7 +99,8 @@ finished between roughly **2 weeks ago and 6 hours ago**. Fixtures older
 than that return an empty stream, and `stat-validation` returns 404
 (`A valid, processed scores record ... could not be found`). The World
 Cup fixtures we demoed against (e.g. `18237038`, FRA-SPA semi-final) are
-now outside the window — this is expected, not a regression.
+now outside the window — this is expected, not a regression. Live settle
+at full time often needs a **retry** until the validation window opens.
 
 Practical consequences:
 
@@ -104,7 +112,8 @@ Practical consequences:
   finished within the last ~2 weeks and pass its ID explicitly, or add
   it to `PAST_FIXTURES` in `apps/agent/src/index.ts`.
 - **Live mode is unaffected** — the SSE stream and fixtures snapshot
-  work for any currently-covered match regardless of age.
+  work for any currently-covered match regardless of age. Scope with
+  `TXLINE_COMPETITIONS` / `--competitions=` (e.g. `33` for MLS-only).
 - **The settlement primitive is unaffected** — the CPI path, proof
   verification, and SDK consume whatever proof the API returns for a
   fixture in window; the borsh encoding and Merkle logic don't care
@@ -185,7 +194,9 @@ with `--update-env`, and curls the health endpoint. Override the SSH
 host or remote dir with `SSH_HOST=...` / `REMOTE_DIR=...` env vars.
 
 `TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
-runtime. The legacy `.txline-credentials.json` file remains supported for
+runtime. `TXLINE_COMPETITIONS` (comma-separated, e.g. `33` for MLS)
+filters the fixture map; empty/absent means all snapshot fixtures.
+The legacy `.txline-credentials.json` file remains supported for
 local development only, but local ignored env files are the better backup
 because they match production deployment semantics.
 

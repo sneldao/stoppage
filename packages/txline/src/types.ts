@@ -22,15 +22,36 @@ export interface NetworkConfig {
 
 export interface Fixture {
   FixtureId: number;
-  Sport: string;
-  Country: string;
-  FixtureGroup: string;
-  StartTime: string; // ISO timestamp
+  /** Present on live snapshot responses (probed 2026-08-13). */
+  CompetitionId?: number;
+  Competition?: string;
+  Sport?: string;
+  Country?: string;
+  FixtureGroup?: string;
+  /** Epoch ms (API) or ISO string (synthetic/local fixtures). */
+  StartTime: string | number;
   Participant1: string;
   Participant2: string;
   Participant1IsHome: boolean;
   GameState: number; // 1 = scheduled, 6 = cancelled
 }
+
+/**
+ * TxLINE competition IDs present in the free/devnet bundle
+ * (probed 2026-08-13). Single source of truth — do not hardcode elsewhere.
+ */
+export enum Competition {
+  PremierLeague = 8,
+  MLS = 33,
+  InternationalFriendlies = 430,
+}
+
+/** Free-bundle competitions (MLS + Friendlies + EPL fixtures from Aug 21). */
+export const FREE_BUNDLE_COMPETITIONS: readonly Competition[] = [
+  Competition.PremierLeague,
+  Competition.MLS,
+  Competition.InternationalFriendlies,
+] as const;
 
 // ── Game phases (soccer) ────────────────────────────────────────────
 

@@ -6,6 +6,12 @@ SOLANA_KEYPAIR_PATH=/home/linuxuser/stoppage/secrets/agent-devnet.json
 MATCH_EVENTS_PATH=/home/linuxuser/stoppage/.runtime/match-events.ndjson
 AGENT_HTTP_PORT=18766
 
+# Optional: comma-separated TxLINE competition IDs (see Competition enum
+# in packages/txline). Empty = all fixtures in the snapshot.
+# MLS=33, EPL=8, Friendlies=430. For the Aug 15 MLS keystone:
+# TXLINE_COMPETITIONS=33
+TXLINE_COMPETITIONS=33
+
 # OpenTelemetry → SigNoz (optional; see docs/OBSERVABILITY.md)
 # Install SigNoz on the VPS: ./scripts/install-signoz-vps.sh
 # OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318

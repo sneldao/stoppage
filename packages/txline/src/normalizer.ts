@@ -15,15 +15,19 @@ import type { ScoreUpdate, NormalizedEvent, Fixture } from "./types";
 import { GamePhase, FINAL_STATUS_ID, StatKey } from "./types";
 
 /**
- * Build a human-readable match ID from a fixture (e.g., "FRA-SPA").
+ * Build a fixture-scoped match ID (e.g. "CIT-CIN-17615188").
+ * The FixtureId suffix prevents PDA collisions when the same pairing
+ * recurs in a league season, or when two teams share a 3-letter suffix
+ * (e.g. "Toronto FC" / "New York City FC" → both "FC").
  */
 export function matchIdFromFixture(fixture: Fixture): string {
-  const code = (name: string) => {
+  const code = (name: string | undefined) => {
+    if (!name?.trim()) return "UNK";
     const parts = name.trim().split(/\s+/);
     const last = parts[parts.length - 1];
     return last.length >= 3 ? last.slice(0, 3).toUpperCase() : last.toUpperCase();
   };
-  return `${code(fixture.Participant1)}-${code(fixture.Participant2)}`;
+  return `${code(fixture.Participant1)}-${code(fixture.Participant2)}-${fixture.FixtureId}`;
 }
 
 /**

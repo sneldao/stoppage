@@ -5,8 +5,8 @@
  * this is a different operator data source feeding OUR OWN validator).
  *
  * Free v1 API (test key "3"; operators should set THESPORTSDB_API_KEY).
- * Coverage includes MLS and the Premier League — the leagues TxLINE's
- * free bundle does not carry.
+ * Useful as an operator facts source for the attestation oracle; prefer
+ * TxLINE for leagues in the free bundle (MLS, Friendlies, EPL fixtures).
  *
  * Trust note: this fetches from a plain HTTPS API. The trust anchor of
  * the settlement path is NOT this HTTP call; it is the operator's ed25519

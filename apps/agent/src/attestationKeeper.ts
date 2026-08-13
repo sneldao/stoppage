@@ -1,9 +1,10 @@
 /**
  * Attestation keeper — proof-gated settlement of sports markets on
- * non-TxLINE data (MLS, Premier League, ...) via our OWN operator
- * attestation oracle. The third demonstration of the oracle-agnostic
- * settlement primitive, and the reference for "operators bring their
- * own oracles" (docs/ATTESTATION-ORACLE.md).
+ * non-TxLINE (or operator-chosen) data via our OWN operator attestation
+ * oracle. The third demonstration of the oracle-agnostic settlement
+ * primitive, and the reference for "operators bring their own oracles"
+ * (docs/ATTESTATION-ORACLE.md). Prefer the TxLINE live path for leagues
+ * in the free bundle (MLS, Friendlies, EPL fixtures).
  *
  * Trust-model honesty: unlike the TxLINE keeper (Merkle proofs verified
  * by TxODDS's program) or the price keeper (Wormhole guardians), the

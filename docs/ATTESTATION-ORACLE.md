@@ -1,14 +1,16 @@
 # Attestation Oracle (operator-signed sports settlement)
 
-Status: deployed on devnet (2026-08-10). First live settlement target:
-Orlando City vs FC Cincinnati, MLS, 2026-08-15 23:30 UTC.
-
 The third oracle for the settlement primitive, after TxLINE (Merkle
 proofs verified by TxODDS's program) and Pyth (Wormhole-guardian-signed
-prices). It exists so the proof-gated loop can run on leagues TxLINE's
-free bundle does not cover (MLS, Premier League) instead of idling until
-the next covered Friendly. It is also the reference implementation for
-"operators bring their own oracles" (docs/OPERATORS.md).
+prices). It is the **reference implementation** for "operators bring
+their own oracles" (docs/OPERATORS.md), and the fallback path for
+leagues or facts no third-party feed covers. Deployment status and live
+markets live in docs/ROADMAP.md only.
+
+As of 2026-08-13, TxLINE's free/devnet bundle includes MLS (and EPL
+fixtures from Aug 21) — see `Competition` in `@stoppage/txline`. Prefer
+the TxLINE live path for those leagues; keep this oracle for custom
+operator data and for markets already opened under it.
 
 ## Trust model — read this before reusing
 
@@ -25,8 +27,7 @@ What it does NOT guarantee: that the operator's observation reflects
 reality. That is the operator's reputation/stake problem, exactly as in
 the operator-integration model. Demo and UI copy must say
 "operator-attested settlement". Never imply decentralized verification.
-The TxLINE Friendlies path (from Sept 23) remains the
-third-party-verified milestone.
+TxLINE-settled markets remain the third-party-verified path.
 
 ## Components
 

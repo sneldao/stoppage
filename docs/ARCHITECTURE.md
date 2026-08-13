@@ -26,8 +26,8 @@ that returns a 1-byte bool from a CPI. Three reference validators are
 deployed on devnet — TxLINE's `validate_stat` (Merkle-proof sports
 data), `pyth_validator` (guardian-verified Pyth price observations),
 and `attestation_validator` (operator-key ed25519-signed sports
-observations; covers leagues outside TxLINE's bundle — see
-docs/ATTESTATION-ORACLE.md). The market program binds each market to
+observations — the reference custom oracle for operator-chosen data;
+see docs/ATTESTATION-ORACLE.md). The market program binds each market to
 its oracle at creation and cross-checks the receipt's validator at
 settlement.
 

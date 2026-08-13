@@ -104,19 +104,23 @@ export default function Home() {
   });
 
   // Nearest real upcoming TxLINE fixture (scheduled, not yet kicked off).
+  // Prefer free-bundle league matches (MLS / EPL) for the hero countdown.
+  // Competition.MLS=33 / Competition.PremierLeague=8 — literals avoid pulling
+  // @stoppage/txline's node-only credentials barrel into the client.
   const txlineUpcoming = useMemo(() => {
     const now = Date.now();
-    return (
-      fixtures
-        .filter((f) => isFixtureScheduled(f) && fixtureStartTimeMs(f) > now)
-        .sort((a, b) => fixtureStartTimeMs(a) - fixtureStartTimeMs(b))[0] ?? null
+    const scheduled = fixtures
+      .filter((f) => isFixtureScheduled(f) && fixtureStartTimeMs(f) > now)
+      .sort((a, b) => fixtureStartTimeMs(a) - fixtureStartTimeMs(b));
+    const league = scheduled.find(
+      (f) => f.CompetitionId === 33 || f.CompetitionId === 8
     );
+    return league ?? scheduled[0] ?? null;
   }, [fixtures]);
 
-  // The "next big game": prefer the attestation keystone, else the nearest
-  // TxLINE scheduled match. During dead time we show its live countdown over
-  // the scripted demo. (A live TxLINE match still wins — see heroFixture.)
-  const nextUpcoming = attestFixture ?? txlineUpcoming;
+  // Next big game: TxLINE league fixtures win when present; attestation
+  // plane remains the fallback for open tsdb:* markets this weekend.
+  const nextUpcoming = txlineUpcoming ?? attestFixture;
 
   // Build a synthetic fixture for the replay so LiveInstrument's match face
   // has teams + a live GameState to drive the scoreline.
@@ -399,7 +403,7 @@ export default function Home() {
           <Link href="/" className="wordmark">STOPPAGE<span>.</span></Link>
           <span>© 2026</span>
         </div>
-        <p>Built on Solana devnet · Match data from TxLINE · Pyth prices · operator-attested MLS</p>
+        <p>Built on Solana devnet · Match data from TxLINE · Pyth prices · operator attestation (reference oracle)</p>
         <p>One settlement contract, three live proof paths: TxLINE sports, Pyth prices, operator attestation. <Link href="/operators">Built for operators →</Link></p>
         <p className="footer-safety">Use only where permitted. Set limits and take breaks.</p>
       </footer>

@@ -50,7 +50,7 @@ import {
   type StatValidationResponse,
 } from "@stoppage/txline";
 import type { MatchEvent } from "@stoppage/sdk";
-import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket } from "./strategy";
+import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket, type MatchTemplates, DEFAULT_TEMPLATES } from "./strategy";
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
 import { QuoteTracker } from "./quoteTracker";
@@ -61,6 +61,8 @@ import {
   recordTxlineEvent,
   withSpan,
 } from "./telemetry";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface AgentConfig {
   connection: Connection;
@@ -79,6 +81,13 @@ export interface AgentConfig {
   onMatchEvent?: (event: Omit<MatchEvent, "id">) => void;
   /** Live verifiable quote store (Phase 3A). */
   quoteTracker?: QuoteTracker;
+  /** Per-match templates; defaults to goals+corners when omitted. */
+  templatesFor?: (matchId: string) => MatchTemplates;
+  /**
+   * Directory for pending-settlement persistence (PM2 restart survival).
+   * Defaults next to MATCH_EVENTS_PATH or `.runtime`.
+   */
+  pendingSettlementsPath?: string;
 }
 
 export interface ActionResult {
@@ -89,11 +98,23 @@ export interface ActionResult {
   error?: string;
 }
 
+interface PendingSettlement {
+  action: Extract<AgentAction, { type: "settle_market" }>;
+  attempts: number;
+  nextAttemptAt: number;
+  enqueuedAt: number;
+}
+
+const SETTLE_RETRY_INITIAL_MS = 5 * 60 * 1000;
+const SETTLE_RETRY_MAX_MS = 30 * 60 * 1000;
+const SETTLE_RETRY_GIVE_UP_MS = 8 * 60 * 60 * 1000;
+const SETTLE_RETRY_TICK_MS = 30 * 1000;
+
 export class Agent {
   private config: AgentConfig;
   private openMarkets: OpenMarket[] = [];
   private running = false;
-  /** Map from matchId (e.g. "FRA-SPA") to TxLINE fixtureId */
+  /** Map from matchId (e.g. "CIT-CIN-17615188") to TxLINE fixtureId */
   private matchToFixture = new Map<string, number>();
   /** Live match state per matchId for quote snapshot construction. */
   private matchState = new Map<string, {
@@ -107,6 +128,8 @@ export class Agent {
   private quant: QuantModel = getQuantModel();
   /** Team name lookup per matchId (for corner/card attribution). */
   private teamNames = new Map<string, { home: string; away: string }>();
+  private pendingSettlements = new Map<string, PendingSettlement>();
+  private settleRetryTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -124,12 +147,23 @@ export class Agent {
 
   async start() {
     this.running = true;
-    logger.info("Starting agent loop");
+    this.loadPendingSettlements();
+    this.settleRetryTimer = setInterval(() => {
+      void this.processPendingSettlements();
+    }, SETTLE_RETRY_TICK_MS);
+    logger.info("Starting agent loop", {
+      pendingSettlements: this.pendingSettlements.size,
+    });
     await this.config.source.start((event) => this.handleEvent(event));
   }
 
   stop() {
     this.running = false;
+    if (this.settleRetryTimer) {
+      clearInterval(this.settleRetryTimer);
+      this.settleRetryTimer = null;
+    }
+    this.persistPendingSettlements();
     this.config.source.stop();
     logger.info("Agent stopped");
   }
@@ -229,7 +263,11 @@ export class Agent {
         // Maintain live match state for quote snapshots.
         this.updateMatchState(event);
 
-        const { actions, notes } = decideActions(event, this.openMarkets);
+        const eventMatchId = "matchId" in event ? event.matchId : undefined;
+        const templates =
+          (eventMatchId && this.config.templatesFor?.(eventMatchId)) ||
+          DEFAULT_TEMPLATES;
+        const { actions, notes } = decideActions(event, this.openMarkets, templates);
 
         for (const note of notes) {
           this.config.onMatchEvent?.({
@@ -242,7 +280,6 @@ export class Agent {
           });
         }
 
-        const eventMatchId = "matchId" in event ? event.matchId : undefined;
         const state = eventMatchId ? this.matchState.get(eventMatchId) : undefined;
         if (state && eventMatchId && this.config.quoteTracker) {
           const quoteActions = quoteOpenMarkets(
@@ -286,6 +323,12 @@ export class Agent {
               break;
             case "settle_market":
               result = await this.settleMarket(action);
+              if (!result.success && result.marketPda) {
+                this.enqueueSettlementRetry(action, result);
+              } else if (result.success && result.marketPda) {
+                this.pendingSettlements.delete(result.marketPda);
+                this.persistPendingSettlements();
+              }
               break;
             case "void_market":
               result = await this.voidMarket(action);
@@ -552,12 +595,20 @@ export class Agent {
         }
       } catch (err) {
         recordProofFetch(false);
-        return { success: false, error: `Proof fetch/build failed: ${(err as Error).message}` };
+        return {
+          success: false,
+          marketPda: market.marketPda,
+          error: `Proof fetch/build failed: ${(err as Error).message}`,
+        };
       }
     }
 
     if (!resolveIx) {
-      return { success: false, error: "Proof-gated settlement requires TxLINE credentials and a validation proof" };
+      return {
+        success: false,
+        marketPda: market.marketPda,
+        error: "Proof-gated settlement requires TxLINE credentials and a validation proof",
+      };
     }
 
     if (dryRun) {
@@ -619,6 +670,153 @@ export class Agent {
   /** Look up the TxLINE fixture ID for a given match ID. */
   private fixtureIdForMatch(matchId: string): number | null {
     return this.matchToFixture.get(matchId) ?? null;
+  }
+
+  private pendingSettlementsFile(): string {
+    if (this.config.pendingSettlementsPath) {
+      return this.config.pendingSettlementsPath;
+    }
+    const eventsPath = process.env.MATCH_EVENTS_PATH ?? ".runtime/match-events.ndjson";
+    return path.join(path.dirname(eventsPath), "pending-settlements.json");
+  }
+
+  private enqueueSettlementRetry(
+    action: Extract<AgentAction, { type: "settle_market" }>,
+    result: ActionResult
+  ) {
+    const key = result.marketPda!;
+    const existing = this.pendingSettlements.get(key);
+    const attempts = (existing?.attempts ?? 0) + 1;
+    const delay = Math.min(
+      SETTLE_RETRY_INITIAL_MS * 2 ** Math.max(0, attempts - 1),
+      SETTLE_RETRY_MAX_MS
+    );
+    const nextAttemptAt = Date.now() + delay;
+    const enqueuedAt = existing?.enqueuedAt ?? Date.now();
+
+    if (Date.now() - enqueuedAt > SETTLE_RETRY_GIVE_UP_MS) {
+      logger.warn("Giving up on settlement retry after 8h", {
+        label: action.label,
+        "market.pda": key,
+        error: result.error,
+      });
+      this.config.onMatchEvent?.({
+        occurredAt: Date.now(),
+        kind: "decision_logged",
+        label: `Proof still unavailable for ${action.label} after ~8h — void manually if needed`,
+        matchId: action.predicate.matchId,
+        marketId: key,
+        source: "matchkeeper",
+      });
+      this.pendingSettlements.delete(key);
+      this.persistPendingSettlements();
+      return;
+    }
+
+    this.pendingSettlements.set(key, { action, attempts, nextAttemptAt, enqueuedAt });
+    this.persistPendingSettlements();
+    logger.info("Enqueued settlement retry", {
+      label: action.label,
+      attempts,
+      nextAttemptAt: new Date(nextAttemptAt).toISOString(),
+      error: result.error,
+    });
+    this.config.onMatchEvent?.({
+      occurredAt: Date.now(),
+      kind: "decision_logged",
+      label: `Proof not yet available for ${action.label}, retry ${attempts} in ${Math.round(delay / 60000)}m`,
+      matchId: action.predicate.matchId,
+      marketId: key,
+      source: "matchkeeper",
+    });
+  }
+
+  private async processPendingSettlements() {
+    if (!this.running || this.pendingSettlements.size === 0) return;
+    const now = Date.now();
+    for (const [key, pending] of [...this.pendingSettlements.entries()]) {
+      if (pending.nextAttemptAt > now) continue;
+      // Ensure the market is still tracked as open so settleMarket can find it.
+      const tracked = this.openMarkets.some((m) => m.marketPda === key);
+      if (!tracked && pending.action.predicate) {
+        this.openMarkets.push({
+          predicate: pending.action.predicate,
+          label: pending.action.label,
+          createdAt: pending.enqueuedAt,
+          ttlSeconds: 7200,
+          marketPda: key,
+        });
+      }
+      logger.info("Retrying pending settlement", {
+        label: pending.action.label,
+        attempts: pending.attempts,
+      });
+      await this.executeAction(pending.action);
+    }
+  }
+
+  private loadPendingSettlements() {
+    const file = this.pendingSettlementsFile();
+    try {
+      if (!fs.existsSync(file)) return;
+      const rows = JSON.parse(fs.readFileSync(file, "utf8")) as Array<{
+        marketPda: string;
+        action: Extract<AgentAction, { type: "settle_market" }>;
+        attempts: number;
+        nextAttemptAt: number;
+        enqueuedAt: number;
+      }>;
+      this.pendingSettlements.clear();
+      for (const row of rows) {
+        if (!row?.marketPda || !row.action?.predicate?.matchId) continue;
+        this.pendingSettlements.set(row.marketPda, {
+          action: row.action,
+          attempts: row.attempts ?? 0,
+          nextAttemptAt: row.nextAttemptAt ?? Date.now(),
+          enqueuedAt: row.enqueuedAt ?? Date.now(),
+        });
+        if (!this.openMarkets.some((m) => m.marketPda === row.marketPda)) {
+          this.openMarkets.push({
+            predicate: row.action.predicate,
+            label: row.action.label,
+            createdAt: row.enqueuedAt ?? Date.now(),
+            ttlSeconds: 7200,
+            marketPda: row.marketPda,
+          });
+        }
+      }
+      if (this.pendingSettlements.size > 0) {
+        logger.info("Rehydrated pending settlements", {
+          count: this.pendingSettlements.size,
+          file,
+        });
+      }
+    } catch (err) {
+      logger.warn("Failed to load pending settlements", {
+        file,
+        error: String(err),
+      });
+    }
+  }
+
+  private persistPendingSettlements() {
+    const file = this.pendingSettlementsFile();
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const rows = [...this.pendingSettlements.entries()].map(([marketPda, p]) => ({
+        marketPda,
+        action: p.action,
+        attempts: p.attempts,
+        nextAttemptAt: p.nextAttemptAt,
+        enqueuedAt: p.enqueuedAt,
+      }));
+      fs.writeFileSync(file, JSON.stringify(rows, null, 2));
+    } catch (err) {
+      logger.warn("Failed to persist pending settlements", {
+        file,
+        error: String(err),
+      });
+    }
   }
 
   private async voidMarket(

@@ -45,7 +45,7 @@ export function MatchCalendar() {
                   {f.Participant1} vs {f.Participant2}
                 </p>
                 <p className="cal-meta">
-                  {f.Country} · {startTime.toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}
+                  {f.Competition ?? f.Country ?? "Match"} · {startTime.toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}
                 </p>
               </div>
               {isLive ? (

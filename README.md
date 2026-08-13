@@ -12,9 +12,9 @@ authority.
 Oracle-agnostic by contract, demonstrated with three live reference
 oracles: TxLINE's Merkle-proof sports validator, a Pyth
 guardian-verified price validator, and an operator-key attestation
-validator (ed25519-precompile-verified) covering leagues outside
-TxLINE's data bundle. The same receipt path, the same atomic settle
-bundle, three structurally different oracles.
+validator (ed25519-precompile-verified) as the reference custom
+oracle for operator-chosen data. The same receipt path, the same atomic
+settle bundle, three structurally different oracles.
 
 Built on Solana. Session-key-native for frictionless in-play betting.
 Open-source verifiable quant pricing. The reference UI is a betting app;

@@ -137,15 +137,17 @@ function MatchFace({
     return () => onPreviewBeat(null);
   }, [preview, onPreviewBeat, handleNewEvent]);
 
-  // Derive the SSE matchId: explicit override for replays, else from fixture names.
-  const resolvedMatchId = matchId ?? (fixture
-    ? `${fixture.Participant1.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}-${fixture.Participant2.trim().split(/\s+/).pop()!.slice(0, 3).toUpperCase()}`
-    : undefined);
+  // Derive the SSE matchId from the server-attached id (fixture-scoped).
+  // Do not re-derive from participant names — that diverges from the agent
+  // after matchIdFromFixture gained a FixtureId suffix.
+  const resolvedMatchId =
+    matchId ??
+    (fixture as (Fixture & { matchId?: string }) | null)?.matchId ??
+    undefined;
   // Operator-attested ("tsdb:*") matches have no TxLINE SSE stream — the score
   // comes from the `snapshot` prop. Suppress the live bar so we don't open an
   // orphan EventSource for an id the agent will never emit.
-  const feedMatchId = ((fixture as (Fixture & { matchId?: string }) | null)?.matchId ?? "")
-    .startsWith("tsdb:")
+  const feedMatchId = (resolvedMatchId ?? "").startsWith("tsdb:")
     ? undefined
     : resolvedMatchId;
 

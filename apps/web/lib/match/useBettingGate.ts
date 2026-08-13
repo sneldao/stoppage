@@ -30,11 +30,16 @@ export function useBettingGate(matchId: string | number): BettingGateState {
   const { fixtures, fixturesLoading } = useFixtures();
   
   const fixture = useMemo(() => {
-    const exact = fixtures.find((f) => f.matchId === String(matchId));
+    const id = String(matchId);
+    const exact = fixtures.find((f) => f.matchId === id);
     if (exact) return exact;
-    const byFixtureId = fixtures.find((f) => String(f.FixtureId) === String(matchId));
+    const byFixtureId = fixtures.find((f) => String(f.FixtureId) === id);
     if (byFixtureId) return byFixtureId;
-    const lower = String(matchId).toLowerCase();
+    // Fixture-scoped matchIds end with `-<FixtureId>` — prefer suffix match
+    // before fuzzy includes() so two fixtures can't cross-match.
+    const bySuffix = fixtures.find((f) => f.matchId?.endsWith(`-${id}`) || id.endsWith(`-${f.FixtureId}`));
+    if (bySuffix) return bySuffix;
+    const lower = id.toLowerCase();
     return fixtures.find((f) =>
       f.matchId?.toLowerCase() === lower ||
       f.matchId?.toLowerCase().includes(lower) ||

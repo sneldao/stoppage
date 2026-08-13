@@ -24,6 +24,19 @@ const REPLAYABLE_PHASES = new Set<GamePhase>([
 const REPLAY_CACHE_TTL_MS = 5 * 60 * 1000;
 const replayHistoryCache = new Map<number, { replayable: boolean; checkedAt: number }>();
 
+/** Default cap for historical probes on a cold fixtures payload. */
+export const DEFAULT_REPLAY_PROBE_LIMIT = 12;
+
+function fixtureStartMs(fixture: Pick<Fixture, "StartTime">): number {
+  const raw = fixture.StartTime;
+  if (typeof raw === "number") return raw < 1_000_000_000_000 ? raw * 1000 : raw;
+  if (typeof raw === "string") {
+    const t = Date.parse(raw);
+    return Number.isFinite(t) ? t : 0;
+  }
+  return 0;
+}
+
 /** Terminal match phases that may have historical score data for replay. */
 export function isFixtureFinished(fixture: Pick<Fixture, "GameState">): boolean {
   return REPLAYABLE_PHASES.has(fixture.GameState as GamePhase);
@@ -55,15 +68,27 @@ export async function fixtureHasReplayHistory(
 
 export type FixtureWithReplayable = Fixture & { replayable: boolean };
 
+export interface AttachReplayableOptions {
+  /** Max finished fixtures to probe for historical scores (default 12). */
+  maxProbes?: number;
+}
+
 /** Attach replayable flags — probes history only for finished fixtures. */
 export async function attachReplayableFlags(
   network: Network,
   creds: TxLineCredentials,
-  fixtures: Fixture[]
+  fixtures: Fixture[],
+  options: AttachReplayableOptions = {}
 ): Promise<FixtureWithReplayable[]> {
+  const maxProbes = options.maxProbes ?? DEFAULT_REPLAY_PROBE_LIMIT;
+  const finished = fixtures
+    .filter(isFixtureFinished)
+    .sort((a, b) => fixtureStartMs(b) - fixtureStartMs(a));
+  const probeIds = new Set(finished.slice(0, maxProbes).map((f) => f.FixtureId));
+
   return Promise.all(
     fixtures.map(async (fixture) => {
-      if (!isFixtureFinished(fixture)) {
+      if (!isFixtureFinished(fixture) || !probeIds.has(fixture.FixtureId)) {
         return { ...fixture, replayable: false };
       }
       const replayable = await fixtureHasReplayHistory(network, creds, fixture.FixtureId);
@@ -91,6 +116,23 @@ export async function fetchFixtures(
     throw new Error(`Fixtures snapshot failed: ${resp.status} ${await resp.text()}`);
   }
   return (await resp.json()) as Fixture[];
+}
+
+/**
+ * One snapshot fetch, then client-side filter to the given competition IDs.
+ * Prefer this over N server-side filtered calls when selecting a bundle.
+ */
+export async function fetchFixturesForCompetitions(
+  network: Network,
+  creds: TxLineCredentials,
+  competitionIds: readonly number[]
+): Promise<Fixture[]> {
+  const all = await fetchFixtures(network, creds);
+  if (competitionIds.length === 0) return all;
+  const allowed = new Set(competitionIds);
+  return all.filter(
+    (f) => f.CompetitionId !== undefined && allowed.has(f.CompetitionId)
+  );
 }
 
 /**

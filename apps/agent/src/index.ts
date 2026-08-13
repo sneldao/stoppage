@@ -31,6 +31,7 @@ import {
   fixtureHasReplayHistory,
   isFixtureFinished,
   matchIdFromFixture,
+  Competition,
   type Fixture,
   type Network,
   type NormalizedEvent,
@@ -45,6 +46,7 @@ import {
 } from "./source";
 import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
+import { DEFAULT_TEMPLATES, type MatchTemplates } from "./strategy";
 import { createMatchEventLedger } from "./eventLedger";
 import { startEventHttpServer } from "./httpServer";
 import { LiveStore } from "./liveStore";
@@ -90,8 +92,8 @@ async function main() {
   }
 
   // Attestation markets: operator-signed (ed25519) sports settlement via
-  // the attestation_validator oracle — MLS/EPL and other leagues TxLINE's
-  // free bundle doesn't cover. One TheSportsDB event per run.
+  // the attestation_validator oracle — reference custom-oracle path for
+  // non-TxLINE sources (docs/ATTESTATION-ORACLE.md). One TheSportsDB event per run.
   if (mode === "attest") {
     const eventArg = process.argv.find((arg) => arg.startsWith("--event="));
     const lineArg = process.argv.find((arg) => arg.startsWith("--line="));
@@ -139,6 +141,7 @@ async function main() {
     1,
     Number(replaySpeedArg?.split("=")[1] ?? 1000) || 1000
   );
+  const competitionsFilter = parseCompetitionsFilter();
 
   console.log("╔══════════════════════════════════════════╗");
   console.log("║       Stoppage Autonomous Agent          ║");
@@ -148,6 +151,11 @@ async function main() {
   console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
   if (mode === "replay") {
     console.log(`Fixture ID: ${fixtureId || "(auto-discover)"}`);
+  }
+  if (competitionsFilter) {
+    console.log(`Competitions: ${competitionsFilter.join(",")} (filtered)`);
+  } else {
+    console.log("Competitions: (all in snapshot)");
   }
   console.log();
 
@@ -231,11 +239,46 @@ async function main() {
   // Fetch fixtures for the fixture map (after the HTTP server is up so
   // the health endpoint already responds).
   console.log("Fetching fixtures...");
-  const fixtures = await fetchFixtures(network, creds);
+  const allFixtures = await fetchFixtures(network, creds);
+  const fixtures = competitionsFilter
+    ? allFixtures.filter(
+        (f) =>
+          f.CompetitionId !== undefined &&
+          competitionsFilter.includes(f.CompetitionId)
+      )
+    : allFixtures;
+  fixtureMap.clear();
   for (const f of fixtures) {
     fixtureMap.set(f.FixtureId, f);
   }
-  console.log(`Loaded ${fixtures.length} fixtures`);
+  if (competitionsFilter) {
+    const counts = new Map<number, number>();
+    for (const f of fixtures) {
+      const id = f.CompetitionId ?? -1;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    console.log(
+      `Loaded ${fixtures.length}/${allFixtures.length} fixtures (filtered): ` +
+        [...counts.entries()]
+          .map(([id, n]) => `${competitionLabel(id)}=${n}`)
+          .join(", ")
+    );
+  } else {
+    console.log(`Loaded ${fixtures.length} fixtures`);
+  }
+
+  const matchIdToCompetition = new Map<string, number | undefined>();
+  for (const f of fixtures) {
+    matchIdToCompetition.set(matchIdFromFixture(f), f.CompetitionId);
+  }
+  const templatesFor = (matchId: string): MatchTemplates => {
+    const competitionId = matchIdToCompetition.get(matchId);
+    if (competitionId === Competition.MLS) {
+      // Corners off until a finished MLS fixture proves stat keys 7/8.
+      return { totalGoalsOver: 3, cornersOver: null };
+    }
+    return DEFAULT_TEMPLATES;
+  };
 
   // For replay mode, we need the specific fixture
   let source;
@@ -298,6 +341,7 @@ async function main() {
     txlineNetwork: network,
     txlineCreds: creds,
     quoteTracker,
+    templatesFor,
     onEvent: (event) => {
       if (event.type !== "heartbeat") {
         console.log(`  📡 ${event.type}: ${formatEvent(event)}`);
@@ -383,6 +427,35 @@ async function main() {
   });
 
   console.log("\n[agent] Running. Press Ctrl+C to stop.\n");
+}
+
+/**
+ * Parse TXLINE_COMPETITIONS env or --competitions=8,33 CLI override.
+ * Empty / absent = no filter (all fixtures in the snapshot).
+ */
+function parseCompetitionsFilter(): number[] | null {
+  const arg = process.argv.find((a) => a.startsWith("--competitions="));
+  const raw = arg?.split("=")[1] ?? process.env.TXLINE_COMPETITIONS ?? "";
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const ids = trimmed
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return ids.length > 0 ? ids : null;
+}
+
+function competitionLabel(id: number): string {
+  switch (id) {
+    case Competition.PremierLeague:
+      return "EPL";
+    case Competition.MLS:
+      return "MLS";
+    case Competition.InternationalFriendlies:
+      return "Friendlies";
+    default:
+      return String(id);
+  }
 }
 
 function formatEvent(event: NormalizedEvent): string {

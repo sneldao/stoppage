@@ -37,10 +37,10 @@ const LIVE_POLL_MS = 20 * 1000;
 const TICK_MS = 15 * 1000;
 
 /**
- * The operator-attested (TheSportsDB) hero fixture. This is the SECOND
- * match-plane the homepage reads — TxLINE's free bundle has no MLS/EPL, so
- * the "big game on Saturday" (Orlando City vs FC Cincinnati, event 2406978)
- * lives here, not in the /api/fixtures store (docs/ATTESTATION-ORACLE.md).
+ * The operator-attested (TheSportsDB) hero fixture — second match-plane
+ * for markets opened under attestation_validator (e.g. tsdb:2406978).
+ * TxLINE MLS/EPL fixtures now live in /api/fixtures; this plane stays
+ * until those attestation markets close (docs/ATTESTATION-ORACLE.md).
  *
  * Drives the same countdown path as a TxLINE fixture (synthetic Fixture,
  * GameState 1 when scheduled), then flips to the real scoreline once in
