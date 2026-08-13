@@ -23,6 +23,11 @@ import { relTime } from "@/lib/activity/useActivityFeed";
 
 const TICKER_CAP = 20;
 
+/** Protocol events older than this are stale — a "Live" ticker showing
+ *  22-day-old ledger rows reads as a dead feed. The Matchkeeper ledger is
+ *  append-only history; freshness filtering belongs at the display layer. */
+const PROTOCOL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 function timeUntil(ms: number): string {
   const diff = ms - Date.now();
   if (diff <= 0) return "now";
@@ -32,16 +37,28 @@ function timeUntil(ms: number): string {
   return `${h}h ${m % 60}m`;
 }
 
-/** Derive protocol-rail items from the MatchEvent feed. */
+/** Derive protocol-rail items from the MatchEvent feed. Fresh events only
+ *  (24h window), with adjacent duplicate labels collapsed — two ledger rows
+ *  for two corners of the same match should not scroll as two items. */
 function protocolItems(): TickerItem[] {
   const feed = useStoppageStore.getState().feed;
-  return feed.slice(0, 6).map((e) => ({
-    id: `protocol:${e.id}`,
-    source: "protocol" as const,
-    label: e.label,
-    ts: e.occurredAt,
-    priority: priorityFor("protocol"),
-  }));
+  const now = Date.now();
+  const items: TickerItem[] = [];
+  let lastLabel = "";
+  for (const e of feed) {
+    if (items.length >= 6) break;
+    if (now - e.occurredAt > PROTOCOL_MAX_AGE_MS) continue;
+    if (e.label === lastLabel) continue;
+    lastLabel = e.label;
+    items.push({
+      id: `protocol:${e.id}`,
+      source: "protocol" as const,
+      label: e.label,
+      ts: e.occurredAt,
+      priority: priorityFor("protocol"),
+    });
+  }
+  return items;
 }
 
 /** Derive odds-shift items from the agent data slice. */

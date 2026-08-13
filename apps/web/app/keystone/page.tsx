@@ -17,7 +17,6 @@ import {
   KEYSTONE,
   KEYSTONE_TXLINE_PREDICATE,
   KEYSTONE_ATTEST_PREDICATE,
-  KEYSTONE_ORACLES,
 } from "@/lib/campaign/keystone";
 import { NotifyForm } from "@/components/NotifyForm";
 import { MatchPulse } from "@/components/MatchPulse";
@@ -97,7 +96,6 @@ function MarketCard({
           <span>pool {(market.yesPool + market.noPool) / 1e9} SOL</span>
         </div>
       )}
-      <p className="keystone-market-card-prebet">{info.preBetLine}</p>
       {market ? (
         <Link className="keystone-market-card-cta" href={`/markets/${market.id}`}>
           {status === "open" ? "Open the slip" : "View proof panel"} →
@@ -206,23 +204,19 @@ export default function KeystonePage() {
           </div>
         </ElectricBorder>
 
-        {/* ── The story ── */}
+        {/* ── The story — one line, not an essay ── */}
         <section className="keystone-story" aria-label="Why this match matters">
-          <h2>One match. Two truth paths. One settlement contract.</h2>
+          <h2>One match. Two truth paths.</h2>
           <p>
-            Every market below settles the same fixture — but through two
-            structurally different proofs. The TxLINE market releases your
-            payout only after a <strong>third-party Merkle proof</strong> verifies
-            on-chain. The attested market releases it after an{" "}
-            <strong>ed25519 signature</strong> the operator holds verifies on-chain.
+            Same kickoff, two markets, two different proofs — each one gates
+            its payout inside the settlement transaction. No proof, no money
+            moves. The only difference is who vouches for the score.
           </p>
-          <p>
-            The settlement guarantee is identical: the proof check and the fund
-            release happen in one transaction, or not at all. What differs is
-            the epistemic source — a vendor network versus a single operator.
-            We label it plainly in the UI, and Sunday&apos;s receipts let you
-            compare the two for yourself.
-          </p>
+          <div className="keystone-story-contrast" aria-hidden="true">
+            <span>TxLINE Merkle proof · third-party data</span>
+            <span className="keystone-story-contrast-vs">vs</span>
+            <span>Operator signature · honestly attested</span>
+          </div>
         </section>
 
         {/* ── Countdown timeline ── */}
@@ -245,13 +239,13 @@ export default function KeystonePage() {
           <MarketCard
             market={txlineMarket}
             role="Path one · third-party data"
-            blurb="vendor fixture network (TxODDS), Merkle-proof verified in the settlement transaction"
+            blurb="Merkle proof from the vendor fixture network"
           />
           <div className="keystone-markets-vs" aria-hidden="true">vs</div>
           <MarketCard
             market={attestMarket}
             role="Path two · operator attestation"
-            blurb="TheSportsDB observation signed by the operator's key — honest labeling, not network-verified"
+            blurb="ed25519-signed observation — not network-verified, and we say so"
           />
         </section>
 
@@ -267,9 +261,9 @@ export default function KeystonePage() {
             <h2>Settled by proof, publicly verifiable.</h2>
           </div>
           <p className="keystone-receipts-note">
-            TxLINE&apos;s verification window often opens hours after full time —
-            receipts land as the proofs do, and the retry queue is already
-            watching. Nothing here is promised faster than it&apos;s provable.
+            TxLINE&apos;s verification window often opens hours after full time.
+            Receipts land as the proofs do — nothing here is promised faster
+            than it&apos;s provable.
           </p>
           <ReceiptRow label="TxLINE Merkle path" market={txlineMarket} />
           <ReceiptRow label="Operator attestation path" market={attestMarket} />
@@ -277,17 +271,13 @@ export default function KeystonePage() {
 
         <footer className="keystone-foot">
           <p>
-            The predicates are public: {KEYSTONE_TXLINE_PREDICATE.matchId} (goals
-            over {KEYSTONE_TXLINE_PREDICATE.params.threshold}) and{" "}
+            Predicates public: {KEYSTONE_TXLINE_PREDICATE.matchId} (goals over{" "}
+            {KEYSTONE_TXLINE_PREDICATE.params.threshold}) ·{" "}
             {KEYSTONE_ATTEST_PREDICATE.matchId} (goals over{" "}
-            {KEYSTONE_ATTEST_PREDICATE.params.threshold}). Validators:{" "}
-            {oracleInfoFor(KEYSTONE_ORACLES.txline).name} ·{" "}
-            {oracleInfoFor(KEYSTONE_ORACLES.attest).name}.
+            {KEYSTONE_ATTEST_PREDICATE.params.threshold}) —{" "}
+            <Link href="/operators">how validators integrate →</Link>
           </p>
-          <p>
-            Devnet SOL only. Set limits — the session cap is yours to choose.{" "}
-            <Link href="/operators">How validators integrate →</Link>
-          </p>
+          <p>Devnet SOL only. Set limits — the session cap is yours to choose.</p>
         </footer>
       </div>
     </main>

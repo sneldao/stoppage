@@ -15,8 +15,6 @@
  */
 
 import {
-  ATTESTATION_VALIDATOR_PROGRAM_ID,
-  DEFAULT_ORACLE,
   findMarketPdaFromPredicate,
   type MarketPredicate,
 } from "@stoppage/sdk";
@@ -73,11 +71,6 @@ export function keystoneMarketIds() {
     },
   };
 }
-
-export const KEYSTONE_ORACLES = {
-  txline: DEFAULT_ORACLE.toBase58(),
-  attest: ATTESTATION_VALIDATOR_PROGRAM_ID,
-} as const;
 
 // ── Campaign timeline ─────────────────────────────────────────────────
 

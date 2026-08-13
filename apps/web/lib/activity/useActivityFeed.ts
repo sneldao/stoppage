@@ -35,7 +35,9 @@ export function relTime(ts: number): string {
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
 }
 
 const FEED_SSE_URL = "/api/match-events/stream";

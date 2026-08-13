@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStoppageStore } from "@/store";
 import { useActivityFeedMonitor, relTime } from "@/lib/activity/useActivityFeed";
 import { useTickerMonitor } from "@/lib/ticker/useTickerMonitor";
@@ -66,9 +66,16 @@ const SOURCE_BADGE: Record<TickerSource, string> = {
 /** Scroll speed in pixels per second — tuned for 10px monospace text. */
 const SCROLL_SPEED_PX_PER_SEC = 38;
 
-/** Number of item-set copies rendered. 4 guarantees overflow on any
- *  screen up to ~8K with typical item widths. */
-const SET_COPIES = 4;
+/**
+ * Number of item-set copies rendered — computed dynamically so the loop
+ * is seamless (enough copies to cover the viewport + one for the wrap)
+ * but never visibly repetitive: when paused on hover, the user sees the
+ * list once or twice, not four times. Fallback before first measure.
+ */
+function copiesFor(setWidth: number, viewportWidth: number): number {
+  if (setWidth <= 0 || viewportWidth <= 0) return 2;
+  return Math.max(2, Math.ceil(viewportWidth / setWidth) + 1);
+}
 
 function EventToasts({ toasts, dismiss }: { toasts: MatchEvent[]; dismiss: (id: string) => void }) {
   useEffect(() => {
@@ -125,6 +132,29 @@ export function ActivitySurfaces() {
 
   const hasItems = tickerItems.length > 0;
 
+  // Render just enough copies of the item set to cover the viewport +1 for
+  // the wrap — not a fixed 4. When the feed is short (few live items), 4
+  // copies put the same handful of entries on screen at once and the scroll
+  // reads as repetition instead of a live feed.
+  const [copies, setCopies] = useState(2);
+  useEffect(() => {
+    const compute = () => {
+      const setWidth = setElRef.current?.offsetWidth ?? 0;
+      const viewport = trackRef.current?.clientWidth || window.innerWidth;
+      const next = copiesFor(setWidth, viewport);
+      setCopies((c) => (c === next ? c : next));
+    };
+    compute();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(compute) : null;
+    if (setElRef.current) ro?.observe(setElRef.current);
+    if (trackRef.current) ro?.observe(trackRef.current);
+    window.addEventListener("resize", compute);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [tickerItems]);
+
   useEffect(() => {
     if (!hasItems) return;
 
@@ -176,7 +206,7 @@ export function ActivitySurfaces() {
         >
           <span className="global-ticker-label"><i className="live-dot" /> Live</span>
           <div className="global-ticker-track" ref={trackRef}>
-            {Array.from({ length: SET_COPIES }).map((_, i) => (
+            {Array.from({ length: copies }).map((_, i) => (
               <TickerSet
                 key={i}
                 items={tickerItems}
