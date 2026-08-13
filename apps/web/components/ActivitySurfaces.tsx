@@ -55,7 +55,6 @@ const TOAST_BADGE: Record<string, string> = {
 const SOURCE_BADGE: Record<TickerSource, string> = {
   protocol: "",
   odds: "ODDS",
-  quote: "QUOTE",
   fixture: "MATCH",
   pool: "TVL",
   sol: "SOL",

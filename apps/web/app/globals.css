@@ -3651,7 +3651,6 @@ body {
 .global-ticker-item--sol .global-ticker-text { color: var(--blue); }
 .global-ticker-item--sports .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
 .global-ticker-item--pool .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
-.global-ticker-item--quote .global-ticker-badge { border-color: var(--blue); color: var(--blue); }
 .global-ticker-item--fact .global-ticker-badge { border-color: var(--amber); color: var(--amber); }
 .global-ticker-item--fact .global-ticker-text { color: var(--ink); }
 

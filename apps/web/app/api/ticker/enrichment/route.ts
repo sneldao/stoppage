@@ -31,6 +31,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
+/** Truncate at a word boundary so text never ends mid-word. Appends "…" if cut. */
+function truncateAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return lastSpace > 0 ? `${cut.slice(0, lastSpace).trimEnd()}…` : `${cut}…`;
+}
+
 async function fetchSolPrice(): Promise<EnrichmentItem | null> {
   try {
     // Jupiter Price Lite API v3 — free, no key. Uses the wrapped SOL mint
@@ -65,6 +73,20 @@ async function fetchSolPrice(): Promise<EnrichmentItem | null> {
   }
 }
 
+/**
+ * Leagues worth showing to a general audience. TheSportsDB's eventsday
+ * endpoint returns every fixture on Earth for the day; without a filter
+ * the ticker fills up with minor divisions nobody recognizes. Anything
+ * outside this set is dropped — the rail simply shows fewer items.
+ */
+const MAJOR_LEAGUE_PATTERNS: ReadonlyArray<RegExp> = [
+  /premier league/i, /la liga/i, /serie a/i, /bundesliga/i, /ligue 1/i,
+  /major league soccer/i, /\bmls\b/i, /champions league/i, /europa league/i,
+  /world cup/i, /copa am[eé]rica/i, /\buefa\b/i, /\bfifa\b/i,
+  /primera divisi[oó]n/i, /africa cup/i, /\bafcon\b/i, /gold cup/i,
+  /premier soccer/i, /liga mx/i, /eredivisie/i,
+];
+
 async function fetchSportsFixtures(): Promise<EnrichmentItem[]> {
   try {
     // TheSportsDB free tier (key "3" is the shared free key per their docs).
@@ -89,17 +111,20 @@ async function fetchSportsFixtures(): Promise<EnrichmentItem[]> {
     const events = data.events;
     if (!Array.isArray(events)) return [];
     const now = Date.now();
-    return events.slice(0, 6).map((e, i) => {
-      const home = e.strHomeTeam ?? "?";
-      const away = e.strAwayTeam ?? "?";
-      const league = e.strLeague ?? "";
-      return {
-        id: `sports:today:${i}:${home}-${away}`,
-        source: "sports" as const,
-        label: `${home} vs ${away}${league ? ` · ${league}` : ""}`,
-        ts: now,
-      };
-    });
+    return events
+      .filter((e) => (e.strLeague ?? "") && MAJOR_LEAGUE_PATTERNS.some((p) => p.test(e.strLeague!)))
+      .slice(0, 4)
+      .map((e, i) => {
+        const home = e.strHomeTeam ?? "?";
+        const away = e.strAwayTeam ?? "?";
+        const league = e.strLeague ?? "";
+        return {
+          id: `sports:today:${i}:${home}-${away}`,
+          source: "sports" as const,
+          label: `${home} vs ${away}${league ? ` · ${league}` : ""}`,
+          ts: now,
+        };
+      });
   } catch {
     return [];
   }
@@ -162,7 +187,8 @@ async function fetchOnThisDay(): Promise<EnrichmentItem[]> {
     return sports.map((e, i) => ({
       id: `fact:onthisday:${i}:${e.year ?? "?"}`,
       source: "fact" as const,
-      label: `${e.year ?? "?"}: ${e.text!.slice(0, 120)}`,
+      // Truncate at a word boundary so facts never scroll cut mid-sentence.
+      label: `${e.year ?? "?"}: ${truncateAtWord(e.text!, 110)}`,
       ts,
     }));
   } catch {

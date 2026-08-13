@@ -6,7 +6,7 @@
  *   - protocol events (from activityFeedSlice)
  *   - odds shifts (from agentDataSlice)
  *   - fixture countdowns + live scores (from fixturesSlice)
- *   - quote repricing (from useAllQuotes)
+ *   - the keystone campaign rail (from lib/campaign/keystone.ts)
  *   - pool totals (from marketsSlice)
  *   - SOL price + external sports fixtures (from /api/ticker/enrichment)
  *
@@ -20,7 +20,6 @@ import type { StateCreator } from "zustand";
 export type TickerSource =
   | "protocol" // settlements, proofs, voids — highest priority
   | "odds" // sharp odds shifts
-  | "quote" // fair-value repricing
   | "fixture" // kickoff countdowns, live scores
   | "pool" // locked SOL totals
   | "sol" // SOL price (external)
@@ -48,7 +47,6 @@ export interface TickerSlice {
 const SOURCE_PRIORITY: Record<TickerSource, number> = {
   protocol: 100,
   odds: 80,
-  quote: 70,
   fixture: 60,
   pool: 40,
   sol: 30,
