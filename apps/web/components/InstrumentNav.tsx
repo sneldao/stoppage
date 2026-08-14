@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useStoppageStore, computeHistoryStats } from "@/store";
 import { getMatchSoundsEnabled, setMatchSoundsEnabled } from "@/components/LiveMatchBar";
@@ -26,6 +26,76 @@ const secondaryRoutes = [
   { href: "/operators", label: "Operators", title: "Validator integration for operators" },
 ];
 
+/**
+ * Nav link with visible progress: the route lights up the instant you
+ * click it (pressed state) and stays lit until the new page renders.
+ * Navigation runs through router.push inside startTransition, so
+ * isPending genuinely tracks the route change; the pressed flag is a
+ * safety net with a timeout for same-route clicks and cached navigations
+ * that resolve before React reports pending. The busy state is mirrored
+ * to the header via onBusy, which drives the nav-level progress bar.
+ * Modifier/new-tab clicks fall through to the browser untouched.
+ */
+function NavRouteLink({
+  href,
+  label,
+  title,
+  active,
+  secondary,
+  onBusy,
+}: {
+  href: string;
+  label: string;
+  title: string;
+  active: boolean;
+  secondary?: boolean;
+  onBusy: (busy: boolean) => void;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [pressed, setPressed] = useState(false);
+  const busy = isPending || pressed;
+
+  useEffect(() => {
+    onBusy(busy);
+    return () => { if (busy) onBusy(false); };
+  }, [busy, onBusy]);
+
+  // Safety: never stay lit longer than a beat. Cached navigations and
+  // same-route clicks resolve faster than React flips isPending, and a
+  // hung route shouldn't leave the nav glowing forever.
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setTimeout(() => setPressed(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [busy]);
+
+  // Normal path: the transition's pending window closes once the new
+  // route has rendered — drop the local pressed flag with it.
+  useEffect(() => {
+    if (!isPending && pressed) setPressed(false);
+  }, [isPending, pressed]);
+
+  return (
+    <Link
+      className={`nav-route ${secondary ? "nav-route--secondary" : ""} ${active ? "active" : ""} ${busy ? "nav-route--navigating" : ""}`}
+      href={href}
+      title={title}
+      aria-current={active ? "page" : undefined}
+      onClick={(e) => {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        setPressed(true);
+        startTransition(() => {
+          router.push(href);
+        });
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
+
 export function InstrumentNav() {
   const pathname = usePathname();
   const { state } = useSessionKey();
@@ -33,6 +103,12 @@ export function InstrumentNav() {
   const feedState = useStoppageStore((s) => s.feedState);
   const stats = useMemo(() => computeHistoryStats(history), [history]);
   const isHotStreak = stats.currentStreak >= 3;
+
+  // Header-level progress bar: any route link busy → bar animates.
+  const [anyBusy, setAnyBusy] = useState(false);
+  // Belt-and-suspenders: a completed route change always clears the bar,
+  // even if a link's busy flag were stuck.
+  useEffect(() => { setAnyBusy(false); }, [pathname]);
 
   const [soundOn, setSoundOn] = useState(true);
   useEffect(() => { setSoundOn(getMatchSoundsEnabled()); }, []);
@@ -45,7 +121,7 @@ export function InstrumentNav() {
   const feedLabel = feedState === "connected" ? "Live" : feedState === "polling" ? "Polling" : "Offline";
 
   return (
-    <header className="app-nav instrument-nav">
+    <header className={`app-nav instrument-nav ${anyBusy ? "instrument-nav--navigating" : ""}`}>
       <Link href="/" className="wordmark" aria-label="Stoppage match desk">
         STOPPAGE<span>.</span>
         {isHotStreak && (
@@ -58,31 +134,27 @@ export function InstrumentNav() {
         {primaryRoutes.map((route) => {
           const active = route.href === "/" ? pathname === "/" : pathname.startsWith(route.href);
           return (
-            <Link
-              className={`nav-route ${active ? "active" : ""}`}
-              href={route.href}
+            <NavRouteLink
               key={route.href}
+              href={route.href}
+              label={route.label}
               title={route.title}
-              aria-current={active ? "page" : undefined}
-            >
-              {route.label}
-            </Link>
+              active={active}
+              onBusy={setAnyBusy}
+            />
           );
         })}
-        {secondaryRoutes.map((route) => {
-          const active = pathname.startsWith(route.href);
-          return (
-            <Link
-              className={`nav-route nav-route--secondary ${active ? "active" : ""}`}
-              href={route.href}
-              key={route.href}
-              title={route.title}
-              aria-current={active ? "page" : undefined}
-            >
-              {route.label}
-            </Link>
-          );
-        })}
+        {secondaryRoutes.map((route) => (
+          <NavRouteLink
+            key={route.href}
+            href={route.href}
+            label={route.label}
+            title={route.title}
+            active={pathname.startsWith(route.href)}
+            secondary
+            onBusy={setAnyBusy}
+          />
+        ))}
       </nav>
       <div className="nav-right-cluster">
         <span className={`nav-feed nav-feed--${feedState}`} title={`On-chain feed: ${feedLabel.toLowerCase()}`}>

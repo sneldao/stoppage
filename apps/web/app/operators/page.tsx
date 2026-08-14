@@ -79,26 +79,24 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
           <p className="eyebrow">For operators</p>
           <h1>Settle markets only when a proof verifies</h1>
           <p className="page-lede page-lede--short">
-            Bring your markets and your own oracle — decision markets, futarchy
-            proposals, sportsbooks, anything whose resolution is a predicate over
-            anchored data. Stoppage gates fund release on an on-chain proof
-            verification: no admin keys, no multisigs, no dispute windows.
-            Your users settle on evidence, not authority.
+            Bring your markets, bring your oracle. Funds move only when a
+            proof verifies on-chain — no admin key, no dispute window.
+            Settle on evidence, not authority.
           </p>
         </header>
 
         <section className="op-pillars">
           <div className="op-pillar">
             <h3>Proof-gated settlement</h3>
-            <p>Funds move only after a CPI into your validator returns true. If the proof fails, the whole transaction reverts.</p>
+            <p>Funds move only if a CPI into your validator returns true. Anything else, the whole transaction reverts.</p>
           </div>
           <div className="op-pillar">
             <h3>Bring your own oracle</h3>
-            <p>The settlement contract is oracle-agnostic, demonstrably: sports markets settle through TxLINE&apos;s Merkle-proof validator, price markets through a Pyth guardian-verified validator, off-feed matches through an operator&apos;s ed25519-signed observation verified by the precompile — one receipt path, three structurally different oracles. Yours plugs in the same way: any program that returns a bool.</p>
+            <p>One receipt path, three structurally different oracles already live: TxLINE Merkle proof, Pyth guardian-verified, ed25519 operator attest. Your program plugs in the same way — if it returns a bool, it&apos;s a validator.</p>
           </div>
           <div className="op-pillar">
             <h3>Verifiable pricing</h3>
-            <p>Optional open Monte-Carlo fair value + bid/ask, with a snapshot hash anchored on-chain so anyone can reproduce the quote.</p>
+            <p>Optional Monte-Carlo fair value + bid/ask, snapshot hash anchored on-chain so anyone can reproduce the quote.</p>
           </div>
         </section>
 
@@ -109,11 +107,10 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
           </div>
           <CodeBlock code={interfaceExample} />
           <p className="op-api-note">
-            That&apos;s the whole contract. The market CPIs into whatever program
-            is set as <code>oracle</code> on the market account and reads one
-            byte back; anything but <code>[1]</code> reverts the transaction
-            and no funds move. Your validator never touches lamports — it can
-            only say yes or no. Our own attestation validator implementation is{" "}
+            The market CPIs into whatever program is set as its <code>oracle</code>{" "}
+            and reads one byte back. Anything but <code>[1]</code> reverts —
+            no funds move. Your validator can only say yes or no; it never
+            touches lamports. Ours:{" "}
             <a
               href="https://github.com/sneldao/stoppage/tree/main/programs/attestation_validator"
               target="_blank"
@@ -121,7 +118,6 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
             >
               ~40 lines, dependency-free, deployed ↗
             </a>
-            .
           </p>
           <ValidatorRail />
         </section>
@@ -134,18 +130,18 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
           <CodeBlock code={codeExample} />
           <VerifyLatestQuote quote={latest} market={latestMarket} />
           <p className="op-api-note">
-            The quote, snapshot, model, and seed fully determine the price.
-            Reproduce it yourself to confirm Matchkeeper wasn&apos;t gamed.
+            Quote + snapshot + model + seed fully determine the price.
+            Reproduce it and confirm Matchkeeper wasn&apos;t gamed.
           </p>
         </section>
 
         <section className="op-moat">
           <h2>Why this is defensible</h2>
           <ul>
-            <li><strong>Settlement is proof-gated.</strong> No operator discretion, no admin key. The CPI result is the authority.</li>
-            <li><strong>Oracle-agnostic by contract.</strong> The market program never learns which oracle produced the receipt — proven live with a Merkle-proof sports oracle (TxLINE), a guardian-verified price oracle (Pyth), and an ed25519-signed operator attestor.</li>
-            <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof a user can re-verify without trusting anyone.</li>
-            <li><strong>The schlep is the moat.</strong> Borsh encoding, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
+            <li><strong>Settlement is proof-gated.</strong> No operator discretion — the CPI result is the authority.</li>
+            <li><strong>Oracle-agnostic, demonstrated.</strong> Merkle-proof sports oracle, guardian-verified price oracle, ed25519 attestor. Three, live.</li>
+            <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof users can re-verify trustlessly.</li>
+            <li><strong>The schlep is the moat.</strong> Borsh, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
           </ul>
         </section>
 

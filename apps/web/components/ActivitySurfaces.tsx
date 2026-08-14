@@ -25,8 +25,8 @@ import type { TickerItem, TickerSource } from "@/store/tickerSlice";
  * narrower than the viewport — with few items on devnet, that was the
  * blank-space bug. The rAF approach:
  *
- *   1. Renders N copies of the item set (N = 4, enough to overflow any
- *      reasonable screen so there's always content visible).
+ *   1. Renders N copies of the item set (N = enough to overflow the
+ *      visible viewport + one for the wrap, clamped — see copiesFor).
  *   2. Each frame, advances the scroll position by speed * deltaTime.
  *   3. When position exceeds one set's width, wraps it back by exactly
  *      one set width — the next copy is pixel-identical, so the wrap
@@ -65,15 +65,24 @@ const SOURCE_BADGE: Record<TickerSource, string> = {
 /** Scroll speed in pixels per second — tuned for 10px monospace text. */
 const SCROLL_SPEED_PX_PER_SEC = 38;
 
+/** Hard ceiling on rendered item-set copies, however wide the screen. */
+const MAX_TICKER_COPIES = 6;
+
 /**
- * Number of item-set copies rendered — computed dynamically so the loop
- * is seamless (enough copies to cover the viewport + one for the wrap)
- * but never visibly repetitive: when paused on hover, the user sees the
- * list once or twice, not four times. Fallback before first measure.
+ * Number of item-set copies rendered — computed so the loop is seamless
+ * (enough copies to cover the visible viewport + one for the wrap) but
+ * never visibly repetitive: when paused on hover, the user sees the list
+ * once or twice, not six times. Fallback before first measure.
+ *
+ * IMPORTANT: `viewportWidth` must be the visible ticker bar's width, NOT
+ * the track's. The track is `flex-shrink: 0`, so its width equals its
+ * content (copies × set width) — measuring it makes the formula return
+ * `copies + 1`, and the ResizeObserver feedback loop grows copies without
+ * bound (the 50×-repeated ticker + main-thread saturation bug).
  */
 function copiesFor(setWidth: number, viewportWidth: number): number {
   if (setWidth <= 0 || viewportWidth <= 0) return 2;
-  return Math.max(2, Math.ceil(viewportWidth / setWidth) + 1);
+  return Math.min(MAX_TICKER_COPIES, Math.max(2, Math.ceil(viewportWidth / setWidth) + 1));
 }
 
 function EventToasts({ toasts, dismiss }: { toasts: MatchEvent[]; dismiss: (id: string) => void }) {
@@ -123,6 +132,7 @@ export function ActivitySurfaces() {
   const dismissToast = useStoppageStore((s) => s.dismissToast);
 
   // rAF scroll state — refs only, no React re-renders per frame.
+  const barRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const setElRef = useRef<HTMLDivElement | null>(null);
   const positionRef = useRef(0);
@@ -131,22 +141,23 @@ export function ActivitySurfaces() {
 
   const hasItems = tickerItems.length > 0;
 
-  // Render just enough copies of the item set to cover the viewport +1 for
-  // the wrap — not a fixed 4. When the feed is short (few live items), 4
-  // copies put the same handful of entries on screen at once and the scroll
-  // reads as repetition instead of a live feed.
+  // Render just enough copies of the item set to cover the visible bar +1
+  // for the wrap — not a fixed 4. When the feed is short (few live items),
+  // 4 copies put the same handful of entries on screen at once and the
+  // scroll reads as repetition instead of a live feed. Measure the bar
+  // (visible viewport), never the track (content-sized, would feed back).
   const [copies, setCopies] = useState(2);
   useEffect(() => {
     const compute = () => {
       const setWidth = setElRef.current?.offsetWidth ?? 0;
-      const viewport = trackRef.current?.clientWidth || window.innerWidth;
+      const viewport = barRef.current?.clientWidth || window.innerWidth;
       const next = copiesFor(setWidth, viewport);
       setCopies((c) => (c === next ? c : next));
     };
     compute();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(compute) : null;
     if (setElRef.current) ro?.observe(setElRef.current);
-    if (trackRef.current) ro?.observe(trackRef.current);
+    if (barRef.current) ro?.observe(barRef.current);
     window.addEventListener("resize", compute);
     return () => {
       ro?.disconnect();
@@ -199,6 +210,7 @@ export function ActivitySurfaces() {
       {hasItems && (
         <div
           className="global-ticker"
+          ref={barRef}
           aria-label="Live activity feed"
           onMouseEnter={() => { pausedRef.current = true; }}
           onMouseLeave={() => { pausedRef.current = false; }}

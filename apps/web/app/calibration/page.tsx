@@ -103,7 +103,7 @@ export default function CalibrationPage() {
         </section>
 
         <section className="cal-cta">
-          <p>Building an agent, a sportsbook, or a prediction market? License the verifiable pricing + settlement layer.</p>
+          <p>Want verifiable pricing on your own markets?</p>
           <Link href="/operators" className="cal-cta-link">See the operator API →</Link>
         </section>
       </div>
