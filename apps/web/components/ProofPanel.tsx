@@ -54,7 +54,12 @@ export function ProofPanel({ market }: ProofPanelProps) {
           </div>
           <span className="proof-status">Voided</span>
         </div>
-        <p>Market was voided — no proof to verify (full refunds).</p>
+        <details className="disclose">
+          <summary>Why voided <i aria-hidden="true" /></summary>
+          <div className="disclose__body">
+            <p>Market was voided — no proof to verify (full refunds).</p>
+          </div>
+        </details>
         <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">
           Inspect market account <span>↗</span>
         </a>
@@ -72,7 +77,12 @@ export function ProofPanel({ market }: ProofPanelProps) {
           </div>
           <span className="proof-status">Open</span>
         </div>
-        <p>{oracle.waitingParagraph}</p>
+        <details className="disclose">
+          <summary>What it&apos;s waiting for <i aria-hidden="true" /></summary>
+          <div className="disclose__body">
+            <p>{oracle.waitingParagraph}</p>
+          </div>
+        </details>
         <a className="proof-explorer-link" href={explorerUrl} target="_blank" rel="noreferrer">
           Inspect market account <span>↗</span>
         </a>
@@ -132,7 +142,12 @@ export function ProofPanel({ market }: ProofPanelProps) {
         </div>
         <span className="proof-status verified">Receipt available</span>
       </div>
-      <p>{oracle.settledParagraph}</p>
+      <details className="disclose">
+        <summary>How it settled <i aria-hidden="true" /></summary>
+        <div className="disclose__body">
+          <p>{oracle.settledParagraph}</p>
+        </div>
+      </details>
 
       <div className="proof-details">
         <div>
@@ -202,11 +217,14 @@ export function ProofPanel({ market }: ProofPanelProps) {
               <span>Anchored root</span>
               <strong>{shortHash(verify.data.merkleRoot, 10)}</strong>
             </div>
-            <p className="proof-hash">
-              {verify.data.merkleRoot}
-            </p>
+            <details className="disclose">
+              <summary>Full anchored root <i aria-hidden="true" /></summary>
+              <div className="disclose__body">
+                <p className="proof-hash">{verify.data.merkleRoot}</p>
+              </div>
+            </details>
             <p className="proof-valid-msg">
-              The recorded settlement receipt matches this market&apos;s outcome and contains a valid anchored root. Inspect the settlement transaction for the on-chain validation.
+              ✓ Receipt matches this market&apos;s outcome — valid anchored root.
             </p>
           </>
         )}

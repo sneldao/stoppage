@@ -4263,13 +4263,30 @@ body {
 .op-api-head h2 { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
 .op-api-sub { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
 .op-code { margin: 18px 0 0; padding: 20px; border: 1px solid var(--line); background: #0b1428; color: #c3d0e1; font: 500 11px/1.7 "DM Mono", monospace; white-space: pre-wrap; overflow-x: auto; }
-.op-api-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; max-width: 640px; }
+
+/* === Layered-info primitives ===
+   Prose is the fallback tier, never the default. `.disclose` is the house
+   disclosure: the summary is a small mono link (glance), the body holds
+   the paragraph (read, on demand). `.skim-list` pairs a bold claim with
+   an inline disclosure so support text never shares the line with it. */
+.disclose { margin-top: 14px; }
+.disclose summary { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; list-style: none; }
+.disclose summary::-webkit-details-marker { display: none; }
+.disclose summary i { display: inline-block; width: 6px; height: 6px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform 180ms var(--ease); }
+.disclose[open] summary i { transform: rotate(-135deg) translateY(-1px); }
+.disclose__body { max-width: 640px; margin-top: 10px; }
+.disclose__body p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.disclose__body .proof-hash { font: 500 9px/1.5 "DM Mono", monospace; word-break: break-all; }
+.disclose__body code { color: var(--ink); font-family: "DM Mono", monospace; }
+.disclose__body a { color: var(--blue); text-underline-offset: 3px; }
+
+.skim-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 13px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.55; }
+.skim-list strong { color: var(--ink); font-size: 13px; }
+.skim-list .disclose--inline { flex-basis: 100%; margin-top: 2px; }
 
 .op-moat { margin-top: 44px; }
 .op-moat h2 { margin: 0 0 18px; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
 .op-moat ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-.op-moat li { padding: 13px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.55; }
-.op-moat strong { color: var(--ink); }
 
 /* Operators code block copy button */
 .op-code-wrap { position: relative; margin: 18px 0 0; }

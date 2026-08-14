@@ -106,19 +106,24 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
             <span className="op-api-sub">your program decides</span>
           </div>
           <CodeBlock code={interfaceExample} />
-          <p className="op-api-note">
-            The market CPIs into whatever program is set as its <code>oracle</code>{" "}
-            and reads one byte back. Anything but <code>[1]</code> reverts —
-            no funds move. Your validator can only say yes or no; it never
-            touches lamports. Ours:{" "}
-            <a
-              href="https://github.com/sneldao/stoppage/tree/main/programs/attestation_validator"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              ~40 lines, dependency-free, deployed ↗
-            </a>
-          </p>
+          <details className="disclose">
+            <summary>How the gate works <i aria-hidden="true" /></summary>
+            <div className="disclose__body">
+              <p>
+                The market CPIs into whatever program is set as its <code>oracle</code>{" "}
+                and reads one byte back. Anything but <code>[1]</code> reverts —
+                no funds move. Your validator can only say yes or no; it never
+                touches lamports. Ours:{" "}
+                <a
+                  href="https://github.com/sneldao/stoppage/tree/main/programs/attestation_validator"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ~40 lines, dependency-free, deployed ↗
+                </a>
+              </p>
+            </div>
+          </details>
           <ValidatorRail />
         </section>
 
@@ -129,19 +134,48 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
           </div>
           <CodeBlock code={codeExample} />
           <VerifyLatestQuote quote={latest} market={latestMarket} />
-          <p className="op-api-note">
-            Quote + snapshot + model + seed fully determine the price.
-            Reproduce it and confirm Matchkeeper wasn&apos;t gamed.
-          </p>
+          <details className="disclose">
+            <summary>Reproduce any quote <i aria-hidden="true" /></summary>
+            <div className="disclose__body">
+              <p>
+                Quote + snapshot + model + seed fully determine the price.
+                Reproduce it and confirm Matchkeeper wasn&apos;t gamed.
+              </p>
+            </div>
+          </details>
         </section>
 
         <section className="op-moat">
           <h2>Why this is defensible</h2>
-          <ul>
-            <li><strong>Settlement is proof-gated.</strong> No operator discretion — the CPI result is the authority.</li>
-            <li><strong>Oracle-agnostic, demonstrated.</strong> Merkle-proof sports oracle, guardian-verified price oracle, ed25519 attestor. Three, live.</li>
-            <li><strong>The receipt is the artifact.</strong> Every settlement emits a proof users can re-verify trustlessly.</li>
-            <li><strong>The schlep is the moat.</strong> Borsh, proof alignment, CPI path — if it were easy, Polymarket would already do it.</li>
+          <ul className="skim-list">
+            <li>
+              <strong>Settlement is proof-gated.</strong>
+              <details className="disclose disclose--inline">
+                <summary>How <i aria-hidden="true" /></summary>
+                <div className="disclose__body"><p>No operator discretion, no admin key — the CPI result is the authority.</p></div>
+              </details>
+            </li>
+            <li>
+              <strong>Oracle-agnostic, demonstrated.</strong>
+              <details className="disclose disclose--inline">
+                <summary>Three live <i aria-hidden="true" /></summary>
+                <div className="disclose__body"><p>Merkle-proof sports oracle, guardian-verified price oracle, ed25519 operator attestor.</p></div>
+              </details>
+            </li>
+            <li>
+              <strong>The receipt is the artifact.</strong>
+              <details className="disclose disclose--inline">
+                <summary>Re-verifiable <i aria-hidden="true" /></summary>
+                <div className="disclose__body"><p>Every settlement emits a proof users can re-verify trustlessly.</p></div>
+              </details>
+            </li>
+            <li>
+              <strong>The schlep is the moat.</strong>
+              <details className="disclose disclose--inline">
+                <summary>The hard part <i aria-hidden="true" /></summary>
+                <div className="disclose__body"><p>Borsh, proof alignment, CPI path — if it were easy, Polymarket would already do it.</p></div>
+              </details>
+            </li>
           </ul>
         </section>
 
