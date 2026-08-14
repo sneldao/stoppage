@@ -12,7 +12,7 @@ const BANDS = [
 ] as const;
 
 const TICK_STEP = (Math.PI / 180) * 6;
-const TICK_HALF = (Math.PI / 180) * 0.5;
+const TICK_ON = Math.PI / 180;
 const FRAME_MS = 33;
 
 type RingState = {
@@ -76,23 +76,27 @@ export function StadiumDial() {
       const cx = width / 2;
       const cy = width / 2;
       const radius = width / 2;
-      ctx.strokeStyle = "rgba(245, 248, 252, 0.11)";
-      ctx.lineWidth = 1;
-      ctx.lineCap = "butt";
+      ctx.fillStyle = "rgba(245, 248, 252, 0.11)";
       for (let i = 0; i < BANDS.length; i++) {
         const band = BANDS[i];
         const inner = band.inner * radius;
         const outer = band.outer * radius;
-        const a0 = rings[i].angle - TICK_HALF;
+        const a0 = rings[i].angle;
         ctx.beginPath();
         for (let a = 0; a < Math.PI * 2; a += TICK_STEP) {
-          const t = a0 + a;
-          const c = Math.cos(t);
-          const s = Math.sin(t);
-          ctx.moveTo(cx + c * inner, cy + s * inner);
-          ctx.lineTo(cx + c * outer, cy + s * outer);
+          const t0 = a0 + a;
+          const t1 = t0 + TICK_ON;
+          const c0 = Math.cos(t0);
+          const s0 = Math.sin(t0);
+          const c1 = Math.cos(t1);
+          const s1 = Math.sin(t1);
+          ctx.moveTo(cx + c0 * inner, cy + s0 * inner);
+          ctx.lineTo(cx + c0 * outer, cy + s0 * outer);
+          ctx.lineTo(cx + c1 * outer, cy + s1 * outer);
+          ctx.lineTo(cx + c1 * inner, cy + s1 * inner);
+          ctx.closePath();
         }
-        ctx.stroke();
+        ctx.fill();
       }
     };
 
