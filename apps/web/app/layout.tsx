@@ -8,6 +8,7 @@ import { AppMonitors } from "@/components/AppMonitors";
 import { LivePnLStrip } from "@/components/LivePnLStrip";
 import { ActivitySurfaces } from "@/components/ActivitySurfaces";
 import { OddsMovementAlerts } from "@/components/OddsMovementAlerts";
+import { StadiumDial } from "@/components/StadiumDial";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -72,6 +73,7 @@ export default function RootLayout({
       <body>
         <WalletContextProvider>
           <ReferralInit />
+          <StadiumDial />
           <ChainMonitor />
           <AppMonitors />
           <InstrumentNav />

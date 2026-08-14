@@ -137,3 +137,15 @@ export function MatchPulse({ live, signalVersion, lastSignalType, className = "m
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
+
+/** Quiet full-page field for calibration and operators. */
+export function PagePulse() {
+  return (
+    <MatchPulse
+      live={false}
+      signalVersion={0}
+      lastSignalType={null}
+      className="match-pulse match-pulse--page"
+    />
+  );
+}

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { CalibrationQuoteRow } from "@/components/CalibrationQuoteRow";
 import { CalibrationScoreboard } from "@/components/CalibrationScoreboard";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
+import { PagePulse } from "@/components/MatchPulse";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
@@ -22,12 +22,9 @@ export default function CalibrationPage() {
   const replayActive = useStoppageStore((s) => Boolean(s.replayStatus?.active));
 
   return (
-    <main className="page-shell calibration-page">
+    <main className="page-shell page-shell--field calibration-page">
+      <PagePulse />
       <div className="page-shell-content">
-        <div className="cal-grooves" aria-hidden="true">
-          <SpinningGrooves size={360} rings={5} color="var(--blue)" counterRotate speed={0.5} />
-        </div>
-
         <ElectricBorder variant="lime" speed={0.7} displacement={18} active>
           <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
         </ElectricBorder>

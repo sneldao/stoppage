@@ -2457,24 +2457,24 @@ body {
   background: transparent;
 }
 
-/* A restrained stadium-clock dial follows every route. The double radial
-   mask keeps the motif atmospheric rather than turning it into decoration. */
-.app-shell::before {
+/* Stadium-clock dial — four concentric tick rings, each rotated in JS. */
+.stadium-dial {
   position: fixed;
-  z-index: -1;
+  z-index: 0;
   top: 72px;
   right: 0;
   width: 100vw;
   height: calc(100vh - 72px);
-  background: repeating-conic-gradient(from -1deg, rgba(245,248,252,.11) 0 1deg, transparent 1deg 6deg)
-    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
-  opacity: .7;
-  content: "";
+  overflow: hidden;
   pointer-events: none;
-  -webkit-mask: radial-gradient(circle, transparent 0 56%, #000 57% 72%, transparent 73%)
-    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
-  mask: radial-gradient(circle, transparent 0 56%, #000 57% 72%, transparent 73%)
-    calc(100% + 15rem) 0 / min(58vw, 52rem) min(58vw, 52rem) no-repeat;
+  opacity: .7;
+}
+.stadium-dial-face {
+  position: absolute;
+  top: 0;
+  right: -15rem;
+  width: min(58vw, 52rem);
+  height: min(58vw, 52rem);
 }
 
 /* Fine pitch/telemetry lines make otherwise quiet pages feel connected to
@@ -2710,17 +2710,15 @@ body {
 /* Keep the clock present on phones as atmosphere rather than dropping the
    app's defining motif exactly where visual continuity matters most. */
 @media (max-width: 800px) {
-  .app-shell::before {
+  .stadium-dial {
     top: 48px;
-    width: 100vw;
     height: calc(100vh - 48px);
-    background-position: calc(100% + 13rem) 0;
-    background-size: 34rem 34rem;
     opacity: .5;
-    -webkit-mask-position: calc(100% + 13rem) 0;
-    -webkit-mask-size: 34rem 34rem;
-    mask-position: calc(100% + 13rem) 0;
-    mask-size: 34rem 34rem;
+  }
+  .stadium-dial-face {
+    right: -13rem;
+    width: 34rem;
+    height: 34rem;
   }
 
   .app-shell::after { inset-block-start: 66px; }
@@ -4062,18 +4060,30 @@ body {
   pointer-events: none;
   z-index: 0;
 }
-.cal-grooves, .op-grooves {
+.page-shell--field {
+  width: 100%;
+  margin: 0;
+}
+.page-shell--field::before { display: none; }
+.page-shell--field > .match-pulse--page {
   position: absolute;
-  top: 80px;
-  right: -80px;
-  width: 360px;
-  height: 360px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .22;
+  mix-blend-mode: screen;
+  filter: saturate(.85);
   pointer-events: none;
   z-index: 0;
-  opacity: .35;
 }
-.op-grooves { top: 60px; right: -60px; }
-.page-shell-content { position: relative; z-index: 1; }
+.page-shell-content {
+  position: relative;
+  z-index: 1;
+}
+.page-shell--field > .page-shell-content {
+  width: min(1000px, calc(100% - 48px));
+  margin: 0 auto;
+}
 .page-head { max-width: 720px; }
 .page-head--compact { margin-bottom: 0; }
 .page-head h1 { margin: 0; font: 400 clamp(44px, 5vw, 68px)/.9 "Instrument Serif", Georgia, serif; }

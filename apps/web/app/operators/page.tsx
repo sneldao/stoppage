@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { VerifyLatestQuote } from "@/components/VerifyLatestQuote";
 import { CodeBlock } from "@/components/CodeBlock";
 import { ValidatorRail } from "@/components/ValidatorRail";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
+import { PagePulse } from "@/components/MatchPulse";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
@@ -45,12 +45,9 @@ es.onmessage = (e) => {
 }`;
 
   return (
-    <main className="page-shell operators-page">
+    <main className="page-shell page-shell--field operators-page">
+      <PagePulse />
       <div className="page-shell-content">
-        <div className="op-grooves" aria-hidden="true">
-          <SpinningGrooves size={360} rings={5} color="var(--lime)" counterRotate speed={0.5} />
-        </div>
-
         <ElectricBorder variant="lime" speed={0.7} displacement={18} active>
           <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
         </ElectricBorder>
