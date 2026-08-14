@@ -186,6 +186,12 @@ export default function KeystonePage() {
         {/* ── Hero ── */}
         <ElectricBorder variant={phase === "in_play" ? "blue" : "lime"} speed={phase === "in_play" ? 1.5 : 0.8} displacement={24} active>
           <div className="keystone-hero">
+            {/* eslint-disable-next-line @next/next/no-img-element -- campaign still, not a layout image */}
+            <img
+              className="keystone-hero-still"
+              src="/campaign/hero.jpg"
+              alt=""
+            />
             <p className="eyebrow">The keystone · {KEYSTONE.league}</p>
             <h1>
               {KEYSTONE.homeTeam} v {KEYSTONE.awayTeam}
@@ -251,7 +257,15 @@ export default function KeystonePage() {
 
         {/* ── Lead capture ── */}
         <section className="keystone-notify-section" id="notify">
-          <NotifyForm />
+          <div className="keystone-notify-pasteup">
+            {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
+            <img
+              className="keystone-notify-still"
+              src="/campaign/hero.jpg"
+              alt=""
+            />
+            <NotifyForm />
+          </div>
         </section>
 
         {/* ── Receipts — fills in on Sunday ── */}

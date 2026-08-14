@@ -46,13 +46,22 @@ export function CalibrationScoreboard() {
           </span>
         </div>
         <div className="cal-empty">
-          <p className="cal-empty__lead">No scored settlements yet.</p>
-          <p className="cal-empty__hint">
-            {data?.settledCount
-              ? `${data.settledCount} market${data.settledCount !== 1 ? "s" : ""} settled on-chain but ${data.skippedNoQuote} lack a pricing receipt or agent quote to score against.`
-              : "When markets settle through the proof path, quoted fair values will be compared to outcomes here — no fabricated backtest."}
-            {" "}Primary score uses on-chain PricingReceipt; agent quote is the fallback.
-          </p>
+          <p className="cal-empty__lead">Nothing to score yet.</p>
+          {data?.settledCount ? (
+            <details className="disclose">
+              <summary>Why nothing scored <i aria-hidden="true" /></summary>
+              <div className="disclose__body">
+                <p>
+                  {data.skippedNoQuote} lack a pricing receipt or agent quote.
+                  Primary score uses on-chain PricingReceipt; agent quote is the fallback.
+                </p>
+              </div>
+            </details>
+          ) : (
+            <p className="cal-empty__hint">
+              Scored rows appear after a proof-gated settle with a quote attached.
+            </p>
+          )}
         </div>
       </section>
     );

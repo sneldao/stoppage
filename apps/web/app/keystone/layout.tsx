@@ -10,14 +10,14 @@ export const metadata: Metadata = {
     title: "One match, two truth paths — Stoppage keystone",
     description:
       "Orlando City v FC Cincinnati, Saturday: one market settles on a TxLINE Merkle proof, one on an operator attestation. Same contract, both verifiable.",
-    images: [{ url: "/og-image.png?v=2", width: 1200, height: 630 }],
+    images: [{ url: "/campaign/og.jpg", width: 1200, height: 630, alt: "Stoppage Time — Orlando City v FC Cincinnati" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "One match, two truth paths — Stoppage keystone",
     description:
       "Orlando City v FC Cincinnati, Saturday: one market settles on a TxLINE Merkle proof, one on an operator attestation. Same contract, both verifiable.",
-    images: ["/og-image.png?v=2"],
+    images: ["/campaign/og.jpg"],
   },
 };
 

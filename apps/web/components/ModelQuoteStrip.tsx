@@ -14,14 +14,23 @@ export function ModelQuoteStrip({ quotes, streaming, hero = false }: ModelQuoteS
   const visible = quotes.slice(0, 6);
   const lastTick = quotes[0]?.ts;
 
+  const quiet = quotes.length === 0;
+  const status = quiet
+    ? streaming
+      ? "Listening"
+      : "Quiet"
+    : streaming
+      ? "Model feed live"
+      : "Feed paused";
+
   return (
     <div
       className={`model-quote-strip${hero ? " model-quote-strip--hero" : ""}`}
       aria-live="polite"
     >
       <span className="model-quote-strip__status">
-        <i className={streaming ? "live-dot" : "schedule-dot"} />
-        {streaming ? "Model feed live" : "Model feed reconnecting"}
+        <i className={streaming && !quiet ? "live-dot" : "schedule-dot"} />
+        {status}
         {quotes.length > 0 && (
           <small>
             {quotes.length} line{quotes.length !== 1 ? "s" : ""}
@@ -33,7 +42,9 @@ export function ModelQuoteStrip({ quotes, streaming, hero = false }: ModelQuoteS
       </span>
       <div className="model-quote-strip__pills">
         {visible.length === 0 ? (
-          <span className="model-quote-strip__empty">No live quotes yet</span>
+          <Link href="/#live-stage" className="model-quote-strip__empty">
+            Start a replay →
+          </Link>
         ) : (
           visible.map((q) => (
             <Link key={q.marketId} href={`/markets/${q.marketId}`} className="model-quote-pill">

@@ -36,12 +36,15 @@ runs `check:ids` when program-related files are touched. Bypass with
 
 `apps/web/.env.local` is the Next.js local runtime file. It is gitignored
 and should stay mode `600` because it may contain `SHYFT_API_KEY`,
-`TXLINE_JWT`, and `TXLINE_API_TOKEN`. The repo-root `.env.local` is also
-gitignored and can be used as a local backup for command-line scripts or
-manual recovery if server secrets are wiped. Never stage either file.
+`TXLINE_JWT`, `TXLINE_API_TOKEN`, and `RUNWARE_API_KEY`. The repo-root
+`.env.local` is also gitignored and can be used as a local backup for
+command-line scripts or manual recovery if server secrets are wiped.
+Never stage either file.
 
-`SHYFT_API_KEY` is server-side only; do not expose it as `NEXT_PUBLIC_*`.
-The public board route tries Shyft first and falls back to the public
+`SHYFT_API_KEY` and `RUNWARE_API_KEY` are server-side only; do not
+expose them as `NEXT_PUBLIC_*`. Runware generates campaign stills from
+scripts; committed assets live under `apps/web/public/campaign/`. The
+public board route tries Shyft first and falls back to the public
 devnet RPC when the free Shyft plan rejects indexed `getProgramAccounts`.
 
 ### Agent commands

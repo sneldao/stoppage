@@ -161,6 +161,17 @@ tooltip), and the hero lede leads with the proof-gated guarantee.
 Follow-ups not addressed (scoped out by choice): globals.css
 decomposition, homepage hero simplification, session-fund sweep, CI.
 
+**Telegraph Hackathon assessed → Icebox (2026-08-14).**
+hackathon.telegraphprotocol.com — intelligence marketplace, not
+settlement infrastructure. Track 1 (Miners) and Track 2 (eval scripts)
+run Aug 17–31; Track 3 (apps on *their* miners) opens Aug 31–Sep 7.
+H1 prize pool is $5k USD, not the $15k series figure. The only
+transferable asset is `packages/txline` wrapped as a `SPORTS_SCORE` /
+`GAME_RESULT` miner — same sports-data edge as Delphi, settlement
+primitive unused. Track 3 would consume Telegraph API answers, not
+Merkle proofs, and opens after the Aug 15 keystone. Window collides
+with the first live MLS week and EPL start (Aug 21). Not entering.
+
 Free subscriptions are still 28-day and lapse silently — re-run
 `scripts/subscribe-txline.ts` every ~3.5 weeks. Paid tiers remain
 mainnet-only (useless for the devnet CPI path). Mainnet still needs
@@ -801,7 +812,13 @@ Recorded so they stop tempting us mid-sprint (see CLAUDE.md → Scope
 discipline): Delphi Agent Arena (Gensyn trading competition, assessed
 2026-08-10 — wrong chain, wrong role, window collides with the
 attestation keystone; revisit only if a future edition is
-settlement-infrastructure-shaped), SPL-token stakes, AMM/LMSR pricing
+settlement-infrastructure-shaped), Telegraph Hackathon (intelligence
+marketplace, assessed 2026-08-14 — wrong role: miner/eval wrapper or
+consumer of their sports APIs, not settlement infrastructure; Track 1/2
+Aug 17–31 collides with the MLS keystone and EPL start; Track 3 opens
+after the keystone and requires Telegraph miners not TxLINE proofs;
+revisit only if a later season is settlement-infrastructure-shaped),
+SPL-token stakes, AMM/LMSR pricing
 (vault-ratio odds are
 enough for the demo), mainnet anything (legal review first — see README
 compliance note), mobile app, ELO/agent-vs-agent markets, market

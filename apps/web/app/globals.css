@@ -57,7 +57,7 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 
 @media (max-width: 900px) {
   .spinning-grooves, .hero-groves, .market-hero-grooves { display: none; }
-  .cal-method, .op-pillars, .positions-tease-steps { grid-template-columns: 1fr; }
+  .cal-steps, .cal-method, .op-pillars, .positions-tease-steps { grid-template-columns: 1fr; }
 }
 
 .market-shell { width: min(760px, calc(100% - 32px)); min-height: 100vh; margin: 0 auto; padding: 22px 0 72px; }.market-loading { display: grid; place-content: center; gap: 15px; color: var(--muted); }.market-loading a { color: var(--blue); font-size: 13px; text-decoration: none; }.market-nav { display: flex; justify-content: space-between; gap: 15px; padding-bottom: 22px; border-bottom: 1px solid var(--line); color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }.market-nav a { color: var(--ink); text-decoration: none; }.market-nav span { display: flex; align-items: center; gap: 7px; }.market-hero { padding: 39px 0 30px; border-bottom: 1px solid var(--line); }.market-hero-meta, .market-context { display: flex; justify-content: space-between; gap: 13px; color: var(--muted); font: 500 10px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }.market-hero h1 { max-width: 680px; margin: 17px 0 23px; font: 400 clamp(40px, 7vw, 64px)/.9 "Instrument Serif", Georgia, serif; }.market-context { align-items: center; flex-wrap: wrap; }.market-context .status-pill { color: var(--blue); border-color: var(--blue); }
@@ -3748,6 +3748,45 @@ body {
   gap: 12px;
 }
 
+.empty-state-campaign {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: stretch;
+  min-height: 88px;
+  overflow: hidden;
+  border: 1px solid rgba(0,255,136,.35);
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 180ms var(--ease);
+}
+.empty-state-campaign:hover { border-color: var(--lime); }
+.empty-state-campaign img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  clip-path: polygon(0 0, 100% 4%, 92% 100%, 0 100%);
+}
+.empty-state-campaign-copy {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.empty-state-campaign-copy .eyebrow { margin: 0; color: var(--lime); }
+.empty-state-campaign-copy strong {
+  font: 400 20px/1.1 "Instrument Serif", Georgia, serif;
+}
+.empty-state-campaign-copy > span:last-child {
+  color: var(--lime);
+  font: 700 9px "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 .empty-state-section-head {
   display: flex;
   align-items: baseline;
@@ -4042,6 +4081,8 @@ body {
 .page-lede--short { margin-top: 14px; font-size: 13px; line-height: 1.6; max-width: 520px; }
 
 .model-quote-strip {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 18px;
@@ -4049,8 +4090,19 @@ body {
   padding: 11px 14px;
   border: 1px solid var(--line);
   background: rgba(10,14,23,.7);
-  overflow-x: auto;
 }
+.model-quote-strip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 12.5% 100%, 12.5% 12.5%;
+  opacity: .45;
+  pointer-events: none;
+}
+.model-quote-strip > * { position: relative; z-index: 1; }
 .model-quote-strip--hero {
   margin-top: 0;
   margin-bottom: 28px;
@@ -4075,12 +4127,16 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: nowrap;
+  overflow-x: auto;
 }
 .model-quote-strip__empty {
-  color: var(--muted-dim);
-  font: 500 11px "DM Mono", monospace;
+  color: var(--lime);
+  font: 700 10px "DM Mono", monospace;
+  letter-spacing: .06em;
   text-transform: uppercase;
+  text-decoration: none;
 }
+.model-quote-strip__empty:hover { text-decoration: underline; }
 .model-quote-pill {
   display: inline-flex;
   align-items: center;
@@ -4108,6 +4164,36 @@ body {
 .model-quote-pill strong { color: var(--lime); font: 500 13px "DM Mono", monospace; }
 .model-quote-pill small { color: var(--muted-dim); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
 
+.cal-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cal-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: #111827;
+  color: var(--ink);
+  font: 500 12px "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.cal-steps b {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--lime);
+  color: var(--lime);
+  font: 500 9px "DM Mono", monospace;
+}
+
 .cal-method { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 38px; }
 .cal-method-card { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 18px; border: 1px solid var(--line); background: #111827; }
 .cal-method-num { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--blue); color: var(--blue); font: 500 12px "DM Mono", monospace; }
@@ -4118,7 +4204,19 @@ body {
 .cal-board-head { display: flex; align-items: baseline; gap: 12px; }
 .cal-board-head h2 { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
 .cal-board-sub { color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
-.cal-empty { margin: 18px 0 0; padding: 22px; border: 1px solid var(--line); }
+.cal-empty { position: relative; overflow: hidden; margin: 18px 0 0; padding: 22px; border: 1px solid var(--line); background: var(--panel); }
+.cal-empty::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 12.5% 12.5%;
+  opacity: .4;
+  pointer-events: none;
+}
+.cal-empty > * { position: relative; z-index: 1; }
 .cal-empty__lead { margin: 0; color: var(--ink); font-size: 14px; }
 .cal-empty__hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .cal-table { margin-top: 18px; border-top: 1px solid var(--line); }
@@ -4229,9 +4327,11 @@ body {
 .verify-latest-quote__bad { margin: 0; color: #ff958c; font-size: 12px; line-height: 1.5; }
 
 .cal-cta, .op-cta { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
-.cal-cta p, .op-cta p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.cal-cta .keystone-banner, .op-cta .keystone-banner { margin-top: 0; margin-bottom: 16px; }
 .cal-cta-link, .op-cta-link { color: var(--blue); font: 500 11px "DM Mono", monospace; text-decoration: none; text-transform: uppercase; }
-.cal-cta-link span, .op-cta-link span { margin-left: 5px; }
+.op-cta-links { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+.op-api-lede { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; max-width: 520px; }
+.op-api-lede code { color: var(--lime); font-family: "DM Mono", monospace; }
 
 .op-oracles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
 .op-oracle { padding: 16px; border: 1px solid var(--line); background: #0d1420; }
@@ -4718,22 +4818,28 @@ body {
    ================================================================ */
 
 /* ── Banner (markets tape + home hero) ── */
-.keystone-banner { position: relative; display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 13px 16px; border: 1px solid rgba(0,255,136,.35); border-radius: 3px; background: linear-gradient(120deg, rgba(0,255,136,.07), rgba(17,29,58,.6) 55%); color: var(--ink); text-decoration: none; transition: border-color 180ms var(--ease), transform 180ms var(--ease); }
+.keystone-banner { position: relative; display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 8px 14px 8px 8px; border: 1px solid rgba(0,255,136,.35); border-radius: 3px; background: linear-gradient(120deg, rgba(0,255,136,.07), rgba(17,29,58,.6) 55%); color: var(--ink); text-decoration: none; overflow: hidden; transition: border-color 180ms var(--ease), transform 180ms var(--ease); }
 .keystone-banner:hover { border-color: var(--lime); transform: translateY(-1px); }
+.keystone-banner-still { flex-shrink: 0; width: 84px; height: 58px; overflow: hidden; clip-path: polygon(4% 0, 100% 3%, 96% 100%, 0 97%); background: #0c1428; }
+.keystone-banner-still img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 42%; }
 .keystone-banner-dot { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid rgba(0,255,136,.4); border-radius: 50%; background: rgba(0,255,136,.08); }
 .keystone-banner-dot .live-dot { width: 6px; height: 6px; }
 .keystone-banner-body { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .keystone-banner-body strong { font: 400 19px/1.05 "Instrument Serif", Georgia, serif; }
 .keystone-banner-sub { color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
 .keystone-banner-cta { flex-shrink: 0; color: var(--lime); font: 700 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
-.keystone-banner--compact { margin-top: 14px; padding: 10px 13px; }
+.keystone-banner--compact { margin-top: 14px; padding: 6px 12px 6px 6px; }
+.keystone-banner--compact .keystone-banner-still { width: 64px; height: 46px; }
 .keystone-banner--compact .keystone-banner-body strong { font-size: 15px; }
 
 /* ── Page shell ── */
 .keystone-page { width: min(100% - 32px, 760px); margin: 0 auto; padding: 42px 0 70px; display: grid; gap: 34px; }
 
 /* ── Hero ── */
-.keystone-hero { position: relative; padding: 30px 26px; }
+.keystone-hero { position: relative; padding: 30px 26px; overflow: hidden; isolation: isolate; min-height: 280px; }
+.keystone-hero-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 42%; z-index: 0; pointer-events: none; }
+.keystone-hero::after { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(12,20,40,.42) 0%, rgba(12,20,40,.78) 55%, rgba(12,20,40,.92) 100%); content: ""; }
+.keystone-hero > *:not(.keystone-hero-still) { position: relative; z-index: 2; }
 .keystone-hero h1 { margin: 10px 0 0; font: 400 clamp(34px, 6vw, 56px)/1.02 "Instrument Serif", Georgia, serif; }
 .keystone-hero-status { margin: 12px 0 0; color: var(--lime); font: 700 10px "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
 .keystone-hero-score { margin: 6px 0 0; color: var(--ink); font: 400 clamp(22px, 4vw, 34px)/1.1 "DM Mono", monospace; }
@@ -4773,7 +4879,9 @@ body {
 .keystone-market-card-cta--dead { color: var(--muted-dim); cursor: default; text-decoration: none; }
 
 /* ── Notify / lead capture ── */
-.keystone-notify { padding: 20px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel-warm); }
+.keystone-notify-pasteup { display: grid; grid-template-columns: minmax(0, 140px) 1fr; gap: 0; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; background: var(--panel-warm); }
+.keystone-notify-still { display: block; width: 100%; height: 100%; min-height: 160px; object-fit: cover; object-position: center 40%; clip-path: polygon(0 0, 100% 2%, 94% 100%, 0 100%); }
+.keystone-notify { padding: 20px; border: 0; border-radius: 0; background: transparent; }
 .keystone-notify-form { display: flex; gap: 8px; margin-top: 10px; }
 .keystone-notify-form input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 3px; background: #0c1428; color: var(--ink); font: 400 12px Manrope, sans-serif; }
 .keystone-notify-form input:focus { outline: none; border-color: var(--lime); }
@@ -4808,6 +4916,9 @@ body {
 @media (max-width: 800px) {
   .keystone-page { width: min(100% - 24px, 620px); padding: 28px 0 60px; gap: 26px; }
   .keystone-hero { padding: 22px 18px; }
+  .keystone-notify-pasteup { grid-template-columns: 1fr; }
+  .keystone-notify-still { min-height: 120px; max-height: 160px; clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%); }
+  .empty-state-campaign { grid-template-columns: 88px 1fr; }
   .keystone-timeline { grid-template-columns: repeat(2, 1fr); }
   .keystone-markets { grid-template-columns: 1fr; }
   .keystone-markets-vs { justify-self: center; }

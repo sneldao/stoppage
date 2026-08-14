@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { type TapeFilter, FILTER_LABEL } from "@/lib/markets/tapeFilters";
+import { KEYSTONE } from "@/lib/campaign/keystone";
 
 // Filter-specific messaging. The user picked this filter deliberately —
 // treat that choice as binding. No cross-pivot cards (don't drag in markets
@@ -91,6 +93,17 @@ export function MarketsEmptyState({
           </header>
           <p className="empty-state-hint">{copy.hint}</p>
         </div>
+        <Link href="/keystone#notify" className="empty-state-campaign">
+          {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
+          <img src="/campaign/hero.jpg" alt="" />
+          <span className="empty-state-campaign-copy">
+            <span className="eyebrow">Saturday&apos;s keystone</span>
+            <strong>
+              {KEYSTONE.homeTeam} v {KEYSTONE.awayTeam}
+            </strong>
+            <span>Two proof paths · get on the list →</span>
+          </span>
+        </Link>
       </section>
     );
   }

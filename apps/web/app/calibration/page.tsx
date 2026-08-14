@@ -5,15 +5,15 @@ import { SpinningGrooves } from "@/components/SpinningGrooves";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { CalibrationQuoteRow } from "@/components/CalibrationQuoteRow";
 import { CalibrationScoreboard } from "@/components/CalibrationScoreboard";
+import { ElectricBorder } from "@/components/ElectricBorder";
+import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
 
 /**
  * Calibration page — the public, verifiable "was the model right?" board.
- *
- * The leaderboard populates from settled markets as they resolve.
- * Until history accrues, the live model lines feed the board. No fabricated backtest numbers.
+ * Quotes vs on-chain receipts. No fabricated backtest numbers.
  */
 
 export default function CalibrationPage() {
@@ -28,40 +28,33 @@ export default function CalibrationPage() {
           <SpinningGrooves size={360} rings={5} color="var(--blue)" counterRotate speed={0.5} />
         </div>
 
-        <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+        <ElectricBorder variant="lime" speed={0.7} displacement={18} active>
+          <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+        </ElectricBorder>
 
         <header className="page-head page-head--compact">
           <p className="eyebrow">Verifiable calibration</p>
           <h1>Was the model right?</h1>
           <p className="page-lede page-lede--short">
-            Every quote is anchored to a Merkle-proven TxLINE snapshot and a published model.
-            Settled markets are scored against on-chain receipts — auditable, not a black box.
+            Live quotes scored against on-chain receipts. No backtest fiction.
           </p>
         </header>
 
-        <section className="cal-method">
-          <div className="cal-method-card">
-            <span className="cal-method-num">1</span>
-            <div>
-              <h3>Quote</h3>
-              <p>Monte Carlo fair value + bid/ask, published live and anchored to the exact match snapshot.</p>
-            </div>
+        <ol className="cal-steps" aria-label="How scoring works">
+          <li><b>1</b> Quote</li>
+          <li><b>2</b> Settle</li>
+          <li><b>3</b> Score</li>
+        </ol>
+        <details className="disclose">
+          <summary>How scoring works <i aria-hidden="true" /></summary>
+          <div className="disclose__body">
+            <p>
+              Monte Carlo fair value, anchored to a TxLINE snapshot. Proof-gated
+              settlement records the outcome. Brier score over those receipts —
+              public, reproducible.
+            </p>
           </div>
-          <div className="cal-method-card">
-            <span className="cal-method-num">2</span>
-            <div>
-              <h3>Settle</h3>
-              <p>Proof-gated resolution records the true outcome on-chain — no operator discretion.</p>
-            </div>
-          </div>
-          <div className="cal-method-card">
-            <span className="cal-method-num">3</span>
-            <div>
-              <h3>Score</h3>
-              <p>Brier score + calibration curve over all settled markets. Public, reproducible, trustless.</p>
-            </div>
-          </div>
-        </section>
+        </details>
 
         <CalibrationScoreboard />
 
@@ -70,18 +63,22 @@ export default function CalibrationPage() {
             <h2>Live model lines</h2>
             <span className="cal-board-sub">
               {quotes.length > 0
-                ? `${quotes.length} market${quotes.length !== 1 ? "s" : ""} priced`
-                : "feeding the calibration curve"}
+                ? `${quotes.length} priced`
+                : "awaiting first quote"}
             </span>
           </div>
           {quotes.length === 0 ? (
             <div className="cal-empty">
-              <p className="cal-empty__lead">Waiting for the first live quote.</p>
+              <p className="cal-empty__lead">No live quote yet.</p>
               <p className="cal-empty__hint">
-                {replayActive
-                  ? "Replay is running — Matchkeeper should publish lines shortly."
-                  : "Start a match replay and Matchkeeper will publish verifiable lines here."}
-                {" "}Settled markets will populate the Brier leaderboard as they resolve.
+                {replayActive ? (
+                  "Replay is running — lines should land shortly."
+                ) : (
+                  <>
+                    <Link href="/#live-stage">Start a replay →</Link>
+                    {" "}Matchkeeper publishes verifiable lines here.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -103,8 +100,8 @@ export default function CalibrationPage() {
         </section>
 
         <section className="cal-cta">
-          <p>Want verifiable pricing on your own markets?</p>
-          <Link href="/operators" className="cal-cta-link">See the operator API →</Link>
+          <KeystoneBanner />
+          <Link href="/operators" className="cal-cta-link">Operator API →</Link>
         </section>
       </div>
     </main>

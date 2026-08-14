@@ -6,17 +6,15 @@ import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { VerifyLatestQuote } from "@/components/VerifyLatestQuote";
 import { CodeBlock } from "@/components/CodeBlock";
 import { ValidatorRail } from "@/components/ValidatorRail";
+import { ElectricBorder } from "@/components/ElectricBorder";
+import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAllQuotes } from "@/lib/quotes/useAllQuotes";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
 
 /**
  * Operators page — the B2B surface.
- *
- * Positions Stoppage as the proof-gated settlement primitive: operators
- * bring their markets and their own oracle, Stoppage gates fund release
- * on an on-chain proof verification. Verifiable pricing is the supporting
- * differentiator, not the product.
+ * Proof-gated settlement is the product. Pricing is the supporting exhibit.
  */
 
 export default function OperatorsPage() {
@@ -26,45 +24,25 @@ export default function OperatorsPage() {
   const latestMarket = useStoppageStore((s) => (latest ? s.markets[latest.marketId] : undefined));
 
   const codeExample = latest
-    ? `// Latest live quote received at ${new Date(latest.ts).toISOString()}
-const es = new EventSource("/api/quotes/stream");
+    ? `const es = new EventSource("/api/quotes/stream");
 es.onmessage = (e) => {
   const { quote } = JSON.parse(e.data);
   // ${latest.label}
   // fairValue: ${(latest.result.fairValue * 100).toFixed(1)}¢
   // bid: ${(latest.result.bid * 100).toFixed(1)}¢  ask: ${(latest.result.ask * 100).toFixed(1)}¢
-  // model: ${latest.result.modelVersion}
 };`
-    : `// 1. Subscribe to the live verifiable quote line
-const es = new EventSource("/api/quotes/stream");
+    : `const es = new EventSource("/api/quotes/stream");
 es.onmessage = (e) => {
   const { quote } = JSON.parse(e.data);
-  // quote.result = { fairValue, bid, ask, ci, sims, modelVersion, seed }
-  // quote.snapshot = anchored TxLINE state the model priced from
-};
+  // quote.result.fairValue, bid, ask, seed, snapshot
+};`;
 
-// 2. Reproduce the quote in your own infra (no black box)
-const reproduced = priceMarket(
-  quote.predicate,
-  quote.snapshot,
-  MODEL_PARAMS,
-  quote.result.seed
-);
-// reproduced.fairValue === quote.result.fairValue -> verified
-
-// 3. Settle through proof-gated on-chain resolution`;
-
-  const interfaceExample = `// What your validator program implements (shape, not literal code):
-fn process_instruction(_pid, _accounts, data) -> ProgramResult {
-    let claim = Claim::try_from_slice(data)?;        // fixture_ref, key, value, reference_ts, op
-    let verdict: bool = verify_your_evidence(claim); // Merkle proof, price read, sig — anything
-    set_return_data(&[verdict as u8]);               // THE interface: one byte of return data
+  const interfaceExample = `fn process_instruction(_pid, _accounts, data) -> ProgramResult {
+    let claim = Claim::try_from_slice(data)?;
+    let verdict: bool = verify_your_evidence(claim);
+    set_return_data(&[verdict as u8]); // [1] settles; anything else reverts
     Ok(())
-}
-
-// resolve_market CPIs into market.oracle with the claim.
-// Return data [1] -> receipt written, funds become claimable.
-// Anything else     -> the whole transaction reverts.`;
+}`;
 
   return (
     <main className="page-shell operators-page">
@@ -73,53 +51,56 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
           <SpinningGrooves size={360} rings={5} color="var(--lime)" counterRotate speed={0.5} />
         </div>
 
-        <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+        <ElectricBorder variant="lime" speed={0.7} displacement={18} active>
+          <ModelQuoteStrip quotes={quotes} streaming={streaming} hero />
+        </ElectricBorder>
 
         <header className="page-head page-head--compact">
           <p className="eyebrow">For operators</p>
-          <h1>Settle markets only when a proof verifies</h1>
+          <h1>Settle only when a proof verifies</h1>
           <p className="page-lede page-lede--short">
-            Bring your markets, bring your oracle. Funds move only when a
-            proof verifies on-chain — no admin key, no dispute window.
-            Settle on evidence, not authority.
+            Bring the market and the oracle. Funds move on a bool — not a key.
           </p>
         </header>
 
-        <section className="op-pillars">
-          <div className="op-pillar">
-            <h3>Proof-gated settlement</h3>
-            <p>Funds move only if a CPI into your validator returns true. Anything else, the whole transaction reverts.</p>
+        <ol className="cal-steps" aria-label="What you get">
+          <li><b>CPI</b> one byte back</li>
+          <li><b>Oracle</b> yours, or ours</li>
+          <li><b>Quote</b> optional, reproducible</li>
+        </ol>
+        <details className="disclose">
+          <summary>The three claims <i aria-hidden="true" /></summary>
+          <div className="disclose__body">
+            <p>
+              Funds move only if a CPI into your validator returns true — anything
+              else reverts. Three oracles already live on the same receipt path:
+              TxLINE Merkle, Pyth, ed25519 attest. Pricing is optional Monte Carlo
+              anchored to a snapshot hash.
+            </p>
           </div>
-          <div className="op-pillar">
-            <h3>Bring your own oracle</h3>
-            <p>One receipt path, three structurally different oracles already live: TxLINE Merkle proof, Pyth guardian-verified, ed25519 operator attest. Your program plugs in the same way — if it returns a bool, it&apos;s a validator.</p>
-          </div>
-          <div className="op-pillar">
-            <h3>Verifiable pricing</h3>
-            <p>Optional Monte-Carlo fair value + bid/ask, snapshot hash anchored on-chain so anyone can reproduce the quote.</p>
-          </div>
-        </section>
+        </details>
 
         <section className="op-api">
           <div className="op-api-head">
-            <h2>The interface: one CPI, one bool</h2>
+            <h2>One CPI, one bool</h2>
             <span className="op-api-sub">your program decides</span>
           </div>
-          <CodeBlock code={interfaceExample} />
+          <p className="op-api-lede">
+            <code>[1]</code> writes the receipt and funds become claimable.
+            Anything else, the transaction reverts.
+          </p>
           <details className="disclose">
-            <summary>How the gate works <i aria-hidden="true" /></summary>
+            <summary>Show the validator shape <i aria-hidden="true" /></summary>
             <div className="disclose__body">
+              <CodeBlock code={interfaceExample} />
               <p>
-                The market CPIs into whatever program is set as its <code>oracle</code>{" "}
-                and reads one byte back. Anything but <code>[1]</code> reverts —
-                no funds move. Your validator can only say yes or no; it never
-                touches lamports. Ours:{" "}
+                Your validator can only say yes or no; it never touches lamports.{" "}
                 <a
                   href="https://github.com/sneldao/stoppage/tree/main/programs/attestation_validator"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  ~40 lines, dependency-free, deployed ↗
+                  Worked example ↗
                 </a>
               </p>
             </div>
@@ -129,68 +110,54 @@ fn process_instruction(_pid, _accounts, data) -> ProgramResult {
 
         <section className="op-api">
           <div className="op-api-head">
-            <h2>The API</h2>
-            <span className="op-api-sub">quote in, proof out</span>
+            <h2>Quote in, proof out</h2>
+            <span className="op-api-sub">optional pricing line</span>
           </div>
-          <CodeBlock code={codeExample} />
-          <VerifyLatestQuote quote={latest} market={latestMarket} />
           <details className="disclose">
-            <summary>Reproduce any quote <i aria-hidden="true" /></summary>
+            <summary>Subscribe to the stream <i aria-hidden="true" /></summary>
             <div className="disclose__body">
-              <p>
-                Quote + snapshot + model + seed fully determine the price.
-                Reproduce it and confirm Matchkeeper wasn&apos;t gamed.
-              </p>
+              <CodeBlock code={codeExample} />
             </div>
           </details>
+          <VerifyLatestQuote quote={latest} market={latestMarket} />
         </section>
 
         <section className="op-moat">
-          <h2>Why this is defensible</h2>
+          <h2>Why it holds</h2>
           <ul className="skim-list">
             <li>
-              <strong>Settlement is proof-gated.</strong>
-              <details className="disclose disclose--inline">
-                <summary>How <i aria-hidden="true" /></summary>
-                <div className="disclose__body"><p>No operator discretion, no admin key — the CPI result is the authority.</p></div>
-              </details>
+              <strong>Proof-gated.</strong>
+              CPI false → the tx reverts.
             </li>
             <li>
-              <strong>Oracle-agnostic, demonstrated.</strong>
-              <details className="disclose disclose--inline">
-                <summary>Three live <i aria-hidden="true" /></summary>
-                <div className="disclose__body"><p>Merkle-proof sports oracle, guardian-verified price oracle, ed25519 operator attestor.</p></div>
-              </details>
+              <strong>Oracle-agnostic.</strong>
+              Merkle, Pyth, and attest already live.
             </li>
             <li>
               <strong>The receipt is the artifact.</strong>
-              <details className="disclose disclose--inline">
-                <summary>Re-verifiable <i aria-hidden="true" /></summary>
-                <div className="disclose__body"><p>Every settlement emits a proof users can re-verify trustlessly.</p></div>
-              </details>
+              Anyone can re-verify it.
             </li>
             <li>
               <strong>The schlep is the moat.</strong>
-              <details className="disclose disclose--inline">
-                <summary>The hard part <i aria-hidden="true" /></summary>
-                <div className="disclose__body"><p>Borsh, proof alignment, CPI path — if it were easy, Polymarket would already do it.</p></div>
-              </details>
+              Borsh, proofs, CPI — if it were easy, it would already exist.
             </li>
           </ul>
         </section>
 
         <section className="op-cta">
-          <p>Want to settle your markets on a proof instead of a key?</p>
-          <Link href="/launch" className="op-cta-link">Launch a devnet market →</Link>
-          <Link href="/calibration" className="op-cta-link">See the calibration board →</Link>
-          <a
-            href="https://github.com/sneldao/stoppage/blob/main/docs/OPERATORS.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="op-cta-link"
-          >
-            Read the operator integration guide ↗
-          </a>
+          <KeystoneBanner />
+          <div className="op-cta-links">
+            <Link href="/launch" className="op-cta-link">Launch a market →</Link>
+            <Link href="/calibration" className="op-cta-link">Calibration board →</Link>
+            <a
+              href="https://github.com/sneldao/stoppage/blob/main/docs/OPERATORS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="op-cta-link"
+            >
+              Integration guide ↗
+            </a>
+          </div>
         </section>
       </div>
     </main>
