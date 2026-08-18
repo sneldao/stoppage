@@ -22,6 +22,8 @@ import {
   clusterApiUrl,
 } from "@solana/web3.js";
 import {
+  buildClaimBondIx,
+  buildClaimIx,
   buildCreateMarketIx,
   buildSettleFromProofIx,
   buildVoidMarketIx,
@@ -32,6 +34,8 @@ import {
   signQuote,
   deriveDailyScoresRootsPda,
   findMarketPdaFromPredicate,
+  findPositionPda,
+  getMarket,
   DEFAULT_ORACLE,
   type MarketPredicate,
   type Side,
@@ -109,6 +113,8 @@ const SETTLE_RETRY_INITIAL_MS = 5 * 60 * 1000;
 const SETTLE_RETRY_MAX_MS = 30 * 60 * 1000;
 const SETTLE_RETRY_GIVE_UP_MS = 8 * 60 * 60 * 1000;
 const SETTLE_RETRY_TICK_MS = 30 * 1000;
+/** Periodic housekeeping: give-up-void stale settlements + claim sweep. */
+const HOUSEKEEP_TICK_MS = 15 * 60 * 1000;
 
 export class Agent {
   private config: AgentConfig;
@@ -130,6 +136,9 @@ export class Agent {
   private teamNames = new Map<string, { home: string; away: string }>();
   private pendingSettlements = new Map<string, PendingSettlement>();
   private settleRetryTimer: ReturnType<typeof setInterval> | null = null;
+  private housekeepTimer: ReturnType<typeof setInterval> | null = null;
+  /** Every market this process created/settled/voided — the claim sweep set. */
+  private knownMarketPdas = new Set<string>();
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -151,6 +160,9 @@ export class Agent {
     this.settleRetryTimer = setInterval(() => {
       void this.processPendingSettlements();
     }, SETTLE_RETRY_TICK_MS);
+    this.housekeepTimer = setInterval(() => {
+      void this.housekeepPass();
+    }, HOUSEKEEP_TICK_MS);
     logger.info("Starting agent loop", {
       pendingSettlements: this.pendingSettlements.size,
     });
@@ -162,6 +174,10 @@ export class Agent {
     if (this.settleRetryTimer) {
       clearInterval(this.settleRetryTimer);
       this.settleRetryTimer = null;
+    }
+    if (this.housekeepTimer) {
+      clearInterval(this.housekeepTimer);
+      this.housekeepTimer = null;
     }
     this.persistPendingSettlements();
     this.config.source.stop();
@@ -305,15 +321,15 @@ export class Agent {
     );
   }
 
-  private async executeAction(action: AgentAction): Promise<void> {
-    await withSpan(
+  private async executeAction(action: AgentAction): Promise<ActionResult> {
+    return withSpan(
       "agent.execute_action",
       {
         "action.type": action.type,
         "match.id": action.predicate.matchId,
         "predicate.kind": action.predicate.kind,
       },
-      async () => {
+      async (): Promise<ActionResult> => {
         try {
           let result: ActionResult;
 
@@ -340,9 +356,13 @@ export class Agent {
 
           recordAction(action.type, result.success);
           this.config.onAction?.(action, result);
+          if (result.success && result.marketPda) {
+            this.knownMarketPdas.add(result.marketPda);
+          }
 
           // Delay between chain actions to avoid devnet rate limits
           await sleep(2000);
+          return result;
         } catch (err) {
           recordAction(action.type, false);
           logger.error("Action failed", {
@@ -351,6 +371,7 @@ export class Agent {
           });
           this.config.onAction?.(action, { success: false, error: String(err) });
           await sleep(3000);
+          return { success: false, error: String(err) };
         }
       }
     );
@@ -819,7 +840,123 @@ export class Agent {
     }
   }
 
-  private async voidMarket(
+  /**
+ * Housekeeping pass (Phase 2) — runs on HOUSEKEEP_TICK_MS. Mirrors
+ * scripts/housekeep.ts but inside the live loop with its own wallet.
+ *   A) Give-up-void pending settlements older than the retry window.
+ *   B) Claim sweep: creator bonds + held positions for markets we made.
+ * All idempotent: an already-claimed claim is a benign no-op.
+ */
+private async housekeepPass() {
+  if (!this.running) return;
+  const now = Date.now();
+
+  // A) Pending settlements past the give-up window: one final settle
+  //    attempt, then void so the market isn't left open forever.
+  for (const [key, pending] of [...this.pendingSettlements.entries()]) {
+    if (now - pending.enqueuedAt <= SETTLE_RETRY_GIVE_UP_MS) continue;
+    logger.info("housekeep: settlement give-up — final attempt, then void", {
+      label: pending.action.label,
+      "market.pda": key,
+      ageHours: Math.round((now - pending.enqueuedAt) / 3.6e6),
+    });
+
+    const attempt = await this.executeAction(pending.action);
+    if (attempt.success && attempt.marketPda) {
+      this.pendingSettlements.delete(key);
+      this.persistPendingSettlements();
+      continue;
+    }
+
+    const voidAction: AgentAction = {
+      type: "void_market",
+      predicate: pending.action.predicate,
+      label: pending.action.label,
+    };
+    await this.executeAction(voidAction);
+    this.pendingSettlements.delete(key);
+    this.persistPendingSettlements();
+  }
+
+  // B) Claim sweep over every market this process has touched. Skip in
+  //    dry-run (claims move real lamports).
+  if (this.config.dryRun) return;
+  for (const pda of [...this.knownMarketPdas]) {
+    await this.sweepClaims(pda);
+    await sleep(2000); // devnet pacing
+  }
+}
+
+/** Claim the creator bond + held position for one resolved market. */
+private async sweepClaims(marketPda: string) {
+  const { connection, wallet } = this.config;
+  let market;
+  try {
+    market = await getMarket(connection, new PublicKey(marketPda));
+  } catch {
+    return; // gone / not a readable Market account
+  }
+  if (market.status !== "settled" && market.status !== "void") return;
+  const marketPk = new PublicKey(marketPda);
+  const matchId = market.predicate.matchId;
+
+  if (market.creator === wallet.publicKey.toBase58() && !market.bondClaimed) {
+    try {
+      const sig = await this.sendClaimIx(buildClaimBondIx(wallet.publicKey, marketPk));
+      this.config.onMatchEvent?.({
+        occurredAt: Date.now(),
+        kind: "bond_claimed",
+        label: "housekeep: creator bond claimed",
+        matchId,
+        marketId: marketPda,
+        signature: sig,
+        source: "housekeep",
+      });
+      logger.info("housekeep: claimed creator bond", { "market.pda": marketPda, "tx.signature": sig });
+    } catch (err) {
+      if (!this.isClaimBenign(err)) logger.warn("housekeep: bond claim failed", { "market.pda": marketPda, error: String(err) });
+    }
+  }
+
+  const [posPda] = findPositionPda(marketPk, wallet.publicKey);
+  const posInfo = await connection.getAccountInfo(posPda);
+  if (posInfo) {
+    try {
+      const sig = await this.sendClaimIx(buildClaimIx(wallet.publicKey, marketPk));
+      this.config.onMatchEvent?.({
+        occurredAt: Date.now(),
+        kind: "claim_refund",
+        label: "housekeep: claimed payout/refund",
+        matchId,
+        marketId: marketPda,
+        signature: sig,
+        source: "housekeep",
+      });
+      logger.info("housekeep: claimed position", { "market.pda": marketPda, "tx.signature": sig });
+    } catch (err) {
+      if (!this.isClaimBenign(err)) logger.warn("housekeep: position claim failed", { "market.pda": marketPda, error: String(err) });
+    }
+  }
+}
+
+private async sendClaimIx(ix: TransactionInstruction): Promise<string> {
+  const { connection, wallet } = this.config;
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const tx = new Transaction({ feePayer: wallet.publicKey, blockhash, lastValidBlockHeight }).add(ix);
+  tx.sign(wallet);
+  const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+  await connection.confirmTransaction(sig, "confirmed");
+  const st = await connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
+  if (st.value[0]?.err) throw new Error(JSON.stringify(st.value[0].err));
+  return sig;
+}
+
+private isClaimBenign(err: unknown): boolean {
+  const s = err instanceof Error ? err.message : String(err);
+  return /BondAlreadyClaimed|NothingToClaim|NotPositionOwner/.test(s);
+}
+
+private async voidMarket(
     action: Extract<AgentAction, { type: "void_market" }>
   ): Promise<ActionResult> {
     const { connection, wallet, dryRun } = this.config;

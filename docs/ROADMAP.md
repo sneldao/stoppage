@@ -189,10 +189,14 @@ settled), and append `housekeep_void` / `bond_claimed` / `claim_refund`
 facts to the match ledger. Defaults to reading candidate market IDs from
 the ledger; pass `--market=<PDAs>` to target specific ones. `MatchEvent`
 kind/source union extended with the housekeep events. Reuses the same SDK
-+ TxLINE proof path as the keeper (`loop.settleMarket`). Cron wiring on the
-VPS runs it daily with the keeper wallet so keeper-created bonds get
-reclaimed automatically. TODO Phase 2 (fold into the agent loop) and
-Phase 3 (subscription autorenew + 401 health alert).
++ TxLINE proof path as the keeper (`loop.settleMarket`). The **same logic now
+also runs inside the live `stoppage-agent` loop (Phase 2)**: a 15-min
+housekeeping pass gives up on pending settlements after their 8h retry
+window (`SETTLE_RETRY_GIVE_UP_MS`) — final settle attempt, then void — and
+sweeps creator-bond + position claims for every market the process made,
+appending `bond_claimed` / `claim_refund` facts to the ledger. VPS cron
+(Phase 1) still runs daily for markets the loop didn't touch. TODO Phase 3
+(subscription autorenew + 401 health alert).
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
