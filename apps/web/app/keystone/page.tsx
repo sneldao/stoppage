@@ -15,6 +15,7 @@ import {
   KEYSTONE_TXLINE_PREDICATE,
   KEYSTONE_ATTEST_PREDICATE,
   NEXT_KEYSTONE,
+  nextKeystoneMarketId,
   nextKeystonePhase,
   nextKeystoneTimes,
 } from "@/lib/campaign/keystone";
@@ -192,7 +193,9 @@ export default function KeystonePage() {
               match settles, the proof gates the payout in the same transaction —
               no admin key moves a lamport. Total goals over 3.
             </p>
-            <Link className="cal-cta-link op-cta-link" href="/markets">Place your stake on match day ↗</Link>
+            <Link className="cal-cta-link op-cta-link" href={`/markets/${nextKeystoneMarketId()}`}>
+              Open the {NEXT_KEYSTONE.homeTeam} v {NEXT_KEYSTONE.awayTeam} slip ↗
+            </Link>
           </div>
         </ElectricBorder>
 
@@ -204,6 +207,18 @@ export default function KeystonePage() {
             <li><strong>Credential health guard</strong> — the data subscription is probed every 6h; a lapse alerts instead of silently 401ing.</li>
             <li><strong>No admin key</strong> — fund release is gated on the on-chain proof, always.</li>
           </ul>
+        </section>
+
+        {/* Guided flow — the first staked settle, in four steps */}
+        <section className="keystone-ops" aria-label="Your first staked settle — in four steps">
+          <p className="eyebrow">Your first staked settle · four steps</p>
+          <ol className="keystone-ops-list">
+            <li><strong>Delegate a session key</strong> — one wallet popup; afterwards bets sign with no popups.</li>
+            <li><strong>Fund the session</strong> — the session holds devnet SOL for stakes + fees.</li>
+            <li><strong>Place your stake</strong> — open the {NEXT_KEYSTONE.homeTeam} v {NEXT_KEYSTONE.awayTeam} slip, pick YES or NO.</li>
+            <li><strong>Settle &amp; claim</strong> — after the match, the proof gates the payout in the same tx; you claim it.</li>
+          </ol>
+          <p>M2 acceptance: two wallets on opposite sides, settled from a proof, vault drains to zero.</p>
         </section>
 
         <section className="keystone-markets" aria-label="The Aug 15 proof artifacts">

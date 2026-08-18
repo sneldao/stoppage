@@ -152,11 +152,26 @@ export const NEXT_KEYSTONE = {
   awayTeam: "Coventry",
   league: "EPL",
   competitionId: 8,
+  /** TxLINE fixture id (confirmed in snapshot 2026-08-18). */
+  fixtureId: 18146819,
   /** Sat 2026-08-21 19:00 UTC. */
   kickoffMs: Date.UTC(2026, 7, 21, 19, 0, 0),
   bettingOpenOffsetMs: 2 * 60 * 60 * 1000,
   estFullTimeOffsetMs: 2 * 60 * 60 * 1000,
 } as const;
+
+/** Matches the keeper's total_goals_over template (threshold 3, TxLINE oracle). */
+export const NEXT_KEYSTONE_PREDICATE: MarketPredicate = {
+  kind: "total_goals_over",
+  matchId: `ARS-COV-${NEXT_KEYSTONE.fixtureId}`,
+  params: { team: "", threshold: 3 },
+};
+
+/** The derived on-chain market PDA (pre-opened 2026-08-18). */
+export function nextKeystoneMarketId(): string {
+  const [pda] = findMarketPdaFromPredicate(NEXT_KEYSTONE_PREDICATE);
+  return pda.toBase58();
+}
 
 export type NextKeystonePhase = "countdown" | "betting_open" | "in_play" | "awaiting_receipts";
 

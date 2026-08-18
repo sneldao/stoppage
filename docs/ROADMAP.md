@@ -216,8 +216,18 @@ stake on match day". An operational-trust strip surfaces the self-healing
 keeper + 6h credential health guard — reliability presented as product.
 `KeystoneBanner` (home + tape) now hangs on `NEXT_KEYSTONE`; page metadata
 mirrors the new story. `MatchEventKind` housekeeper kinds surface in the
-Matchkeeper Status rail. **Remaining to check off: M2 acceptance — the Aug 21
-EPL market settled from a proof with real (devnet) stakes that drain.
+Matchkeeper Status rail.
+
+**Next keystone pre-opened + guided flow (2026-08-18).** The Arsenal v Coventry
+keystone market (FixtureId **18146819**, kickoff **2026-08-21 19:00 UTC**) was
+pre-opened on devnet at **`F1qU5vZ6ssoK3t8hJzoKcnXuGBEjKrm4G3JQbfN97QEj`**
+(create tx `42wHW184…`, goals-over-3, matchId `ARS-COV-18146819`), via the new
+idempotent `scripts/prep-epl-keystone.ts`. The /keystone Chapter 2 CTA now links
+straight to that market, and a "four steps" guided strip (delegate → fund →
+stake → settle & claim) is on the page. The full walkthrough lives in
+`docs/GUIDED_FLOW.md`. **Remaining to check off: M2 acceptance — the Aug 21 EPL
+market settled from a proof with real (devnet) stakes, winner claims, vault
+drains to zero.
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
