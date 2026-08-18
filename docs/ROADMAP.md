@@ -195,8 +195,15 @@ housekeeping pass gives up on pending settlements after their 8h retry
 window (`SETTLE_RETRY_GIVE_UP_MS`) — final settle attempt, then void — and
 sweeps creator-bond + position claims for every market the process made,
 appending `bond_claimed` / `claim_refund` facts to the ledger. VPS cron
-(Phase 1) still runs daily for markets the loop didn't touch. TODO Phase 3
-(subscription autorenew + 401 health alert).
+(Phase 1) still runs daily for markets the loop didn't touch. **Phase 3
+(2026-08-18):** `scripts/txline-health.ts` (`npm run txline:health`) probes
+TxLINE auth with a real authenticated call and fails loudly (exit 1 + alert
+log + optional `ALERT_WEBHOOK_URL` post); VPS cron runs it every 6h.
+`scripts/txline-renew.ts` (`npm run txline:renew`) computes the 4-week expiry
+from the creds file and, when within `--days` (default 7) or the probe fails,
+re-runs the subscribe flow; `--deploy` ships fresh creds to the VPS
+`.env.agent` and restarts the agent. Renewal must run where the subscriber
+wallet lives (the devnet deployer host).
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
