@@ -46,9 +46,10 @@ codebase supports both; the decision determines what to build next.
 - The "Verify this price" button is a demonstration that doubles as
   marketing — when the price reproduces, the differentiator is felt
   viscerally, not explained abstractly.
-- The global ticker is a retention loop — SOL price, live scores, and
-  on-this-day sports history keep the page open, increasing the
-  probability of conversion.
+- The global ticker is a retention loop — SOL price, live scores,
+  on-this-day sports history, and a WEB-badged press rail (ungrounded
+  headlines, never a verified result) keep the page open, increasing
+  the probability of conversion.
 
 **Things that don't scale (and should):**
 - Matchkeeper as a single PM2 process on one VPS. Proves the loop;

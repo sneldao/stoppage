@@ -4,10 +4,15 @@ import { NextResponse } from "next/server";
  * GET /api/ticker/enrichment — free external data for the global ticker.
  *
  * Fetches SOL spot price (Jupiter Price API, no key), today's major
- * sports fixtures (TheSportsDB free tier, no key), and "On this day"
- * sports history (Wikipedia REST API, no key). All external calls are
+ * sports fixtures (TheSportsDB free tier, no key), "On this day"
+ * sports history (Wikipedia REST API, no key), and a WEB-badged press
+ * rail (Firecrawl /search, keyless). All external calls are
  * server-side, time-boxed, and cached. Failures are silent — the
  * ticker degrades gracefully to internal rails only.
+ *
+ * TICKER ONLY. Do not import this module from proof, settlement,
+ * receipt, market, or /operators routes. Web headlines are ungrounded
+ * text — never a verified score or result.
  */
 
 export const runtime = "nodejs";
@@ -16,10 +21,14 @@ export const dynamic = "force-dynamic";
 const SOL_TIMEOUT_MS = 4000;
 const SPORTS_TIMEOUT_MS = 5000;
 const WIKI_TIMEOUT_MS = 5000;
+const WEB_TIMEOUT_MS = 6000;
+/** Firecrawl search costs credits; keep this well above the HTTP cache. */
+const WEB_CACHE_MS = 15 * 60 * 1000;
+const WEB_STALE_MS = 60 * 60 * 1000;
 
 interface EnrichmentItem {
   id: string;
-  source: "sol" | "sports" | "fact";
+  source: "sol" | "sports" | "fact" | "web";
   label: string;
   ts: number;
 }
@@ -198,17 +207,114 @@ async function fetchOnThisDay(): Promise<EnrichmentItem[]> {
   }
 }
 
+/**
+ * Decorative press rail. Keyless Firecrawl /search (optional
+ * FIRECRAWL_API_KEY for higher limits). Cached in-process so a busy
+ * ticker does not burn the monthly credit pool. Never used as a score,
+ * result, or settlement input.
+ */
+const WEB_QUERIES = [
+  "Premier League news",
+  "MLS soccer news",
+  "Champions League football news",
+  "La Liga news",
+] as const;
+
+const WEB_SKIP_HOST =
+  /youtube\.com$|youtu\.be$|tiktok\.com$|oddschecker\.com$|draftkings\.com$|fanduel\.com$|bet365\.com$/i;
+
+type WebCache = { items: EnrichmentItem[]; fetchedAt: number };
+let webCache: WebCache | null = null;
+
+function hostnameOf(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+function cleanHeadline(title: string): string {
+  return title.replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
+}
+
+async function fetchWebHeadlinesUncached(): Promise<EnrichmentItem[]> {
+  const query = WEB_QUERIES[Math.floor(Date.now() / WEB_CACHE_MS) % WEB_QUERIES.length];
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const resp = await fetch("https://api.firecrawl.dev/v2/search", {
+    method: "POST",
+    headers,
+    signal: AbortSignal.timeout(WEB_TIMEOUT_MS),
+    cache: "no-store",
+    body: JSON.stringify({
+      query,
+      limit: 3,
+      sources: ["news"],
+      timeout: WEB_TIMEOUT_MS,
+    }),
+  });
+  if (!resp.ok) return [];
+  const payload = (await resp.json()) as {
+    success?: boolean;
+    data?: {
+      news?: Array<{ title?: string; url?: string; snippet?: string }>;
+      web?: Array<{ title?: string; url?: string; description?: string }>;
+    };
+  };
+  const rows = payload.data?.news ?? payload.data?.web ?? [];
+  if (!Array.isArray(rows)) return [];
+  const ts = Date.now();
+  const items: EnrichmentItem[] = [];
+  for (const row of rows) {
+    if (items.length >= 3) break;
+    const title = typeof row.title === "string" ? cleanHeadline(row.title) : "";
+    const url = typeof row.url === "string" ? row.url : "";
+    const host = url ? hostnameOf(url) : null;
+    if (!title || !host || WEB_SKIP_HOST.test(host)) continue;
+    items.push({
+      id: `web:${url}`,
+      source: "web",
+      label: `${truncateAtWord(title, 90)}${host ? ` · ${host}` : ""}`,
+      ts,
+    });
+  }
+  return items;
+}
+
+async function fetchWebHeadlines(): Promise<EnrichmentItem[]> {
+  const now = Date.now();
+  if (webCache && now - webCache.fetchedAt < WEB_CACHE_MS) return webCache.items;
+  try {
+    const items = await fetchWebHeadlinesUncached();
+    if (items.length > 0) {
+      webCache = { items, fetchedAt: now };
+      return items;
+    }
+    if (webCache && now - webCache.fetchedAt < WEB_STALE_MS) return webCache.items;
+    return [];
+  } catch {
+    if (webCache && now - webCache.fetchedAt < WEB_STALE_MS) return webCache.items;
+    return [];
+  }
+}
+
 export async function GET() {
-  const [solItem, sportsItems, factItems] = await Promise.all([
+  const [solItem, sportsItems, factItems, webItems] = await Promise.all([
     withTimeout(fetchSolPrice(), SOL_TIMEOUT_MS, null),
     withTimeout(fetchSportsFixtures(), SPORTS_TIMEOUT_MS, [] as EnrichmentItem[]),
     withTimeout(fetchOnThisDay(), WIKI_TIMEOUT_MS, [] as EnrichmentItem[]),
+    withTimeout(fetchWebHeadlines(), WEB_TIMEOUT_MS, webCache?.items ?? []),
   ]);
 
   const items: EnrichmentItem[] = [];
   if (solItem) items.push(solItem);
   items.push(...sportsItems);
   items.push(...factItems);
+  items.push(...webItems);
 
   return NextResponse.json(
     { items },

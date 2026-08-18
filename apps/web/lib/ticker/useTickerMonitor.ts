@@ -6,8 +6,9 @@
  * Reads from slices already populated by other hooks (activityFeed,
  * agentData, fixtures, markets) and derives TickerItems for the
  * global-ticker. No new fetches — this is pure derivation from store
- * state. External rails (SOL price, sports fixtures) are handled by
- * useTickerEnrichment.
+ * state. External rails (SOL, sports, on-this-day, web headlines) are
+ * handled by useTickerEnrichment, which source-whitelists before merge
+ * so press copy can never paint as protocol/fixture.
  *
  * Mount ONCE from the layout — every consumer reads tickerItems from
  * the store.

@@ -14,8 +14,8 @@ import type { TickerItem, TickerSource } from "@/store/tickerSlice";
  * Mounts the single activity feed poll (useActivityFeedMonitor), the
  * unified ticker monitor (useTickerMonitor — merges internal rails),
  * and the external enrichment poll (useTickerEnrichment — SOL price,
- * sports fixtures, Wikipedia on-this-day). Renders the fixed-bottom
- * ticker + slide-in toasts from the store.
+ * sports fixtures, Wikipedia on-this-day, web headlines). Renders the
+ * fixed-bottom ticker + slide-in toasts from the store.
  *
  * ── Ticker scroll: requestAnimationFrame, not CSS keyframes ──
  *
@@ -59,6 +59,7 @@ const SOURCE_BADGE: Record<TickerSource, string> = {
   pool: "TVL",
   sol: "SOL",
   sports: "SPORT",
+  web: "WEB",
   fact: "OTD",
 };
 

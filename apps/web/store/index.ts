@@ -21,7 +21,8 @@ export { TOAST_KINDS } from "./activityFeedSlice";
 export type { OddsPoint } from "./oddsHistorySlice";
 export type { ReplayStatus } from "./replaySlice";
 export type { BoardData, BoardEntry, OddsShift } from "./agentDataSlice";
-export type { TickerItem, TickerSource } from "./tickerSlice";
+export type { TickerItem, TickerSource, ExternalTickerSource } from "./tickerSlice";
+export { EXTERNAL_TICKER_SOURCES } from "./tickerSlice";
 
 export type StoppageStore = MarketsSlice & PositionsSlice & ReferralSlice & HistorySlice & ActivitySlice & ActivityFeedSlice & FixturesSlice & OddsHistorySlice & ReplaySlice & AgentDataSlice & TickerSlice;
 
