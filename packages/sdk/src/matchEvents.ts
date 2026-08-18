@@ -13,7 +13,10 @@ export type MatchEventKind =
   | "position_submitted"
   | "decision_logged"
   | "quote_updated"
-  | "inventory_skew";
+  | "inventory_skew"
+  | "housekeep_void"
+  | "bond_claimed"
+  | "claim_refund";
 
 export interface MatchEvent {
   id: string;
@@ -24,5 +27,5 @@ export interface MatchEvent {
   fixtureId?: number;
   marketId?: string;
   signature?: string;
-  source: "txline" | "matchkeeper" | "solana" | "wallet";
+  source: "txline" | "matchkeeper" | "solana" | "wallet" | "housekeep";
 }

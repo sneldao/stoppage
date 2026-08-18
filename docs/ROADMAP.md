@@ -179,6 +179,20 @@ or mis-routed devnet RPC, not state loss.** Verified live on devnet
   8)** — now unblocked. Recreate the keystone market for an EPL fixture
   under TxLINE, and drive a real **staked** settle so the M2 acceptance
   finally ticks.
+
+**Housekeeping automated (2026-08-18, Phase 1).** `scripts/housekeep.ts`
+is an idempotent cleanup/claim housekeeper (`npm run housekeep`):
+settle-or-void stale markets (void only past closes_at + grace **and**
+`--min-stale-hours`, default 8h, so it can't preempt the keeper's ~8h proof
+window), claim creator bonds + held positions (refund on void, payout on
+settled), and append `housekeep_void` / `bond_claimed` / `claim_refund`
+facts to the match ledger. Defaults to reading candidate market IDs from
+the ledger; pass `--market=<PDAs>` to target specific ones. `MatchEvent`
+kind/source union extended with the housekeep events. Reuses the same SDK
++ TxLINE proof path as the keeper (`loop.settleMarket`). Cron wiring on the
+VPS runs it daily with the keeper wallet so keeper-created bonds get
+reclaimed automatically. TODO Phase 2 (fold into the agent loop) and
+Phase 3 (subscription autorenew + 401 health alert).
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
