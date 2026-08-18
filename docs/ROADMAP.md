@@ -203,7 +203,21 @@ log + optional `ALERT_WEBHOOK_URL` post); VPS cron runs it every 6h.
 from the creds file and, when within `--days` (default 7) or the probe fails,
 re-runs the subscribe flow; `--deploy` ships fresh creds to the VPS
 `.env.agent` and restarts the agent. Renewal must run where the subscriber
-wallet lives (the devnet deployer host).
+wallet lives (the devnet deployer host). macOS LaunchAgent
+`com.stoppage.txline-renew` runs it daily 09:10 with `--days=5 --deploy`.
+
+**Frontend / product (2026-08-18).** `/keystone` was repointed from a
+pre-match MLS-lead page to a two-chapter story reflecting reality:
+**Chapter 1 — "the proof is the authority, it held"** (Aug 15 receipts: TxLINE
+path settled NO by CPI, attested path voided + bond reclaimed) and
+**Chapter 2 — the next keystone, the first staked settle** (Arsenal v Coventry,
+EPL comp 8, Sat 2026-08-21 19:00 UTC) with a live countdown and "place your
+stake on match day". An operational-trust strip surfaces the self-healing
+keeper + 6h credential health guard — reliability presented as product.
+`KeystoneBanner` (home + tape) now hangs on `NEXT_KEYSTONE`; page metadata
+mirrors the new story. `MatchEventKind` housekeeper kinds surface in the
+Matchkeeper Status rail. **Remaining to check off: M2 acceptance — the Aug 21
+EPL market settled from a proof with real (devnet) stakes that drain.
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"

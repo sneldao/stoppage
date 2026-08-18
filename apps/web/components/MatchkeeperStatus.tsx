@@ -33,6 +33,9 @@ function eventLabel(event: MatchEvent) {
     decision_logged: "Decision",
     quote_updated: "Quote",
     inventory_skew: "Inventory",
+    housekeep_void: "Housekeeper",
+    bond_claimed: "Bond",
+    claim_refund: "Claim",
   };
   return `${prefix[event.kind]} · ${event.label}`;
 }

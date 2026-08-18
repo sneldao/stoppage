@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Orlando City v FC Cincinnati — two markets, two proof paths",
+  title: "The keystone — proof held, next: the first staked settle",
   description:
-    "Sat 23:30 UTC: the same MLS fixture settles two ways — a TxLINE Merkle-proof market and an operator-attested market. Betting opens 21:30 UTC. Proof-gated settlement on Solana devnet.",
+    "Chapter 1: the Aug 15 MLS fixture settled by a live TxLINE Merkle proof, on-chain, in one transaction. Chapter 2: Arsenal v Coventry — the same proof path with a real stake. Solana devnet.",
   openGraph: {
     type: "website",
     url: "https://stoppage.sportwarren.com/keystone",
-    title: "One match, two truth paths — Stoppage keystone",
+    title: "Proof-gated settlement that held — Stoppage keystone",
     description:
-      "Orlando City v FC Cincinnati, Saturday: one market settles on a TxLINE Merkle proof, one on an operator attestation. Same contract, both verifiable.",
-    images: [{ url: "/campaign/og.jpg", width: 1200, height: 630, alt: "Stoppage Time — Orlando City v FC Cincinnati" }],
+      "One market, one TxLINE Merkle proof path, your stake on the line. When the match settles, the proof gates the payout in the same transaction. No admin key decides anything.",
+    images: [{ url: "/campaign/og.jpg", width: 1200, height: 630, alt: "Stoppage — the proof is the authority" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "One match, two truth paths — Stoppage keystone",
+    title: "Proof-gated settlement that held — Stoppage keystone",
     description:
-      "Orlando City v FC Cincinnati, Saturday: one market settles on a TxLINE Merkle proof, one on an operator attestation. Same contract, both verifiable.",
+      "One market, one TxLINE proof path, your stake on the line. The proof gates the payout in the same transaction — no admin key.",
     images: ["/campaign/og.jpg"],
   },
 };

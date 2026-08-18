@@ -118,3 +118,62 @@ export function keystoneCalendarHref(): string {
   ].join("\r\n");
   return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
 }
+
+// ── Chapter 1 outcome — proof achieved (2026-08-16) ─────────────────
+// Static on-chain facts recorded in the ROADMAP settlement ledger.
+// Derived PDAs are computed via keystoneMarketIds(); these are the
+// verified receipts, not predictions.
+export const KEYSTONE_OUTCOME = {
+  /** TxLINE-path receipt: settled NO (total goals ≤ 3). */
+  txline: {
+    outcome: "No" as const,
+    settlesAtIso: "2026-08-16T01:48:28Z",
+    verifications: 1,
+    settleTx:
+      "4VH87BkRfRBgPTQEkCcuFnECJNm3Ldaniot6UHeyPp1G4Yc8bBWKo4CdTJ8BMK34e8JDmYEB5k3Vrd8uw4zwJYAs",
+    note:
+      "Settled by a TxLINE Merkle proof via CPI inside the settlement tx — released without an admin key.",
+  },
+  /** Operator-attested market: past its observation window, voided + bond reclaimed. */
+  attest: {
+    voided: true as const,
+    note:
+      "The operation window expired before a signed observation landed; voided (full refund) and the creation bond reclaimed — by the housekeeper.",
+  },
+  /** Honest caveat the campaign must keep front-and-center. */
+  caveat:
+    "Fact check: the Aug 15 keystone settled by proof but carried no real stakes. The point is now proven once with real money on the next one.",
+} as const;
+
+// ── Chapter 2: NEXT keystone — the first staked settle ───────────────
+// Arsenal v Coventry, EPL (competition 8), Sat 2026-08-21 19:00 UTC.
+export const NEXT_KEYSTONE = {
+  homeTeam: "Arsenal",
+  awayTeam: "Coventry",
+  league: "EPL",
+  competitionId: 8,
+  /** Sat 2026-08-21 19:00 UTC. */
+  kickoffMs: Date.UTC(2026, 7, 21, 19, 0, 0),
+  bettingOpenOffsetMs: 2 * 60 * 60 * 1000,
+  estFullTimeOffsetMs: 2 * 60 * 60 * 1000,
+} as const;
+
+export type NextKeystonePhase = "countdown" | "betting_open" | "in_play" | "awaiting_receipts";
+
+export function nextKeystonePhase(now: number, bothSettled: boolean): NextKeystonePhase {
+  if (bothSettled) return "awaiting_receipts";
+  const open = NEXT_KEYSTONE.kickoffMs - NEXT_KEYSTONE.bettingOpenOffsetMs;
+  const ft = NEXT_KEYSTONE.kickoffMs + NEXT_KEYSTONE.estFullTimeOffsetMs;
+  if (now < open) return "countdown";
+  if (now < NEXT_KEYSTONE.kickoffMs) return "betting_open";
+  if (now < ft) return "in_play";
+  return "awaiting_receipts";
+}
+
+export function nextKeystoneTimes() {
+  return {
+    bettingOpensMs: NEXT_KEYSTONE.kickoffMs - NEXT_KEYSTONE.bettingOpenOffsetMs,
+    kickoffMs: NEXT_KEYSTONE.kickoffMs,
+    estFullTimeMs: NEXT_KEYSTONE.kickoffMs + NEXT_KEYSTONE.estFullTimeOffsetMs,
+  };
+}
