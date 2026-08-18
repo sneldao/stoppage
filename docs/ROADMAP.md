@@ -225,9 +225,14 @@ pre-opened on devnet at **`F1qU5vZ6ssoK3t8hJzoKcnXuGBEjKrm4G3JQbfN97QEj`**
 idempotent `scripts/prep-epl-keystone.ts`. The /keystone Chapter 2 CTA now links
 straight to that market, and a "four steps" guided strip (delegate → fund →
 stake → settle & claim) is on the page. The full walkthrough lives in
-`docs/GUIDED_FLOW.md`. **Remaining to check off: M2 acceptance — the Aug 21 EPL
-market settled from a proof with real (devnet) stakes, winner claims, vault
-drains to zero.
+`docs/GUIDED_FLOW.md`. **Rehearsed + staged (2026-08-18):** the full M2 loop
+(fund → two opposing stakes → settle from a TxLINE proof → winner claim →
+vault drains) was replayed end-to-end on a fresh devnet market
+`8kGrM5wNJhKkLk6hYsFSLxydzzYXBUWvXkVNKTyMmBFs` (settled, outcome yes,
+verifications 1). The real keystone market now holds **both opposing sides**
+(deployer YES + opponent NO, 0.01 each) via `scripts/stage-keystone.ts`.
+**Remaining to check off: M2 acceptance — the Aug 21 EPL market settles from
+a proof, winner claims, vault drains to zero.
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"

@@ -8,6 +8,15 @@ from a TxLINE proof, winner claims, vault drains to zero.
 All devnet. All proof-gated. Devnet SOL is free (faucet). Set a session limit.
 
 ---
+> **Status (2026-08-18):** the loop was **rehearsed end-to-end with real
+> stakes** on a fresh devnet market via `scripts/create-proof-board-demo.ts`
+> (fund → deployer YES → opponent NO → settle from a TxLINE proof → winner
+> claim → vault drains): market `8kGrM5wNJhKkLk6hYsFSLxydzzYXBUWvXkVNKTyMmBFs`,
+> `status settled, outcome yes, verifications 1`. The **real Arsenal–Coventry
+> market is pre-opened and both opposing sides are staged** (deployer YES +
+> opponent NO, 0.01 each, `scripts/stage-keystone.ts`). Remaining: matchday
+> kickoff → keeper settles from the proof → winner claims → vault drains.
+---
 
 ## The target
 
