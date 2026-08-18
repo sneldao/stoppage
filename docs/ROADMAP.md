@@ -132,6 +132,53 @@ TxLINE-oracle market on the same fixture settles from a TxODDS Merkle
 proof. Two oracles, one match, two receipts — comparison artifact, not
 a permanent dual plane.
 
+## Aug 15–18 keystone settlement record (2026-08-18)
+
+**The Aug 15 keystone (Orlando City vs FC Cincinnati) DID settle — earlier
+"account gone / getAccountInfo null / nothing settled" reports were a stale
+or mis-routed devnet RPC, not state loss.** Verified live on devnet
+(2026-08-18):
+
+- **TxLINE keystone market** `6yCQDodZwwnLX9zXVYjjuUt4LSazBvcWZvzWrWvjSX3W`
+  (goals-over-3, fixture 17615188) — **`settled`, outcome `no`,
+  settlesAt 2026-08-16T01:48:28Z, verifications 1**. Settle tx
+  `4VH87BkRf…` shows `ResolveMarket` → **CPI into the TxLINE devnet
+  validator `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` → success** —
+  a genuine proof-gated settlement produced by the live keeper, the
+  on-chain proof-is-the-authority moment the roadmap was waiting for.
+  **Caveat:** yesPool/noPool = 0 → no real stakes landed, so the full M1/M2
+  acceptance (two wallets join opposite sides, winner claims, vault drains
+  to zero, loser's claim fails) is **still unmet**. Creation bond claimed
+  (creator wallet) 2026-08-18 (`6aW2Y1uN…`).
+- **Attestation market (same fixture)** (`5Ji2788zjyk5jC2JxSWcCxDFA2vtqJMQqgDHjmiBLryL`) —
+  stayed **`open`**, 0 verifications, settlesAt null through match day; the
+  Aug 15 attest runbook was never run. Since the attestation observation
+  window (kickoff+105m+4h) has long expired, late settle was impossible;
+  it was **voided** 2026-08-18 (`4TAu73Hs…`) and its creation bond claimed
+  (`2RVGttkVq…`). The 0.005 YES stake is a stuck refund for position owner
+  `MMFsiGn5eE…` (a key not in our possession) — left, negligible devnet
+  amount.
+- **Root cause for "keeper silent on match day": it wasn't silent — it was
+  blocked by an expired TxLINE free subscription.** `subscribedAt` was
+  2026-07-18; the free tier is 4 weeks, so it lapsed around 2026-08-15.
+  `stoppage-agent` logs (Aug 16–17) show `Proof fetch/build failed: Stat
+  validation failed: 401` retrying every 30m. The keystone settle that DID
+  land (01:48 Aug 16) beat the credential lapse; everything afterwards
+  couldn't fetch a proof.
+- **4 keeper-created MLS markets from the Aug 15 kickoffs never settled**
+  (SOU-WHI-17615192, FC-DAL-17615274, CIT-UNI-17615276, FIR-TIM-17615190):
+  all `open`, zero stakes, stuck on the same 401. **Voided manually
+  2026-08-18** (each creation bond refundable to the keeper wallet).
+- **Subscription renewed 2026-08-18** (on-chain subscribe tx via
+  `scripts/subscribe-txline.ts`) and the refreshed credentials were synced
+  to the VPS `.env.agent`; `stoppage-agent` restarted with `--update-env`.
+  Probe confirms API auth is healthy (no 401): MLS (comp 33) 62, EPL
+  (comp 8) 290. `TXLINE_COMPETITIONS` set to `33,8` so EPL is covered from
+  Aug 21.
+- **Next: keystone EPL re-attempt (Aug 21, Arsenal v Coventry, EPL comp
+  8)** — now unblocked. Recreate the keystone market for an EPL fixture
+  under TxLINE, and drive a real **staked** settle so the M2 acceptance
+  finally ticks.
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
