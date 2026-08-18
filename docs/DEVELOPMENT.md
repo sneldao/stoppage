@@ -59,8 +59,8 @@ npx tsx apps/agent/src/index.ts replay <fixtureId>
 
 # Live transactions on devnet (requires funded wallet + Helius RPC):
 npx tsx apps/agent/src/index.ts live --live-tx
-# MLS-only (competition IDs: see Competition in @stoppage/txline):
-npx tsx apps/agent/src/index.ts live --live-tx --competitions=33
+# MLS + EPL (competition IDs: see Competition in @stoppage/txline):
+npx tsx apps/agent/src/index.ts live --live-tx --competitions=33,8
 
 # Price markets (Pyth oracle — no TxLINE needed, free Hermes data):
 npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
@@ -116,7 +116,7 @@ Practical consequences:
   it to `PAST_FIXTURES` in `apps/agent/src/index.ts`.
 - **Live mode is unaffected** — the SSE stream and fixtures snapshot
   work for any currently-covered match regardless of age. Scope with
-  `TXLINE_COMPETITIONS` / `--competitions=` (e.g. `33` for MLS-only).
+  `TXLINE_COMPETITIONS` / `--competitions=` (e.g. `33,8` for MLS + EPL).
 - **The settlement primitive is unaffected** — the CPI path, proof
   verification, and SDK consume whatever proof the API returns for a
   fixture in window; the borsh encoding and Merkle logic don't care
@@ -197,7 +197,8 @@ with `--update-env`, and curls the health endpoint. Override the SSH
 host or remote dir with `SSH_HOST=...` / `REMOTE_DIR=...` env vars.
 
 `TXLINE_JWT`, `TXLINE_API_TOKEN`, and `TXLINE_NETWORK` are preferred at
-runtime. `TXLINE_COMPETITIONS` (comma-separated, e.g. `33` for MLS)
+runtime. `TXLINE_COMPETITIONS` (comma-separated, e.g. `33,8` for MLS
++ EPL)
 filters the fixture map; empty/absent means all snapshot fixtures.
 The legacy `.txline-credentials.json` file remains supported for
 local development only, but local ignored env files are the better backup
