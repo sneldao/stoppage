@@ -18,21 +18,15 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
-  ComputeBudgetProgram,
   clusterApiUrl,
 } from "@solana/web3.js";
 import {
   buildClaimBondIx,
   buildClaimIx,
   buildCreateMarketIx,
-  buildSettleFromProofIx,
   buildVoidMarketIx,
-  buildAttestVerificationIx,
-  buildResolveMarketIx,
-  buildTxlineValidateStatData,
   buildAttestPricingIx,
   signQuote,
-  deriveDailyScoresRootsPda,
   findMarketPdaFromPredicate,
   findPositionPda,
   getMarket,
@@ -43,18 +37,13 @@ import {
 } from "@stoppage/sdk";
 import { hashSnapshot, deriveSeed } from "@stoppage/quant";
 import {
-  fetchStatValidation,
-  toBytes32,
-  normalizeProof,
-  epochDayFromTimestamp,
-  TXLINE_CONFIG,
   type Network,
   type TxLineCredentials,
   type NormalizedEvent,
-  type StatValidationResponse,
 } from "@stoppage/txline";
 import type { MatchEvent } from "@stoppage/sdk";
 import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket } from "./strategy";
+import { buildSettleFromProofIxs, attestVerification } from "./settle";
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
 import { QuoteTracker } from "./quoteTracker";
@@ -381,6 +370,16 @@ export class Agent {
         skipPreflight: true,
       });
       await this.config.connection.confirmTransaction(sig, "confirmed");
+      // Confirmation alone doesn't surface program errors — a tx can
+      // be "confirmed" yet reverted on-chain. Check the status or the
+      // keeper logs false successes and drops retries.
+      const st = await this.config.connection.getSignatureStatuses([sig], {
+        searchTransactionHistory: true,
+      });
+      const err = st.value[0]?.err;
+      if (err) {
+        throw new Error(`tx reverted on-chain: ${JSON.stringify(err)} (${sig})`);
+      }
       return sig;
     });
   }
@@ -494,111 +493,48 @@ export class Agent {
     if (!market.marketPda) {
       return { success: false, error: "Market PDA unknown" };
     }
+    // Capture the narrowed PDA (property narrowing doesn't survive closures).
+    const marketPdaKey = new PublicKey(market.marketPda);
 
-    // Fetch a TxLINE validation proof. A market remains open if proof
-    // retrieval or its proof-gated transaction fails, so the keeper can retry.
+    // Fetch a TxLINE validation proof and build the resolve+settle
+    // instructions (shared implementation: ./settle.ts). A market stays
+    // open if proof retrieval or the proof-gated tx fails, so the
+    // keeper can retry.
     let proofSummary = "";
-    let resolveIx: TransactionInstruction | null = null;
+    let settleIxs: TransactionInstruction[] | null = null;
     const outcome: Side = action.outcome === "yes" ? "yes" : "no";
 
     if (txlineNetwork && txlineCreds && action.seq > 0 && action.statKey > 0) {
       try {
         const fixtureId = this.fixtureIdForMatch(action.predicate.matchId);
         if (fixtureId) {
-          const proof = await withSpan(
+          const built = await withSpan(
             "proof_fetch",
             {
               "fixture.id": fixtureId,
               "match.id": action.predicate.matchId,
               "market.pda": market.marketPda,
             },
-            async () =>
-              fetchStatValidation(
-                txlineNetwork,
-                txlineCreds,
+            () =>
+              buildSettleFromProofIxs({
+                network: txlineNetwork,
+                creds: txlineCreds,
                 fixtureId,
-                action.seq,
-                action.statKey
-              )
+                seq: action.seq,
+                statKey: action.statKey,
+                statKey2: action.statKey2,
+                // The predicate threshold comes from the market's params
+                // (e.g. "over 3 goals" → threshold=3).
+                threshold: Number(action.predicate.params.threshold ?? 0),
+                outcome,
+                statement: action.label,
+                marketPda: marketPdaKey,
+                wallet: wallet.publicKey,
+              })
           );
           recordProofFetch(true);
-          proofSummary = ` (proof: ${proof.statProof.length} stat nodes + ${proof.subTreeProof.length} subtree + ${proof.mainTreeProof.length} main, value=${proof.statToProve.value})`;
-
-          // Verify the proof locally before submitting on-chain
-          const statProofNorm = normalizeProof(proof.statProof);
-          const subTreeProofNorm = normalizeProof(proof.subTreeProof);
-          const mainTreeProofNorm = normalizeProof(proof.mainTreeProof);
-          const eventStatRootBytes = toBytes32(proof.eventStatRoot);
-          const subTreeRootBytes = toBytes32(proof.summary.eventStatsSubTreeRoot);
-
-          // Build the validate_stat instruction data
-          const txlineProgramId = new PublicKey(TXLINE_CONFIG[txlineNetwork].programId);
-          // Per TxLINE docs: derive epoch day from minTimestamp, not maxTimestamp
-          const epochDay = epochDayFromTimestamp(proof.summary.updateStats.minTimestamp);
-          const [dailyScoresRoots] = deriveDailyScoresRootsPda(txlineProgramId, epochDay);
-
-          const statProofForChain = statProofNorm.map((n) => ({
-            hash: n.hash,
-            isRightSibling: n.isRightSibling,
-          }));
-          const subTreeProofForChain = subTreeProofNorm.map((n) => ({
-            hash: n.hash,
-            isRightSibling: n.isRightSibling,
-          }));
-          const mainTreeProofForChain = mainTreeProofNorm.map((n) => ({
-            hash: n.hash,
-            isRightSibling: n.isRightSibling,
-          }));
-
-          const txlineIxData = buildTxlineValidateStatData({
-            // Per TxLINE docs: ts = minTimestamp in milliseconds
-            ts: proof.summary.updateStats.minTimestamp,
-            fixtureSummary: {
-              fixtureId: proof.summary.fixtureId,
-              updateStats: {
-                updateCount: proof.summary.updateStats.updateCount,
-                minTimestamp: proof.summary.updateStats.minTimestamp,
-                maxTimestamp: proof.summary.updateStats.maxTimestamp,
-              },
-              eventsSubTreeRoot: subTreeRootBytes,
-            },
-            fixtureProof: subTreeProofForChain,
-            mainTreeProof: mainTreeProofForChain,
-            predicate: {
-              // The predicate threshold comes from the market's params
-              // (e.g. "over 3 goals" → threshold=3).
-              threshold: Number(action.predicate.params.threshold ?? 0),
-              comparison: 0, // GreaterThan — "over" markets
-            },
-            statA: {
-              statToProve: {
-                key: proof.statToProve.key,
-                value: proof.statToProve.value,
-                period: proof.statToProve.period ?? 0,
-              },
-              eventStatRoot: eventStatRootBytes,
-              statProof: statProofForChain,
-            },
-            statB: null,
-            op: null,
-          });
-
-          // Build the resolve_market instruction
-          // The validator program (TxLINE) and its readonly account (daily_scores_roots PDA)
-          // are passed as remaining_accounts to the settlement program.
-          const resolveMarketIx = buildResolveMarketIx(
-            wallet.publicKey,
-            new PublicKey(market.marketPda),
-            txlineProgramId,
-            [dailyScoresRoots],
-            action.label,
-            eventStatRootBytes,
-            outcome === "yes" ? 0 : 1,
-            txlineIxData
-          );
-
-          resolveIx = resolveMarketIx;
-          proofSummary += ` [on-chain CPI via PDA epoch_day=${epochDay}]`;
+          settleIxs = built.instructions;
+          proofSummary = built.proofSummary;
           this.config.onMatchEvent?.({
             occurredAt: Date.now(),
             kind: "proof_validated",
@@ -619,7 +555,7 @@ export class Agent {
       }
     }
 
-    if (!resolveIx) {
+    if (!settleIxs) {
       return {
         success: false,
         marketPda: market.marketPda,
@@ -637,33 +573,18 @@ export class Agent {
       return { success: true, marketPda: market.marketPda };
     }
 
-    // Build the transaction:
-    // 1. resolve_market — CPIs into TxLINE validate_stat and creates receipt
-    // 2. settle_from_proof — consumes the matching receipt to settle the vault
-    // 3. attest_verification — increments verification counter
-    // If resolve_market fails (proof invalid), the entire tx reverts.
-    const settleIx = buildSettleFromProofIx(
-      wallet.publicKey,
-      new PublicKey(market.marketPda),
-      outcome
-    );
-
-    const attestIx = buildAttestVerificationIx(
-      wallet.publicKey,
-      new PublicKey(market.marketPda)
-    );
-
+    // Settlement tx: compute budget + resolve_market (CPIs into TxLINE
+    // validate_stat, creates the receipt) + settle_from_proof (consumes
+    // the receipt to settle the vault). If the proof is invalid the
+    // whole tx reverts. attest_verification runs as a best-effort
+    // follow-up — two-stat proofs fill the 1232-byte tx budget.
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     const tx = new Transaction({
       feePayer: wallet.publicKey,
       blockhash,
       lastValidBlockHeight,
     });
-
-    // TxLINE's CPI needs a larger compute budget.
-    tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
-    tx.add(resolveIx);
-    tx.add(settleIx, attestIx);
+    tx.add(...settleIxs);
     tx.sign(wallet);
 
     const sig = await this.submitSignedTx(tx, {
@@ -672,6 +593,22 @@ export class Agent {
       outcome: action.outcome,
     });
     this.openMarkets.splice(idx, 1);
+
+    const attestSig = await attestVerification(
+      connection,
+      wallet,
+      new PublicKey(market.marketPda)
+    );
+    if (attestSig) {
+      logger.info("Attested verification", {
+        "market.pda": market.marketPda,
+        "tx.signature": attestSig,
+      });
+    } else {
+      logger.warn("Attestation follow-up failed (market still settled)", {
+        "market.pda": market.marketPda,
+      });
+    }
 
     logger.info("Settled market", {
       label: action.label,

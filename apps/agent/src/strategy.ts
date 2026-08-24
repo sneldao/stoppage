@@ -32,6 +32,10 @@ export type AgentAction =
       outcome: "yes" | "no";
       seq: number;
       statKey: number;
+      /** Second stat key for total markets (P1+P2). The on-chain
+       *  predicate must evaluate the SAME total the outcome uses, so
+       *  both sides are proven and added via op=Add in validate_stat. */
+      statKey2?: number;
       label: string;
     }
   | {
@@ -162,7 +166,8 @@ export function decideActions(
             predicate: m.predicate,
             outcome: totalGoals > threshold ? "yes" : "no",
             seq: event.seq,
-            statKey: 1, // P1 goals — will fetch both P1+P2 for validation
+            statKey: 1, // P1 goals
+            statKey2: 2, // P2 goals — proven together, added on-chain
             label: m.label,
           });
         } else if (m.predicate.kind === "corners_over") {
@@ -176,7 +181,8 @@ export function decideActions(
             predicate: m.predicate,
             outcome: totalCorners > threshold ? "yes" : "no",
             seq: event.seq,
-            statKey: 7,
+            statKey: 7, // P1 corners
+            statKey2: 8, // P2 corners — proven together, added on-chain
             label: m.label,
           });
         }

@@ -41,7 +41,6 @@ import * as os from "os";
 import * as path from "path";
 import {
   clusterApiUrl,
-  ComputeBudgetProgram,
   Connection,
   Keypair,
   PublicKey,
@@ -49,29 +48,20 @@ import {
   type TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  buildAttestVerificationIx,
   buildClaimBondIx,
   buildClaimIx,
-  buildResolveMarketIx,
-  buildSettleFromProofIx,
-  buildTxlineValidateStatData,
   buildVoidMarketIx,
-  deriveDailyScoresRootsPda,
   findPositionPda,
   parseMarket,
   type Market,
   type Side,
 } from "@stoppage/sdk";
 import {
-  epochDayFromTimestamp,
-  fetchStatValidation,
   loadCredentials,
-  normalizeProof,
-  toBytes32,
-  TXLINE_CONFIG,
   type Network,
 } from "@stoppage/txline";
 import { MatchEventLedger } from "../apps/agent/src/eventLedger";
+import { buildSettleFromProofIxs, attestVerification } from "../apps/agent/src/settle";
 
 const GRACE_SECONDS_DEFAULT = 3600; // matches the 1h on-chain grace
 const RPC_DEFAULT = clusterApiUrl("devnet");
@@ -106,6 +96,8 @@ const dryRun = flag("dry-run");
 const outFixture = args.fixture ? Number(args.fixture) : undefined;
 const outSeq = args.seq ? Number(args.seq) : undefined;
 const outStatKey = args.statKey ? Number(args.statKey) : undefined;
+/** Second stat key for total markets (P1+P2, added on-chain). */
+const outStatKey2 = args.statKey2 ? Number(args.statKey2) : undefined;
 const outOutcome: Side | undefined = args.outcome === "yes" ? "yes" : args.outcome === "no" ? "no" : undefined;
 
 const log = (...m: string[]) => console.log("[housekeep]", ...m);
@@ -145,7 +137,9 @@ function marketThreshold(market: Market): number {
   return Number(p.threshold ?? p.windowSeconds ?? 0) || 0;
 }
 
-/** Settle from a TxLINE Merkle proof — mirrors suspension loop.settleMarket. */
+/** Settle from a TxLINE Merkle proof — shared implementation in
+ *  apps/agent/src/settle.ts (same path as the live keeper). Pass
+ *  --stat-key2 for total markets (P1+P2, added on-chain). */
 async function settleMarket(
   connection: Connection,
   wallet: Keypair,
@@ -159,60 +153,24 @@ async function settleMarket(
   const { network: credNetwork, creds } = loadCredentials();
   if (credNetwork !== network) throw new Error(`TxLINE creds are for ${credNetwork}, not ${network}`);
 
-  const proof = await fetchStatValidation(network, creds, outFixture, outSeq, outStatKey);
-
-  const statProof = normalizeProof(proof.statProof).map((n) => ({ hash: n.hash, isRightSibling: n.isRightSibling }));
-  const subTree = normalizeProof(proof.subTreeProof).map((n) => ({ hash: n.hash, isRightSibling: n.isRightSibling }));
-  const mainTree = normalizeProof(proof.mainTreeProof).map((n) => ({ hash: n.hash, isRightSibling: n.isRightSibling }));
-  const eventStatRoot = toBytes32(proof.eventStatRoot);
-  const subTreeRoot = toBytes32(proof.summary.eventStatsSubTreeRoot);
-
-  const txlineId = new PublicKey(TXLINE_CONFIG[network].programId);
-  const epochDay = epochDayFromTimestamp(proof.summary.updateStats.minTimestamp);
-  const [dailyScoresRoots] = deriveDailyScoresRootsPda(txlineId, epochDay);
-
-  const txlineIxData = buildTxlineValidateStatData({
-    ts: proof.summary.updateStats.minTimestamp,
-    fixtureSummary: {
-      fixtureId: proof.summary.fixtureId,
-      updateStats: {
-        updateCount: proof.summary.updateStats.updateCount,
-        minTimestamp: proof.summary.updateStats.minTimestamp,
-        maxTimestamp: proof.summary.updateStats.maxTimestamp,
-      },
-      eventsSubTreeRoot: subTreeRoot,
-    },
-    fixtureProof: subTree,
-    mainTreeProof: mainTree,
-    predicate: { threshold: marketThreshold(market), comparison: 0 },
-    statA: {
-      statToProve: {
-        key: proof.statToProve.key,
-        value: proof.statToProve.value,
-        period: proof.statToProve.period ?? 0,
-      },
-      eventStatRoot,
-      statProof,
-    },
-    statB: null,
-    op: null,
-  });
-
-  const resolveIx = buildResolveMarketIx(
-    wallet.publicKey,
+  const built = await buildSettleFromProofIxs({
+    network,
+    creds,
+    fixtureId: outFixture,
+    seq: outSeq,
+    statKey: outStatKey,
+    statKey2: outStatKey2,
+    threshold: marketThreshold(market),
+    outcome: outOutcome,
+    statement: `${market.predicate.kind}:${outOutcome}:${market.predicate.matchId}`,
     marketPda,
-    txlineId,
-    [dailyScoresRoots],
-    `${market.predicate.kind}:${outOutcome}:${market.predicate.matchId}`,
-    eventStatRoot,
-    outOutcome === "yes" ? 0 : 1,
-    txlineIxData
-  );
-  const settleIx = buildSettleFromProofIx(wallet.publicKey, marketPda, outOutcome);
-  const attestIx = buildAttestVerificationIx(wallet.publicKey, marketPda);
-  const budget = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 });
-
-  return submit(connection, wallet, [budget, resolveIx, settleIx, attestIx], "settle");
+    wallet: wallet.publicKey,
+  });
+  const sig = await submit(connection, wallet, built.instructions, "settle");
+  const attestSig = await attestVerification(connection, wallet, marketPda);
+  if (attestSig) log(`attested verification :: ${attestSig}`);
+  else log(`attestation follow-up failed (market still settled)`);
+  return sig;
 }
 
 async function voidMarket(connection: Connection, wallet: Keypair, marketPda: PublicKey): Promise<string> {

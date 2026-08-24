@@ -204,8 +204,53 @@ value=10)**.
   9) like every other competition. The now-dead `templatesFor` config
   seam and its `matchIdToCompetition` map were removed in the same
   commit (rule 6); `decideActions` keeps its `templates` parameter.
-- Next MLS matchweek markets will include corners_over; the first live
-  MLS corners settle is the remaining check.
+- **First live MLS corners settle LANDED (2026-08-24):** market
+  `FZ8L6pEvvjE1VPeZSa5fGVwEQsbvjj8hS8wJNLnWRo9E` (corners_over 9,
+  `CIT-CIN-17615188`) created (`4fYhBXMn…`), **settled YES from a
+  two-stat Merkle proof — P1 corners 10 + P2 corners 5, added
+  on-chain** (`43uj1nqM…`), attested (`5bMX8j5f…`, verifications 1).
+  This is also the first live validation of TxLINE's `stat_b + op=Add`
+  encoding through the devnet validator CPI.
+
+## Settlement correctness fix — totals now proven as totals (2026-08-24)
+
+**Building the corners path exposed a real bug in the settle path: total
+markets (goals, corners) computed their outcome from P1+P2 but proved
+only ONE stat key on-chain (`statB: null, op: null`).** Nothing on-chain
+ties the proven predicate to the market's predicate — `resolve_market`
+checks the receipt outcome matches the *encoded* predicate, and
+`settle_from_proof` trusts the receipt. Consequences of the P1-only
+proof: NO settlements always sound (agent computes totals; P1 ≤ total),
+but **YES settlements on away-heavy matches revert** (`ProofOutcomeMismatch`
+or worse, the encoded predicate disagrees with the market) — the market
+stalls and eventually voids. The Aug 15 and Aug 21 keystone settles were
+consistent by luck of the scorelines (proved values: goals P1=1 of total
+2; corners P1=10 of total 15).
+
+- **Fix:** settle actions carry `statKey2`; the proof fetch passes it to
+  TxLINE (`statKey2` → `statToProve2`/`statProof2`), and the validator ix
+  encodes `statB` + `op=Add`, so the on-chain predicate evaluates the
+  same total the outcome uses. Verified live on devnet (corners settle
+  above: `value=10+5`).
+- **Tx-size split:** with two stat proofs the old 3-instruction bundle
+  (resolve + settle + attest) exceeds the 1232-byte tx limit (measured
+  1242). `attest_verification` moves to a best-effort follow-up tx; the
+  atomic pair (resolve_market + settle_from_proof) stays in one tx, so
+  the proof→settle guarantee is unchanged.
+- **Consolidated (rule 6):** the proof→instruction construction lived in
+  two places (`loop.settleMarket` and a "mirrors loop" copy in
+  `scripts/housekeep.ts`). Extracted to `apps/agent/src/settle.ts`
+  (`buildSettleFromProofIxs` + `attestVerification`); both call sites now
+  use it. housekeep gains `--stat-key2` for manual total-market settles.
+- **Integrity fix:** `submitSignedTx` (and the attest helper) now check
+  `getSignatureStatuses` after confirmation — confirmation alone doesn't
+  surface program errors, so reverted txs were logged as successes and
+  dropped from the retry queue (observed live during this pass: a
+  re-settle attempt on an already-settled market logged ✅ while the tx
+  reverted). housekeep's `submit` already checked.
+- Known harmless artifact: the keystone goals market's verification
+  counter reads 2 (the second attestation landed from the Aug 24 pass —
+  attest only requires status=settled).
 
 ## Aug 15–18 keystone settlement record (2026-08-18)
 
