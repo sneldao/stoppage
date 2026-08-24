@@ -19,6 +19,8 @@
  *   npx tsx scripts/generate-campaign.ts flash
  *   npx tsx scripts/generate-campaign.ts mls-motion
  *   npx tsx scripts/generate-campaign.ts title
+ *   npx tsx scripts/generate-campaign.ts receipt
+ *   npx tsx scripts/generate-campaign.ts invite
  *
  * Reads RUNWARE_API_KEY from repo-root or apps/web `.env.local`.
  * Writes to `.runtime/campaign/` (gitignored). includeCost is always on.
@@ -45,6 +47,10 @@ const MLS_MOTION_DIR = path.join(ROOT, ".runtime/campaign/mls-motion");
 const BRAND_DIR = path.join(ROOT, ".runtime/campaign/brand");
 const FONTS_DIR = path.join(ROOT, ".runtime/campaign/fonts");
 const PUBLIC_CAMPAIGN = path.join(ROOT, "apps/web/public/campaign");
+const RECEIPT_DIR = path.join(ROOT, ".runtime/campaign/receipt");
+const INVITE_DIR = path.join(ROOT, ".runtime/campaign/invite");
+const SIDELINE_REF = path.join(CAST_DIR, "sideline.jpg");
+const SIDELINE_PORTRAIT_REF = path.join(CAST_DIR, "sideline-portrait.jpg");
 const RUNWARE_URL = "https://api.runware.ai/v1";
 const EXPLORE_MODEL = "xai:grok-imagine@image";
 const LOCK_MODEL = "openai:gpt-image@2";
@@ -1126,6 +1132,9 @@ function brandStill(opts: {
   serif: string;
   mono: string;
   mode: "landscape" | "portrait" | "og";
+  kicker?: string;
+  title?: string;
+  sub?: string;
 }) {
   const { w, h } = identify(opts.input);
   const topH = opts.mode === "portrait" ? Math.round(h * 0.11) : Math.round(h * 0.16);
@@ -1135,6 +1144,9 @@ function brandStill(opts: {
     opts.mode === "portrait" ? 72 : opts.mode === "og" ? 54 : 62;
   const metaSize = opts.mode === "portrait" ? 22 : 20;
   const urlSize = opts.mode === "portrait" ? 18 : 16;
+  const kicker = opts.kicker ?? "MLS  ·  SAT 15 AUG  ·  +4";
+  const title = opts.title ?? "Stoppage Time";
+  const sub = opts.sub ?? "ORLANDO CITY  V  FC CINCINNATI";
 
   execFileSync("magick", [
     opts.input,
@@ -1156,7 +1168,7 @@ function brandStill(opts: {
     "northwest",
     "-annotate",
     `+${pad}+${Math.round(pad * 0.7)}`,
-    "MLS  ·  SAT 15 AUG  ·  +4",
+    kicker,
     "-font",
     opts.serif,
     "-fill",
@@ -1167,7 +1179,7 @@ function brandStill(opts: {
     "southwest",
     "-annotate",
     `+${pad}+${Math.round(pad * 1.35)}`,
-    "Stoppage Time",
+    title,
     "-font",
     opts.mono,
     "-fill",
@@ -1178,7 +1190,7 @@ function brandStill(opts: {
     "southwest",
     "-annotate",
     `+${pad}+${Math.round(pad * 0.45)}`,
-    "ORLANDO CITY  V  FC CINCINNATI",
+    sub,
     "-font",
     opts.mono,
     "-fill",
@@ -1463,6 +1475,292 @@ async function title() {
   console.log(`\nTitled clips → ${downloads}`);
 }
 
+const RECEIPT_GESTURE = `
+Use Image 1 as the photographic core: night stadium sideline, fourth
+official in a black kit, substitution board with lime "+4" LEDs, packed
+crowd as purple vs orange colour blocks, floodlights. Keep the paste-up
+collage grammar — torn paper, masking tape, ticket stubs, bone/navy
+scraps. No FIFA marks, no club crests, no Nike, no broadcast graphics,
+no watermarks, no URLs, no explorer screenshots, no dollar amounts, no
+fake scoreline. The only readable marks in the photograph are "+4" on
+the board. This is AFTER the whistle: past-tense, documentary, not a
+pre-match poster. Desaturate the purple and orange one notch so the
+night feels elapsed. Lime #00ff88 stays the signal colour.
+`.trim();
+
+const RECEIPT_TWIST = `
+ARTISTIC TWIST — a RECEIPT, not an invitation. Thermal-paper stock with
+a dashed tear across one edge. A lime rectangular sticker with a hand-
+drawn black check in a circle (settled). The bone X is smaller and
+faded, a leftover losing-side scrap, not a score. A torn thermal strip
+shows abstract hex-like marks (unreadable hash fragments — not a real
+signature, not a UI). The official still holds the +4 board, now as
+evidence, slightly lower than a countdown. Coffee stain, tape, zine
+energy. Same collage chrome as Image 1, different paper.
+`.trim();
+
+async function receipt() {
+  if (!fs.existsSync(SIDELINE_REF)) {
+    throw new Error(`missing ${path.relative(ROOT, SIDELINE_REF)} — run mls-cast first`);
+  }
+  fs.mkdirSync(RECEIPT_DIR, { recursive: true });
+  const { serif, mono } = await ensureFonts();
+
+  const shots: { id: string; width: number; height: number; reference: string }[] = [
+    { id: "hero", width: WIDTH, height: HEIGHT, reference: SIDELINE_REF },
+    {
+      id: "portrait",
+      width: PORTRAIT_WIDTH,
+      height: PORTRAIT_HEIGHT,
+      reference: fs.existsSync(SIDELINE_PORTRAIT_REF) ? SIDELINE_PORTRAIT_REF : SIDELINE_REF,
+    },
+  ];
+
+  console.log(`Receipt: ${shots.length} stills on ${LOCK_MODEL} from sideline lock`);
+  const results: { id: string; file: string; costUsd?: number }[] = [];
+  let total = 0;
+
+  for (const shot of shots) {
+    const row = await inferImage({
+      prompt: `${RECEIPT_GESTURE}\n${RECEIPT_TWIST}`,
+      width: shot.width,
+      height: shot.height,
+      reference: shot.reference,
+      quality: "medium",
+    });
+    const file = `${shot.id}.jpg`;
+    await download(row.imageURL!, path.join(RECEIPT_DIR, file));
+    const cost = row.cost ?? 0;
+    total += cost;
+    results.push({ id: shot.id, file, costUsd: row.cost });
+    console.log(`  ${shot.id}  cost=${cost.toFixed(4)}  → ${file}`);
+  }
+
+  const overlay = {
+    kicker: "MLS  ·  SAT 15 AUG  ·  SETTLED",
+    title: "The proof held.",
+    sub: "ORLANDO CITY  V  FC CINCINNATI",
+  };
+
+  brandStill({
+    input: path.join(RECEIPT_DIR, "hero.jpg"),
+    output: path.join(RECEIPT_DIR, "hero-branded.jpg"),
+    serif,
+    mono,
+    mode: "landscape",
+    ...overlay,
+  });
+  brandStill({
+    input: path.join(RECEIPT_DIR, "portrait.jpg"),
+    output: path.join(RECEIPT_DIR, "portrait-branded.jpg"),
+    serif,
+    mono,
+    mode: "portrait",
+    ...overlay,
+  });
+
+  const ogWork = path.join(RECEIPT_DIR, "_og-crop.jpg");
+  execFileSync("magick", [
+    path.join(RECEIPT_DIR, "hero.jpg"),
+    "-gravity",
+    "center",
+    "-crop",
+    "1200x630+0+0",
+    "+repage",
+    ogWork,
+  ]);
+  brandStill({
+    input: ogWork,
+    output: path.join(RECEIPT_DIR, "og.jpg"),
+    serif,
+    mono,
+    mode: "og",
+    ...overlay,
+  });
+  fs.unlinkSync(ogWork);
+
+  const downloads = path.join(process.env.HOME ?? "", "Downloads/stoppage-time-socials/receipt");
+  fs.mkdirSync(downloads, { recursive: true });
+  for (const file of ["hero.jpg", "hero-branded.jpg", "portrait.jpg", "portrait-branded.jpg", "og.jpg"]) {
+    fs.copyFileSync(path.join(RECEIPT_DIR, file), path.join(downloads, file));
+  }
+
+  const publish = [
+    ["receipt-hero.jpg", "hero.jpg"],
+    ["receipt-portrait.jpg", "portrait.jpg"],
+    ["receipt-hero-branded.jpg", "hero-branded.jpg"],
+    ["receipt-portrait-branded.jpg", "portrait-branded.jpg"],
+    ["receipt-og.jpg", "og.jpg"],
+  ] as const;
+  for (const [name, src] of publish) {
+    fs.copyFileSync(path.join(RECEIPT_DIR, src), path.join(PUBLIC_CAMPAIGN, name));
+  }
+
+  fs.writeFileSync(
+    path.join(RECEIPT_DIR, "manifest.json"),
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        source: "mls-cast/sideline.jpg",
+        model: LOCK_MODEL,
+        totalCostUsd: total,
+        shots: results,
+      },
+      null,
+      2
+    )
+  );
+  console.log(`\nReceipt kit → ${downloads}`);
+  console.log(`App copies → ${path.relative(ROOT, PUBLIC_CAMPAIGN)}/receipt-*`);
+  console.log(`Total receipt cost: $${total.toFixed(4)}`);
+}
+
+const INVITE_GESTURE = `
+Use Image 1 as the photographic core: fourth official in a black kit,
+substitution board held HIGH overhead with lime "+4" LEDs, night floodlights,
+paste-up collage grammar — torn paper, masking tape, ticket stubs.
+Change the world around them: this is an English Saturday, not a Florida
+tailgate. Rain-slick terrace, matchday programme scraps, floodlight bloom
+in wet air, a paper scarf with no logos. Crowd as red vs sky-blue colour
+blocks only — no club crests, no cannon, no sky-blue kit badges, no
+Premier League lion, no FIFA, no Nike, no broadcast graphics, no URLs,
+no dollar amounts, no fake scoreline. The only readable marks in the
+photograph are "+4" on the board. Pre-match / added-time invitation
+energy, not a receipt. Lime #00ff88 is the signal colour.
+`.trim();
+
+const INVITE_TWIST = `
+ARTISTIC TWIST — an INVITATION, not a receipt. Matchday-programme paper,
+rain-warped edges, a lime YES cell and a bone NO cell stuck on like
+stickers (both sides live). No thermal tear, no hex dump, no settled
+check stamp. The board is a countdown held high. Zine / paste-up, same
+chrome as Image 1, different vernacular: terrace not parking lot,
+programme not grill. Joyful, expectant, Saturday-night.
+`.trim();
+
+async function invite() {
+  if (!fs.existsSync(SIDELINE_REF)) {
+    throw new Error(`missing ${path.relative(ROOT, SIDELINE_REF)} — run mls-cast first`);
+  }
+  fs.mkdirSync(INVITE_DIR, { recursive: true });
+  const { serif, mono } = await ensureFonts();
+
+  const shots: { id: string; width: number; height: number; reference: string }[] = [
+    { id: "hero", width: WIDTH, height: HEIGHT, reference: SIDELINE_REF },
+    {
+      id: "portrait",
+      width: PORTRAIT_WIDTH,
+      height: PORTRAIT_HEIGHT,
+      reference: fs.existsSync(SIDELINE_PORTRAIT_REF) ? SIDELINE_PORTRAIT_REF : SIDELINE_REF,
+    },
+  ];
+
+  console.log(`Invite: ${shots.length} stills on ${LOCK_MODEL} — EPL vernacular`);
+  const results: { id: string; file: string; costUsd?: number }[] = [];
+  let total = 0;
+
+  for (const shot of shots) {
+    const row = await inferImage({
+      prompt: `${INVITE_GESTURE}\n${INVITE_TWIST}`,
+      width: shot.width,
+      height: shot.height,
+      reference: shot.reference,
+      quality: "medium",
+    });
+    const file = `${shot.id}.jpg`;
+    await download(row.imageURL!, path.join(INVITE_DIR, file));
+    const cost = row.cost ?? 0;
+    total += cost;
+    results.push({ id: shot.id, file, costUsd: row.cost });
+    console.log(`  ${shot.id}  cost=${cost.toFixed(4)}  → ${file}`);
+  }
+
+  const overlay = {
+    kicker: "EPL  ·  SAT 21 AUG  ·  19:00 UTC",
+    title: "Stoppage Time",
+    sub: "ARSENAL  V  COVENTRY",
+  };
+
+  brandStill({
+    input: path.join(INVITE_DIR, "hero.jpg"),
+    output: path.join(INVITE_DIR, "hero-branded.jpg"),
+    serif,
+    mono,
+    mode: "landscape",
+    ...overlay,
+  });
+  brandStill({
+    input: path.join(INVITE_DIR, "portrait.jpg"),
+    output: path.join(INVITE_DIR, "portrait-branded.jpg"),
+    serif,
+    mono,
+    mode: "portrait",
+    ...overlay,
+  });
+
+  const ogWork = path.join(INVITE_DIR, "_og-crop.jpg");
+  execFileSync("magick", [
+    path.join(INVITE_DIR, "hero.jpg"),
+    "-gravity",
+    "center",
+    "-crop",
+    "1200x630+0+0",
+    "+repage",
+    ogWork,
+  ]);
+  brandStill({
+    input: ogWork,
+    output: path.join(INVITE_DIR, "og.jpg"),
+    serif,
+    mono,
+    mode: "og",
+    ...overlay,
+  });
+  fs.unlinkSync(ogWork);
+
+  const downloads = path.join(process.env.HOME ?? "", "Downloads/stoppage-invite");
+  fs.mkdirSync(downloads, { recursive: true });
+  const copies = [
+    ["01-hero.jpg", "hero.jpg"],
+    ["02-hero-branded.jpg", "hero-branded.jpg"],
+    ["03-portrait.jpg", "portrait.jpg"],
+    ["04-portrait-branded.jpg", "portrait-branded.jpg"],
+    ["05-og.jpg", "og.jpg"],
+  ] as const;
+  for (const [name, src] of copies) {
+    fs.copyFileSync(path.join(INVITE_DIR, src), path.join(downloads, name));
+  }
+
+  const publish = [
+    ["invite-hero.jpg", "hero.jpg"],
+    ["invite-portrait.jpg", "portrait.jpg"],
+    ["invite-hero-branded.jpg", "hero-branded.jpg"],
+    ["invite-portrait-branded.jpg", "portrait-branded.jpg"],
+    ["invite-og.jpg", "og.jpg"],
+  ] as const;
+  for (const [name, src] of publish) {
+    fs.copyFileSync(path.join(INVITE_DIR, src), path.join(PUBLIC_CAMPAIGN, name));
+  }
+
+  fs.writeFileSync(
+    path.join(INVITE_DIR, "manifest.json"),
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        source: "mls-cast/sideline.jpg",
+        model: LOCK_MODEL,
+        totalCostUsd: total,
+        shots: results,
+      },
+      null,
+      2
+    )
+  );
+  console.log(`\nInvite kit → ${downloads}`);
+  console.log(`App copies → ${path.relative(ROOT, PUBLIC_CAMPAIGN)}/invite-*`);
+  console.log(`Total invite cost: $${total.toFixed(4)}`);
+}
+
 async function main() {
   loadEnv();
   const cmd = process.argv[2] ?? "explore";
@@ -1477,9 +1775,11 @@ async function main() {
   else if (cmd === "flash") flash();
   else if (cmd === "mls-motion") await mlsMotion();
   else if (cmd === "title") await title();
+  else if (cmd === "receipt") await receipt();
+  else if (cmd === "invite") await invite();
   else {
     console.error(
-      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title]"
+      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title|receipt|invite]"
     );
     process.exit(1);
   }
