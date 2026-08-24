@@ -88,6 +88,15 @@ const ix = buildResolveMarketIxFromOracle(
 );
 ```
 
+**Total markets prove both sides.** For `total_goals_over` /
+`corners_over` the keeper encodes TWO `StatTerm`s (P1 + P2 stat keys)
+with `op = Add`, so the validator evaluates the same total the outcome
+was computed from. Proving only one side is the classic drift bug: the
+on-chain predicate would disagree with the market on away-heavy
+scorelines and the settlement would revert. The reference keeper builds
+both from one shared helper (`apps/agent/src/settle.ts` →
+`buildSettleFromProofIxs`, `--stat-key2` in `scripts/housekeep.ts`).
+
 ### Reference oracle 2: Pyth (price feeds)
 
 The deployed `pyth_validator` program settles `price_above` markets against
@@ -169,7 +178,7 @@ Your keeper then bundles three instructions in one transaction:
 If step 1's proof is invalid, the whole transaction reverts and nothing
 settles.
 
-## Current state (as of 2026-07-28)
+## Current state (as of 2026-08-24)
 
 - **Oracle-agnostic settlement is live on devnet.** Both programs were
   upgraded; the settlement and market programs support any validator via
@@ -179,8 +188,14 @@ settles.
 - **Two reference oracles, one receipt path.** Sports markets settle via
   TxLINE's Merkle-proof `validate_stat`; price markets settle via the
   deployed `pyth_validator` program against Pyth PriceUpdateV2 accounts.
-  Templates proven: `total_goals_over`, `corners_over`, `price_above`.
-  New predicates need a deterministic mapping to a validator proof.
+  Templates proven live on devnet: `total_goals_over` (EPL + MLS),
+  `corners_over` (MLS, settled from a two-stat P1+P2 proof),
+  `price_above`. New predicates need a deterministic mapping to a
+  validator proof.
+- **Settlement tx layout.** With two-stat proofs the settle bundle is
+  compute-budget + `resolve_market` + `settle_from_proof` (atomic); the
+  permissionless `attest_verification` counter runs as a best-effort
+  follow-up tx because the two-stat proof fills the 1232-byte tx budget.
 - **Devnet only.** Mainnet needs a legal review (see README compliance
   note) before any funds move there.
 - **Claim is owner-signed.** Winners claim with their own wallet; there
@@ -193,15 +208,17 @@ settles.
   the exact claim verified, and a keeper/console mismatch is visible
   on-chain as a contradiction between the event and the market account.
   A stricter binding (hashing validator args into the market PDA) is a
-  known post-hackathon hardening item; the reference keepers build both
-  from the same predicate object so they cannot drift.
+  known hardening item; the reference keepers build both from the same
+  predicate object so they cannot drift (the two-stat total encoding
+  above closes the analogous gap inside the TxLINE predicate itself).
 
 ## The loop to run first
 
 1. Subscribe to a data source (TxLINE free tier, or your own feed).
 2. Create a market with `buildCreateMarketIx`.
 3. On resolution, fetch the proof, build the verify spec, and send the
-   three-instruction settle transaction.
+   settle transaction (resolve_market + settle_from_proof), then attest
+   in a follow-up tx.
 4. Winners claim; the receipt and event are the public proof.
 
 One real operator settling one real market through their own validator is
