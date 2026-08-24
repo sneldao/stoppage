@@ -19,19 +19,29 @@ primitive where fund release is cryptographically gated on an on-chain
 proof verification for sports markets. Own that market of one, then
 expand.
 
-**Expansion path:** more TxLINE stat types (next_goal_within,
-card_shown — already scaffolded, need proof mappings) → more oracle
+**Expansion path:** more TxLINE stat types (card_shown — proof mapping
+proven 2026-08-24, template deferred one soak cycle; next_goal_within —
+blocked on proof shape, see "Predicate expansion status") → more oracle
 types (the CPI pattern is oracle-agnostic in principle) → more chains.
 Each step is a schlep (borsh encoding, proof alignment, CPI path).
 The schlep is the moat — if it were easy, Polymarket would already
 have proof-gated settlement.
 
-**Post-hackathon identity decision:** the next 3 months look completely
-different depending on the answer. If settlement infrastructure: make
-the settlement program + SDK consumable by a third party, write the
-integration guide, find one betting protocol that wants to use it. If
-betting app: get 10 real users through the loop on a real match. The
-codebase supports both; the decision determines what to build next.
+**Identity decided (2026-08-24): Stoppage is settlement infrastructure.**
+The product is the proof-gated settlement primitive — program + SDK that
+operators bring their markets and their oracles to. The betting app is
+the reference implementation and the proof-of-use-case: it exists to
+demonstrate the loop end-to-end (delegate → bet → settle → prove) on
+real fixtures, and it stays on **devnet** — real-money betting is a
+legal question the infrastructure path doesn't need answered. Ordering
+follows the identity: make the settlement program + SDK consumable by a
+third party (integration guide = docs/OPERATORS.md, kept current), keep
+the app settling real matches as the living demo, and let one operator
+pilot pull the B2B thread. The Aug 3 interim decision (betting-app path
+first, infrastructure on hold) is superseded — it was a hedge while the
+keystone was unproven; the keystone is now proven (staked settle paid,
+corners proven, two-stat totals hardened), so the infrastructure side
+carries the roadmap.
 
 **Distribution is woven into the product:**
 - The proof is the primary marketing artifact. Every settled market
@@ -173,11 +183,13 @@ sequence ran — M2 acceptance is finally met end-to-end on devnet.**
   (`NEXT_KEYSTONE_OUTCOME` in `lib/campaign/keystone.ts`).
 
 **Next live window:** EPL season is covered from Aug 21 (comp 8 in
-`TXLINE_COMPETITIONS`). The keystone story is complete; the open threads
-are predicate expansion (`next_goal_within`, `card_shown`), the MLS
-corners verdict (post-match capture), and the post-keystone identity
-decision (settlement infrastructure vs betting app — see Strategic
-direction).
+`TXLINE_COMPETITIONS`). The keystone story is complete and the identity
+decision is made (settlement infrastructure — see Strategic direction).
+Open threads: predicate expansion (`card_shown` proven + deferred one
+soak cycle; `next_goal_within` blocked on proof shape — see "Predicate
+expansion status"), the MLS corners verdict is DONE (see below), and the
+operator-consumability push (integration guide current, one pilot
+operator to find).
 
 ## MLS corners verdict: PROVEN (2026-08-24)
 
@@ -539,7 +551,9 @@ primitive on, not just a one-off tournament. This section records the
 plan so it isn't relitigated each session.
 
 **Identity decision: run the betting-app path as proof-of-primitive,
-hold on the infrastructure/operator push.** The data runway (Int'l
+hold on the infrastructure/operator push.** *(Superseded 2026-08-24 by
+the settlement-infrastructure decision in Strategic direction.)* The
+data runway (Int'l
 Friendlies → MLS 50% → full Premier League Aug 21) makes the demo path
 viable for months. A working demo with real users is a stronger pitch
 to operators than a devnet-only one. Let operator interest pull, don't
