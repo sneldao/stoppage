@@ -252,6 +252,30 @@ consistent by luck of the scorelines (proved values: goals P1=1 of total
   counter reads 2 (the second attestation landed from the Aug 24 pass —
   attest only requires status=settled).
 
+## Predicate expansion status (2026-08-24)
+
+- **`card_shown` — proof mapping PROVEN, build deferred one soak cycle.**
+  Card stat keys validate with full Merkle proofs on fixture 17615188:
+  P1YellowCards(3)=1, P2YellowCards(4)=2, P1RedCards(5), P2RedCards(6)
+  all return proof nodes. A total-cards market is now a small increment
+  on the proven two-stat infrastructure (statKey 3 + statKey2 4, op=Add,
+  same create-at-start/settle-at-end shape as goals/corners; the
+  `card_shown` kind is already u8=2 on-chain and in the SDK). Deferred
+  deliberately: the two-stat settlement fix must soak on the live VPS
+  keeper first — a third template shipping before the fix is deployed
+  piles risk on risk. Also needs a label decision: PREDICATE_LABEL
+  renders "Card shown N" today; a total-cards market wants "Total cards
+  over N".
+- **`next_goal_within` — NOT expressible with the current TxLINE proof
+  shape; stays inactive.** The validator's TraderPredicate is
+  `{threshold, comparison}` over stat VALUES at one seq — timestamps are
+  not stats, so "a goal within N seconds" cannot be encoded as a
+  predicate over the proven value alone. It needs a settle-on-event path
+  (settle mid-match when the goal lands or the window expires) and a
+  proof that binds the goal update's timestamp — new validator support
+  or a new proof mapping, not just a new template. Revisit with TxLINE
+  when the season gives a match worth it.
+
 ## Aug 15–18 keystone settlement record (2026-08-18)
 
 **The Aug 15 keystone (Orlando City vs FC Cincinnati) DID settle — earlier
