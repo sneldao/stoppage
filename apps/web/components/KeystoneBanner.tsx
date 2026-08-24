@@ -54,7 +54,7 @@ export function KeystoneBanner({ compact = false }: { compact?: boolean }) {
     <Link href={action.href} className={`keystone-banner${compact ? " keystone-banner--compact" : ""}`}>
       <span className="keystone-banner-still" aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
-        <img src="/campaign/hero.jpg" alt="" />
+        <img src="/campaign/invite-hero.jpg" alt="" />
       </span>
       <span className="keystone-banner-body">
         <strong>EPL keystone · {NEXT_KEYSTONE.homeTeam} v {NEXT_KEYSTONE.awayTeam}</strong>

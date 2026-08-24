@@ -159,6 +159,8 @@ export default function KeystonePage() {
         {/* Chapter 1 — the proof held */}
         <ElectricBorder variant="lime" speed={0.8} displacement={24} active>
           <div className="keystone-hero">
+            {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
+            <img className="keystone-hero-still" src="/campaign/receipt-hero.jpg" alt="" />
             <p className="eyebrow">The keystone · Chapter 1 — proof achieved</p>
             <h1>The proof is the authority. It held.</h1>
             <p className="keystone-hero-status">{KEYSTONE.homeTeam} v {KEYSTONE.awayTeam} · settled by TxLINE proof</p>
@@ -209,6 +211,8 @@ export default function KeystonePage() {
         {/* Chapter 2 — the next keystone */}
         <ElectricBorder variant="lime" speed={0.8} displacement={24} active>
           <div className="keystone-hero">
+            {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
+            <img className="keystone-hero-still" src="/campaign/invite-hero.jpg" alt="" />
             <p className="eyebrow">
               {nextSettled
                 ? `Chapter 2 · the first staked settle — achieved · ${NEXT_KEYSTONE.league}`
