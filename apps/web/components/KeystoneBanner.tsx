@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCountdown } from "@/lib/time/useCountdown";
+import { useStoppageStore } from "@/store";
 import {
   NEXT_KEYSTONE,
+  nextKeystoneMarketId,
   nextKeystonePhase,
   nextKeystoneTimes,
   type NextKeystonePhase,
@@ -19,10 +21,13 @@ const ACTION: Record<NextKeystonePhase, { href: string; cta: string; compactCta:
   betting_open: { href: "/markets", cta: "Open the slip →", compactCta: "Bet →" },
   in_play: { href: "/keystone", cta: "Watch on-chain →", compactCta: "Live →" },
   awaiting_receipts: { href: "/keystone", cta: "Receipts landing →", compactCta: "Receipts →" },
+  receipts: { href: "/keystone", cta: "See the receipts →", compactCta: "Receipts →" },
 };
 
 export function KeystoneBanner({ compact = false }: { compact?: boolean }) {
   const times = nextKeystoneTimes();
+  const markets = useStoppageStore((s) => s.markets);
+  const settled = markets[nextKeystoneMarketId()]?.status === "settled";
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -31,7 +36,7 @@ export function KeystoneBanner({ compact = false }: { compact?: boolean }) {
 
   const bettingOpen = useCountdown(new Date(times.bettingOpensMs));
   const kickoff = useCountdown(new Date(times.kickoffMs));
-  const phase = nextKeystonePhase(now, false);
+  const phase = nextKeystonePhase(now, settled);
   const action = ACTION[phase];
 
   const statusLine =
@@ -41,6 +46,8 @@ export function KeystoneBanner({ compact = false }: { compact?: boolean }) {
       ? `Betting open · kickoff in ${kickoff || "…"}`
       : phase === "in_play"
       ? "In play — the proof path is live"
+      : phase === "receipts"
+      ? "Settled by proof — winner paid, receipts on-chain"
       : "Full time — settlement proofs landing";
 
   return (

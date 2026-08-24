@@ -133,6 +133,51 @@ TxLINE-oracle market on the same fixture settles from a TxODDS Merkle
 proof. Two oracles, one match, two receipts — comparison artifact, not
 a permanent dual plane.
 
+## EPL keystone settled + claimed — M2 acceptance ticked (2026-08-24)
+
+**The Aug 21 EPL keystone (Arsenal v Coventry, fixture 18146819) settled
+from a live TxLINE proof WITH real opposing stakes, and the full claim
+sequence ran — M2 acceptance is finally met end-to-end on devnet.**
+
+- Market `F1qU5vZ6ssoK3t8hJzoKcnXuGBEjKrm4G3JQbfN97QEj` (goals-over-3,
+  matchId `ARS-COV-18146819`) — **`settled`, outcome `no`,
+  settlesAt 2026-08-21T21:02:10Z, verifications 1**. Both sides staked
+  0.01 SOL each (deployer `G33naaud…` YES, opponent `EgWC985X…` NO,
+  staged via `scripts/stage-keystone.ts`).
+- **Settle tx `ccFfZDHL4H9afcvTgKBiqXHKGHng2Nn6iEphyfPUniEWHFyx5i9Tpva4Bh8vRKxnkj1useZA1Kj1iUfZedkVd6A`**
+  landed  21:02 UTC after **~12 minutes of keeper retry attempts**
+  (~25 failed settles 20:50–20:59 while the TxLINE validation window
+  opened) — the settlement retry queue absorbed the proof-window delay
+  exactly as designed; no human intervention.
+- **Claim sequence (2026-08-24, via `scripts/claim-market.ts`):**
+  - Loser claim (YES, deployer) — clean zero payout, position zeroed:
+    `bUkKR9ohdcmJxfaGfEydTHLajw7SHS1cv74VTBDhUJave4UhDFwofSKjzJ9xFGnYFUrpFwn4jxNX8Luf51nJikL`
+  - Winner claim (NO, opponent) — gross 0.02 SOL, 25 bps protocol fee
+    (0.00005) skimmed to treasury, net +0.019945 after tx fee:
+    `2vfAtd9p2jzLAfMNarieYR3kMqtG6zTefeRHTqHHCVdoyihGCu4jEPwgjT9axWoj3mpgPU3eV74UzxKC9SxvQ9Qm`
+  - Creator bond claimed (+0.01):
+    `o2351rbjynksaMRiUXRdTzWMLeZEuMSZohGbczBHi81YChghk5GZewthFLnvaEZfphwbbYs8yaenET2mwUvw2SZ`
+- **Vault drained to exactly the rent-exempt minimum** (2,081,040
+  lamports for 171 bytes) — verified on-chain. Treasury holds the
+  skimmed fee. Every lamport that entered the vault left through the
+  proof-gated payout path or the bond refund.
+- `scripts/claim-market.ts` extended in the same pass: `--wallet=`
+  (claim from any keypair, not just the deployer) and `--no-bond` /
+  `--bond-only` step selection; default behavior unchanged.
+- **M2 acceptance is now: two wallets joined opposite sides ✓, settled
+  from a TxLINE proof receipt ✓, winner claimed ✓, vault drained to
+  zero (rent) ✓, loser's claim failed cleanly (zero payout, position
+  zeroed) ✓.**
+- `/keystone` Chapter 2 receipts filled from these facts
+  (`NEXT_KEYSTONE_OUTCOME` in `lib/campaign/keystone.ts`).
+
+**Next live window:** EPL season is covered from Aug 21 (comp 8 in
+`TXLINE_COMPETITIONS`). The keystone story is complete; the open threads
+are predicate expansion (`next_goal_within`, `card_shown`), the MLS
+corners verdict (post-match capture), and the post-keystone identity
+decision (settlement infrastructure vs betting app — see Strategic
+direction).
+
 ## Aug 15–18 keystone settlement record (2026-08-18)
 
 **The Aug 15 keystone (Orlando City vs FC Cincinnati) DID settle — earlier
@@ -234,6 +279,9 @@ verifications 1). The real keystone market now holds **both opposing sides**
 (deployer YES + opponent NO, 0.01 each) via `scripts/stage-keystone.ts`.
 **Remaining to check off: M2 acceptance — the Aug 21 EPL market settles from
 a proof, winner claims, vault drains to zero.
+**
+**Done 2026-08-24 — see the EPL keystone record below. M2 acceptance ticked.**
+
 **Attestation oracle → reference custom oracle (after TxLINE settle).**
 Remains deployed and documented (docs/ATTESTATION-ORACLE.md,
 docs/OPERATORS.md) as the worked "operators bring their own oracle"
@@ -792,9 +840,14 @@ The differentiator. Built first because the demo lives or dies on it.
       in `tests/market.ts` (17 passing, 1 pending: the void refund path,
       needs a clock-warp harness).
 - [x] Blinks POST returns a real unsigned join transaction.
-- [ ] **Acceptance:** two wallets join opposite sides on devnet; market is
+- [x] **Acceptance:** two wallets join opposite sides on devnet; market is
   settled from a TxLINE proof receipt; winner claims; vault drains to zero;
-  loser's claim fails cleanly.
+  loser's claim fails cleanly. **Met 2026-08-24 on the EPL keystone
+  `F1qU5vZ6ssoK3t8hJzoKcnXuGBEjKrm4G3JQbfN97QEj`** — settled NO from a
+  TxLINE proof (tx `ccFfZDHL…`, Aug 21 21:02 UTC), winner claimed
+  +0.01995 gross (25 bps fee to treasury), loser claim zeroed cleanly,
+  vault drained to rent-exempt minimum. Full record: "EPL keystone
+  settled + claimed" section above.
 
 ### M3 — TxLINE settlement (target: Jul 19)
 The bounty's core ask. Highest external risk — de-risk the unknowns

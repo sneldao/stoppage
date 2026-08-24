@@ -173,10 +173,15 @@ export function nextKeystoneMarketId(): string {
   return pda.toBase58();
 }
 
-export type NextKeystonePhase = "countdown" | "betting_open" | "in_play" | "awaiting_receipts";
+export type NextKeystonePhase =
+  | "countdown"
+  | "betting_open"
+  | "in_play"
+  | "awaiting_receipts"
+  | "receipts"; // settled — receipts on-chain
 
 export function nextKeystonePhase(now: number, bothSettled: boolean): NextKeystonePhase {
-  if (bothSettled) return "awaiting_receipts";
+  if (bothSettled) return "receipts";
   const open = NEXT_KEYSTONE.kickoffMs - NEXT_KEYSTONE.bettingOpenOffsetMs;
   const ft = NEXT_KEYSTONE.kickoffMs + NEXT_KEYSTONE.estFullTimeOffsetMs;
   if (now < open) return "countdown";
@@ -192,3 +197,31 @@ export function nextKeystoneTimes() {
     estFullTimeMs: NEXT_KEYSTONE.kickoffMs + NEXT_KEYSTONE.estFullTimeOffsetMs,
   };
 }
+
+// ── Chapter 2 outcome — staked settle achieved (2026-08-21, claimed 2026-08-24) ──
+// Static on-chain facts recorded in the ROADMAP settlement ledger
+// ("EPL keystone settled + claimed"). Market PDA is derived via
+// nextKeystoneMarketId(); these are the verified receipts, not predictions.
+export const NEXT_KEYSTONE_OUTCOME = {
+  outcome: "No" as const,
+  settlesAtIso: "2026-08-21T21:02:10Z",
+  verifications: 1,
+  /** Both sides staked 0.01 SOL by two separate wallets. */
+  stakePerSideSol: 0.01,
+  settleTx:
+    "ccFfZDHL4H9afcvTgKBiqXHKGHng2Nn6iEphyfPUniEWHFyx5i9Tpva4Bh8vRKxnkj1useZA1Kj1iUfZedkVd6A",
+  /** The keeper retried ~25 times (20:50–20:59 UTC) while the TxLINE
+   *  validation window opened; the retry queue absorbed it, no human. */
+  settleNote:
+    "Settled by a TxLINE Merkle proof via CPI — after ~12 minutes of automatic keeper retries while the proof window opened. No admin key touched it.",
+  winnerClaimTx:
+    "2vfAtd9p2jzLAfMNarieYR3kMqtG6zTefeRHTqHHCVdoyihGCu4jEPwgjT9axWoj3mpgPU3eV74UzxKC9SxvQ9Qm",
+  /** Gross 0.02 SOL; 25 bps protocol fee skimmed to treasury on claim. */
+  winnerPayoutNote: "Winner claimed 0.01995 SOL (25 bps protocol fee skimmed to the treasury).",
+  loserClaimTx:
+    "bUkKR9ohdcmJxfaGfEydTHLajw7SHS1cv74VTBDhUJave4UhDFwofSKjzJ9xFGnYFUrpFwn4jxNX8Luf51nJikL",
+  loserClaimNote: "The losing side claimed too — cleanly: zero payout, position zeroed on-chain.",
+  /** Vault holds exactly the rent-exempt minimum after all claims. */
+  vaultNote:
+    "The vault drained to exactly its rent-exempt minimum — every lamport left through the proof-gated payout path or the creator bond refund.",
+} as const;
