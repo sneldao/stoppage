@@ -54,7 +54,7 @@ import {
   type StatValidationResponse,
 } from "@stoppage/txline";
 import type { MatchEvent } from "@stoppage/sdk";
-import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket, type MatchTemplates, DEFAULT_TEMPLATES } from "./strategy";
+import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket } from "./strategy";
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
 import { QuoteTracker } from "./quoteTracker";
@@ -85,8 +85,6 @@ export interface AgentConfig {
   onMatchEvent?: (event: Omit<MatchEvent, "id">) => void;
   /** Live verifiable quote store (Phase 3A). */
   quoteTracker?: QuoteTracker;
-  /** Per-match templates; defaults to goals+corners when omitted. */
-  templatesFor?: (matchId: string) => MatchTemplates;
   /**
    * Directory for pending-settlement persistence (PM2 restart survival).
    * Defaults next to MATCH_EVENTS_PATH or `.runtime`.
@@ -280,10 +278,7 @@ export class Agent {
         this.updateMatchState(event);
 
         const eventMatchId = "matchId" in event ? event.matchId : undefined;
-        const templates =
-          (eventMatchId && this.config.templatesFor?.(eventMatchId)) ||
-          DEFAULT_TEMPLATES;
-        const { actions, notes } = decideActions(event, this.openMarkets, templates);
+        const { actions, notes } = decideActions(event, this.openMarkets);
 
         for (const note of notes) {
           this.config.onMatchEvent?.({

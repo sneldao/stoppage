@@ -46,7 +46,6 @@ import {
 } from "./source";
 import { loadCredentials } from "@stoppage/txline";
 import type { AgentAction } from "./strategy";
-import { DEFAULT_TEMPLATES, type MatchTemplates } from "./strategy";
 import { createMatchEventLedger } from "./eventLedger";
 import { startEventHttpServer } from "./httpServer";
 import { LiveStore } from "./liveStore";
@@ -267,19 +266,6 @@ async function main() {
     console.log(`Loaded ${fixtures.length} fixtures`);
   }
 
-  const matchIdToCompetition = new Map<string, number | undefined>();
-  for (const f of fixtures) {
-    matchIdToCompetition.set(matchIdFromFixture(f), f.CompetitionId);
-  }
-  const templatesFor = (matchId: string): MatchTemplates => {
-    const competitionId = matchIdToCompetition.get(matchId);
-    if (competitionId === Competition.MLS) {
-      // Corners off until a finished MLS fixture proves stat keys 7/8.
-      return { totalGoalsOver: 3, cornersOver: null };
-    }
-    return DEFAULT_TEMPLATES;
-  };
-
   // For replay mode, we need the specific fixture
   let source;
   let replayFixture: Fixture | null = null;
@@ -341,7 +327,6 @@ async function main() {
     txlineNetwork: network,
     txlineCreds: creds,
     quoteTracker,
-    templatesFor,
     onEvent: (event) => {
       if (event.type !== "heartbeat") {
         console.log(`  📡 ${event.type}: ${formatEvent(event)}`);
@@ -491,6 +476,11 @@ function formatEvent(event: NormalizedEvent): string {
  */
 const PAST_FIXTURES: Record<number, { p1: string; p2: string; startTime: string }> = {
   18237038: { p1: "France", p2: "Spain", startTime: "2026-07-14T19:00:00Z" },
+  // First MLS fixture captured post-match (2026-08-24): goals proof ✓
+  // (value=1, settled the Aug 15 keystone NO) and corners proof ✓
+  // (stat keys 7/8, value=10) — the corners verdict that enabled MLS
+  // corners markets. Names reproduce matchId CIT-CIN-17615188.
+  17615188: { p1: "Orlando City", p2: "FC Cincinnati", startTime: "2026-08-15T23:30:00Z" },
 };
 
 /**

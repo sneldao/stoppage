@@ -88,10 +88,11 @@ API — trust the API. Competition IDs live in
 fixture-scoped matchIds (`City-Cincinnati-17615188` shape);
 `TXLINE_COMPETITIONS` / `--competitions=` agent filter (dry-run
 confirmed `Loaded 77/415 fixtures (filtered): MLS=77`); MLS templates
-goals-only until corners proven; settlement retry queue for the ~6h
-proof window; homepage prefers TxLINE league countdown. No finished MLS
-fixture in the rolling replay window yet (expected pre-Aug-15) — corners
-verdict deferred to post-match capture of 17615188.
+goals-only until corners proven (proven 2026-08-24 — see "MLS corners
+verdict" below); settlement retry queue for the ~6h proof window;
+homepage prefers TxLINE league countdown. No finished MLS fixture in the
+rolling replay window yet (expected pre-Aug-15) — corners verdict
+deferred to post-match capture of 17615188 (captured 2026-08-24).
 
 **Keystone reset: the soonest third-party-verified live settle is Aug 15
 MLS via TxLINE**, not Sept 23 Friendlies. Planned: goals-over-3 market
@@ -177,6 +178,34 @@ are predicate expansion (`next_goal_within`, `card_shown`), the MLS
 corners verdict (post-match capture), and the post-keystone identity
 decision (settlement infrastructure vs betting app — see Strategic
 direction).
+
+## MLS corners verdict: PROVEN (2026-08-24)
+
+**The deferred corners verdict is resolved: TxLINE MLS coverage includes
+proof-verifiable corner stats.** Post-match capture of fixture 17615188
+(Orlando City vs FC Cincinnati, the Aug 15 keystone) via
+`scripts/capture-replayable-fixture.ts`: 1033 score updates in the
+rolling replay window, goals proof ✓ (value=1 — consistent with the
+on-chain goals-over-3 NO settle), **corners proof ✓ (stat keys 7/8,
+value=10)**.
+
+- Full replay dry-run (`replay 17615188 --speed=1000000`) exercised the
+  complete strategy path: `Total corners over 9 — CIT-CIN-17615188`
+  created at match_started and settled **YES from a fetched Merkle proof
+  (5 stat nodes + 2 subtree + 4 main, value=10)** at match_ended; the
+  goals market settled NO (value=1), matching the on-chain keystone.
+  TxLINE free-tier 429s were retried and absorbed.
+- Fixture added to `PAST_FIXTURES` (`apps/agent/src/index.ts`) with the
+  real team names (reproduce matchId `CIT-CIN-17615188`), so replay
+  auto-discovery has a known-good MLS fixture while it stays in window.
+- **MLS corners enabled:** the `templatesFor` MLS exception
+  (`cornersOver: null`, "until a finished MLS fixture proves stat keys
+  7/8") is deleted — MLS now uses `DEFAULT_TEMPLATES` (goals 3 + corners
+  9) like every other competition. The now-dead `templatesFor` config
+  seam and its `matchIdToCompetition` map were removed in the same
+  commit (rule 6); `decideActions` keeps its `templates` parameter.
+- Next MLS matchweek markets will include corners_over; the first live
+  MLS corners settle is the remaining check.
 
 ## Aug 15–18 keystone settlement record (2026-08-18)
 
