@@ -251,6 +251,16 @@ consistent by luck of the scorelines (proved values: goals P1=1 of total
 - Known harmless artifact: the keystone goals market's verification
   counter reads 2 (the second attestation landed from the Aug 24 pass —
   attest only requires status=settled).
+- **The bug bit in production before the fix deployed (2026-08-23).**
+  Live EPL fixture 18146832 (NEW-LIV): the keeper settled corners NO
+  cleanly (sound path), then logged ✅ on the goals YES settle — but the
+  tx reverted on-chain with `ProofOutcomeMismatch` (6002): the P1-only
+  proof carried value=2, and 2 > 3 is false even though the real total
+  exceeded the line. The market stalled and was voided by housekeep at
+  2026-08-24T04:00Z (bond reclaimed; void refunds any stakers). This is
+  the exact away-heavy failure mode, observed live — and the reason the
+  fix was deployed to the VPS keeper the same day (2026-08-24, via
+  `scripts/agent-deploy.sh`).
 
 ## Predicate expansion status (2026-08-24)
 
