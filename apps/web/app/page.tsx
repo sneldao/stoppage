@@ -310,9 +310,9 @@ export default function Home() {
             <>
               <h1>Bet on what happens next.</h1>
               <p className="lede">
-                Pick a live football outcome and stake devnet SOL. Your payout
-                only moves when the result&apos;s proof verifies on-chain — no
-                admin key, no committee vote.
+                Pick a live football outcome and back it with SOL. You only
+                get paid once the result is proven on-chain — never on
+                anyone&apos;s say-so.
               </p>
               <RightNowLine />
               <SetupPrompt marketHref={marketHref} />

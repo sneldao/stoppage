@@ -40,40 +40,40 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
     name: "TxLINE",
     verifiedEyebrow: "TxLINE verified",
     proofPathEyebrow: "TxLINE proof path",
-    awaitingActivity: "Waiting for TxLINE confirmation",
+    awaitingActivity: "Waiting for TxLINE to confirm the result",
     waitingParagraph:
-      "Matchkeeper is watching for TxLINE confirmation. It can submit this market's settlement only after the required proof validates on-chain.",
+      "Matchkeeper is waiting for TxLINE to confirm the match. It can only settle this market after a Merkle proof of the result verifies on-chain.",
     settledParagraph:
-      "The program settled this market only after TxLINE proof validation on-chain. This view checks the settlement receipt against the recorded outcome.",
+      "This market settled only after a TxLINE proof of the result verified on-chain — in the same transaction that released the funds. You can check the receipt against the recorded outcome here.",
     preBetLine:
-      "Your payout releases only after a TxLINE Merkle proof verifies on-chain, in the same transaction that settles this market. No admin key, no committee vote.",
-    instrumentLine: "settles on a TxLINE Merkle proof verified on-chain",
+      "You get paid the instant the result is proven on-chain — not when someone decides it.",
+    instrumentLine: "settles on a TxLINE proof, verified on-chain",
   },
   [PYTH_VALIDATOR_PROGRAM_ID]: {
     name: "Pyth",
     verifiedEyebrow: "Pyth price-verified",
     proofPathEyebrow: "Pyth proof path",
-    awaitingActivity: "Waiting for guardian-verified Pyth price",
+    awaitingActivity: "Waiting for a verified Pyth price",
     waitingParagraph:
-      "Settles from a Pyth price observation (guardian-attested, 30s freshness) read by the Pyth validator program on-chain.",
+      "Settles from a Pyth price reading that quorum guardians have signed within a 30-second window. The on-chain validator checks it before settling.",
     settledParagraph:
-      "The program settled this market only after a guardian-verified Pyth price observation validated on-chain. This view checks the settlement receipt against the recorded outcome.",
+      "This market settled only after a guardian-verified Pyth price verified on-chain — in the same transaction that released the funds. Check the receipt against the recorded outcome here.",
     preBetLine:
-      "Your payout releases only after a guardian-verified Pyth price observation validates on-chain, in the same transaction that settles this market. No admin key, no committee vote.",
-    instrumentLine: "settles on a guardian-verified Pyth price, checked on-chain",
+      "You get paid the instant a verified price confirms the result on-chain — not when someone decides it.",
+    instrumentLine: "settles on a verified Pyth price, checked on-chain",
   },
   [ATTESTATION_VALIDATOR_PROGRAM_ID]: {
     name: "Operator attestor",
     verifiedEyebrow: "Operator-attested",
     proofPathEyebrow: "Operator-attested proof path",
-    awaitingActivity: "Waiting for operator attestation",
+    awaitingActivity: "Waiting for the operator's attestation",
     waitingParagraph:
-      "Settles at full-time from an observation signed by the operator's attestor key (data source: TheSportsDB). The ed25519 signature is verified on-chain before settlement.",
+      "Settles at full-time from an observation signed by the operator's attestor key (data source: TheSportsDB). The signature is verified on-chain before payout. This is operator-attested — not verified by TxODDS or the network.",
     settledParagraph:
-      "The program settled this market against an observation signed by the operator's attestor key, verified on-chain via the ed25519 precompile. Operator-attested — not TxODDS- or network-verified. This view checks the settlement receipt against the recorded outcome.",
+      "This market settled against an observation signed by the operator's attestor key, verified on-chain via the Ed25519 precompile. Operator-attested — not TxODDS- or network-verified. Check the receipt against the recorded outcome here.",
     preBetLine:
-      "Your payout releases only after the operator's ed25519-signed observation verifies on-chain, in the same transaction that settles this market. The settlement is atomic and proof-gated — but the observation itself is operator-attested (TheSportsDB data), not network-verified.",
-    instrumentLine: "operator-attested · ed25519 signature verified on-chain before payout",
+      "You get paid the instant the operator's signed result verifies on-chain — not when someone decides it. (The result is operator-attested, not network-checked.)",
+    instrumentLine: "settles once the operator's signed result verifies on-chain",
   },
 };
 
@@ -83,11 +83,11 @@ const CUSTOM_ORACLE_INFO: OracleInfo = {
   proofPathEyebrow: "Proof path",
   awaitingActivity: "Waiting for validator confirmation",
   waitingParagraph:
-    "Matchkeeper is watching for validator confirmation. It can submit this market's settlement only after the designated validator program verifies the outcome on-chain.",
+    "Matchkeeper is waiting for the designated validator to confirm. It can only settle this market after the validator verifies the outcome on-chain.",
   settledParagraph:
-    "The program settled this market only after its designated validator program returned true on-chain. This view checks the settlement receipt against the recorded outcome.",
+    "This market settled only after its designated validator verified the outcome on-chain — in the same transaction that released the funds. Check the receipt against the recorded outcome here.",
   preBetLine:
-    "Your payout releases only after this market's designated validator program verifies the outcome on-chain, in the same transaction that settles it. No admin key, no committee vote.",
+    "You get paid the instant the designated validator verifies the result on-chain — not when someone decides it.",
   instrumentLine: "settles only after on-chain validator proof",
 };
 
