@@ -23,6 +23,8 @@ interface LiveEvent {
   id: string;
   type: string;
   label: string;
+  /** Set on `card_shown` events — drives the red/yellow glyph in the ticker. */
+  cardType?: "yellow" | "red";
   ts: number;
 }
 
@@ -49,15 +51,58 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
 
 // ─── EventTicker ──────────────────────────────────────────────────────────────
 
-const EVENT_ICONS: Record<string, string> = {
-  goal_scored: "⚽",
-  own_goal: "⚽",
-  card_shown: "🟨",
-  corner_awarded: "🚩",
-  substitution: "🔄",
-  var_review: "📺",
-  penalty_awarded: "⚡",
-};
+/** Drawn event glyphs — one consistent stroke, colored by the ticker's
+ *  per-type CSS (currentColor). Replaces emoji so the ticker renders the
+ *  same on every platform. */
+function EventIcon({ type, cardType }: { type: string; cardType?: "yellow" | "red" }) {
+  const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  switch (type) {
+    case "goal_scored":
+    case "own_goal":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <circle cx="8" cy="8" r="5.6" {...stroke} />
+          <path d="M8 8l3.4-1.7M8 8L6.6 4.6M8 8l-3.4 1.2" {...stroke} strokeWidth="1.1" />
+        </svg>
+      );
+    case "card_shown": {
+      // A card keeps its own color — the semantic (red/yellow) must not inherit.
+      const fill = cardType === "red" ? "#ef4444" : "#fbbf24";
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="4.5" y="2.5" width="7" height="11" rx="1.5" fill={fill} />
+        </svg>
+      );
+    }
+    case "corner_awarded":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M6.5 14V4.5M6.5 4.5l5.5 1.9L6.5 8.3" {...stroke} />
+        </svg>
+      );
+    case "substitution":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 5.5h7M8.5 3.5l2 2-2 2M13 10.5H6M7.5 8.5l-2 2 2 2" {...stroke} />
+        </svg>
+      );
+    case "var_review":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="10" height="7" rx="1" {...stroke} />
+          <path d="M8 11v1.5M6 13.5h4" {...stroke} strokeWidth="1.2" />
+        </svg>
+      );
+    case "penalty_awarded":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M9.2 2l-4.6 7h3.1l-.7 5 4.4-7H8.8l.4-5z" fill="currentColor" />
+        </svg>
+      );
+    default:
+      return <span aria-hidden="true">·</span>;
+  }
+}
 
 function EventTicker({ events }: { events: LiveEvent[] }) {
   const recent = events.slice(0, 6);
@@ -69,7 +114,7 @@ function EventTicker({ events }: { events: LiveEvent[] }) {
         {/* Duplicate for seamless loop */}
         {[...recent, ...recent].map((evt, i) => (
           <span key={`${evt.id}-${i}`} className={`ticker-item ticker-item--${evt.type}`}>
-            <span className="ticker-icon">{EVENT_ICONS[evt.type] ?? "·"}</span>
+            <span className="ticker-icon"><EventIcon type={evt.type} cardType={evt.cardType} /></span>
             {evt.label}
           </span>
         ))}
@@ -328,8 +373,14 @@ function MarketFace({
 
 // ─── LiveInstrument ───────────────────────────────────────────────────────────
 
-const FACE_INTERVAL_MS = 6_000;
-const SWAP_DURATION_MS = 460; // must match CSS transition duration
+// Attention-aware rotation: the deck holds while the user is engaged
+// (pointer/key/scroll/touch anywhere on the page) and only turns after a
+// full quiet window — so the demo stays alive without interrupting a read.
+// A real live match holds the match face; the market face is a deliberate
+// tap away via the face tabs.
+const FACE_QUIET_MS = 14_000;    // stillness required before the first turn
+const FACE_INTERVAL_MS = 14_000; // cadence between turns while still quiet
+const SWAP_DURATION_MS = 460;    // must match CSS transition duration
 const SIGNAL_DWELL_MS  = 4_000;
 
 interface LiveInstrumentProps {
@@ -385,6 +436,22 @@ export function LiveInstrument({
   const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevSignalVersion = useRef(signalVersion);
+
+  // A match is live when the fixture is in play (or in its stoppage window).
+  // Hoisted above the rotation effect — a live scoreline holds the match face
+  // forward; the market face stays one deliberate tap away via the tabs.
+  const live = fixture?.GameState === 2 || fixture?.GameState === 4;
+
+  // Last page-level interaction. Any pointer/key/scroll/touch activity means
+  // the user is engaged — the deck holds instead of turning mid-read.
+  const lastActivityRef = useRef(Date.now());
+  useEffect(() => {
+    const bump = () => { lastActivityRef.current = Date.now(); };
+    const kinds: Array<keyof WindowEventMap> = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"];
+    kinds.forEach((kind) => window.addEventListener(kind, bump, { passive: true }));
+    return () => kinds.forEach((kind) => window.removeEventListener(kind, bump));
+  }, []);
+
   const board = useStoppageStore((s) => s.board);
 
   const boardLastSettled = useMemo(() => {
@@ -434,24 +501,30 @@ export function LiveInstrument({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalVersion]);
 
-  // Auto-rotate on desktop only — mobile users tap to flip; auto-swap mid-read is disorienting.
+  // Auto-rotate on desktop only — mobile users tap to flip. The turn is
+  // attention-aware: it waits one full quiet window of page stillness, and a
+  // live match holds the scoreline forward (the market face stays one
+  // deliberate tap away). Autoplay stops the moment the user engages.
   useEffect(() => {
     if (paused) return;
+    if (live) return;
     const mobile = window.matchMedia("(max-width: 800px)").matches;
     if (mobile) return;
-    const id = window.setInterval(() => {
-      if (!paused && !signalLockRef.current) {
+    let timer = 0;
+    const turn = () => {
+      const quiet = Date.now() - lastActivityRef.current >= FACE_QUIET_MS;
+      if (!paused && !signalLockRef.current && quiet) {
         swapTo(front === 0 ? 1 : 0);
       }
-    }, FACE_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, [paused, front, swapTo]);
+      timer = window.setTimeout(turn, FACE_INTERVAL_MS);
+    };
+    timer = window.setTimeout(turn, FACE_QUIET_MS);
+    return () => window.clearTimeout(timer);
+  }, [paused, live, front, swapTo]);
 
   const recentFixtures = allFixtures.filter(
     (f) => f.GameState !== 2 && f.GameState !== 4 && f.FixtureId !== fixture?.FixtureId,
   ).slice(0, 2);
-
-  const live = fixture?.GameState === 2 || fixture?.GameState === 4;
 
   return (
     <div

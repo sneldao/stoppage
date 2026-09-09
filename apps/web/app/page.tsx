@@ -30,6 +30,7 @@ import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs, listReplayableFi
 import { useAttestHero } from "@/lib/match/useAttestHero";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
+import { StadiumDial } from "@/components/StadiumDial";
 
 const StoppageClock = dynamic(
   () => import("@/components/StoppageClock").then((m) => m.StoppageClock),
@@ -254,6 +255,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <StadiumDial />
 
       {/* ── Live moment alert overlay ──
           Suppressed entirely in preview: a scripted goal firing the
@@ -310,9 +312,9 @@ export default function Home() {
             <>
               <h1>Bet on what happens next.</h1>
               <p className="lede">
-                Pick a live football outcome and stake devnet SOL. Your payout
-                only moves when the result&apos;s proof verifies on-chain — no
-                admin key, no committee vote.
+                Pick a live football outcome and back it with SOL. You only
+                get paid once the result is proven on-chain — never on
+                anyone&apos;s say-so.
               </p>
               <RightNowLine />
               <SetupPrompt marketHref={marketHref} />

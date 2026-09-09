@@ -48,7 +48,7 @@ export function MatchkeeperStatus({ updatedAt, marketPhase, oracle, compact = fa
   return (
     <section className={`matchkeeper ${compact ? "matchkeeper-compact" : ""}`} aria-label="Matchkeeper status">
       <div className="matchkeeper-head">
-        <div><p className="eyebrow">System actor</p><h2>Matchkeeper <span><i className="live-dot" /> live</span></h2></div>
+        <div><h2>Matchkeeper <span><i className="live-dot" /> live</span></h2></div>
         <span className="matchkeeper-state">{timestamp}</span>
       </div>
       <p className="matchkeeper-activity"><i /> {activityFor(marketPhase, oracle)}</p>

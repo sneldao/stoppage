@@ -443,12 +443,12 @@ export default function MarketDetailPage() {
                 {state.delegated && (
                   <div className="slip-session-actions">
                     <button type="button" className="session-revoke" onClick={onPauseSession} disabled={busy !== null}
-                      title="Temporarily drop the local key. No popup, no on-chain revoke — resume later with one signature. The 0.1 SOL session fund stays in the session key's account regardless.">
+                      title="Drop the local key — no popup, nothing revoked on-chain. Resume later with one signature.">
                       Pause one-tap
                     </button>
                     <button type="button" className="session-revoke session-revoke--destructive" onClick={onEndSession}
                       disabled={busy !== null}
-                      title="Revoke the grant on-chain and refund its rent. The 0.1 SOL session fund stays in the session key's account (not yet sweepable via the UI — follow-up). Irreversible without a fresh delegation.">
+                      title="Revoke the grant on-chain and refund its rent. Irreversible without a fresh delegation — the self-exclude path.">
                       {busy === "revoke" ? "Ending…" : "End session"}
                     </button>
                   </div>
@@ -456,12 +456,12 @@ export default function MarketDetailPage() {
                 {state.paused && (
                   <div className="slip-session-actions">
                     <button type="button" className="session-revoke" onClick={onResumeSession} disabled={busy !== null}
-                      title="Resume with one wallet signature — a fresh 6h grant + 0.1 SOL fund.">
+                      title="Resume with one wallet signature to keep betting with no popups.">
                       {busy === "resume" ? "Resuming…" : "Resume one-tap"}
                     </button>
                     <button type="button" className="session-revoke session-revoke--destructive" onClick={onEndSession}
                       disabled={busy !== null}
-                      title="Revoke the paused grant on-chain and refund its rent. The 0.1 SOL session fund stays in the session key's account (not yet sweepable via the UI — follow-up). Irreversible without a fresh delegation.">
+                      title="Revoke the paused grant on-chain and refund its rent. Irreversible without a fresh delegation.">
                       {busy === "revoke" ? "Ending…" : "End session"}
                     </button>
                   </div>
@@ -573,9 +573,7 @@ export default function MarketDetailPage() {
                     <strong>Enable one-tap betting</strong> — this bet signs once in your
                     wallet; every bet after is instant, no popup. Activating moves 0.1 SOL
                     from your wallet into the session key (covers stakes + fees; End session
-                    revokes the grant and refunds rent — the session fund itself stays in
-                    the session key's account, a UI sweep is a follow-up). Session expires
-                    in 6h.
+                    revokes the grant and refunds rent). Session expires in 6h.
                   </span>
                   {wantsOneTap && (
                     <span className="slip-onetap-cap">

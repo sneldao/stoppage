@@ -8,6 +8,8 @@ interface LiveEvent {
   type: string;
   label: string;
   team?: string;
+  /** Set on `card_shown` events — drives the red/yellow glyph in the ticker. */
+  cardType?: "yellow" | "red";
   ts: number;
 }
 
