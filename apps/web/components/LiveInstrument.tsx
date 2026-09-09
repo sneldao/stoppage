@@ -328,8 +328,14 @@ function MarketFace({
 
 // ─── LiveInstrument ───────────────────────────────────────────────────────────
 
-const FACE_INTERVAL_MS = 6_000;
-const SWAP_DURATION_MS = 460; // must match CSS transition duration
+// Attention-aware rotation: the deck holds while the user is engaged
+// (pointer/key/scroll/touch anywhere on the page) and only turns after a
+// full quiet window — so the demo stays alive without interrupting a read.
+// A real live match holds the match face; the market face is a deliberate
+// tap away via the face tabs.
+const FACE_QUIET_MS = 14_000;    // stillness required before the first turn
+const FACE_INTERVAL_MS = 14_000; // cadence between turns while still quiet
+const SWAP_DURATION_MS = 460;    // must match CSS transition duration
 const SIGNAL_DWELL_MS  = 4_000;
 
 interface LiveInstrumentProps {
@@ -385,6 +391,22 @@ export function LiveInstrument({
   const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevSignalVersion = useRef(signalVersion);
+
+  // A match is live when the fixture is in play (or in its stoppage window).
+  // Hoisted above the rotation effect — a live scoreline holds the match face
+  // forward; the market face stays one deliberate tap away via the tabs.
+  const live = fixture?.GameState === 2 || fixture?.GameState === 4;
+
+  // Last page-level interaction. Any pointer/key/scroll/touch activity means
+  // the user is engaged — the deck holds instead of turning mid-read.
+  const lastActivityRef = useRef(Date.now());
+  useEffect(() => {
+    const bump = () => { lastActivityRef.current = Date.now(); };
+    const kinds: Array<keyof WindowEventMap> = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"];
+    kinds.forEach((kind) => window.addEventListener(kind, bump, { passive: true }));
+    return () => kinds.forEach((kind) => window.removeEventListener(kind, bump));
+  }, []);
+
   const board = useStoppageStore((s) => s.board);
 
   const boardLastSettled = useMemo(() => {
@@ -434,24 +456,30 @@ export function LiveInstrument({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalVersion]);
 
-  // Auto-rotate on desktop only — mobile users tap to flip; auto-swap mid-read is disorienting.
+  // Auto-rotate on desktop only — mobile users tap to flip. The turn is
+  // attention-aware: it waits one full quiet window of page stillness, and a
+  // live match holds the scoreline forward (the market face stays one
+  // deliberate tap away). Autoplay stops the moment the user engages.
   useEffect(() => {
     if (paused) return;
+    if (live) return;
     const mobile = window.matchMedia("(max-width: 800px)").matches;
     if (mobile) return;
-    const id = window.setInterval(() => {
-      if (!paused && !signalLockRef.current) {
+    let timer = 0;
+    const turn = () => {
+      const quiet = Date.now() - lastActivityRef.current >= FACE_QUIET_MS;
+      if (!paused && !signalLockRef.current && quiet) {
         swapTo(front === 0 ? 1 : 0);
       }
-    }, FACE_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, [paused, front, swapTo]);
+      timer = window.setTimeout(turn, FACE_INTERVAL_MS);
+    };
+    timer = window.setTimeout(turn, FACE_QUIET_MS);
+    return () => window.clearTimeout(timer);
+  }, [paused, live, front, swapTo]);
 
   const recentFixtures = allFixtures.filter(
     (f) => f.GameState !== 2 && f.GameState !== 4 && f.FixtureId !== fixture?.FixtureId,
   ).slice(0, 2);
-
-  const live = fixture?.GameState === 2 || fixture?.GameState === 4;
 
   return (
     <div
