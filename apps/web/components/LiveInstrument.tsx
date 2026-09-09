@@ -23,6 +23,8 @@ interface LiveEvent {
   id: string;
   type: string;
   label: string;
+  /** Set on `card_shown` events — drives the red/yellow glyph in the ticker. */
+  cardType?: "yellow" | "red";
   ts: number;
 }
 
@@ -52,7 +54,7 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
 /** Drawn event glyphs — one consistent stroke, colored by the ticker's
  *  per-type CSS (currentColor). Replaces emoji so the ticker renders the
  *  same on every platform. */
-function EventIcon({ type }: { type: string }) {
+function EventIcon({ type, cardType }: { type: string; cardType?: "yellow" | "red" }) {
   const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
   switch (type) {
     case "goal_scored":
@@ -63,13 +65,15 @@ function EventIcon({ type }: { type: string }) {
           <path d="M8 8l3.4-1.7M8 8L6.6 4.6M8 8l-3.4 1.2" {...stroke} strokeWidth="1.1" />
         </svg>
       );
-    case "card_shown":
+    case "card_shown": {
       // A card keeps its own color — the semantic (red/yellow) must not inherit.
+      const fill = cardType === "red" ? "#ef4444" : "#fbbf24";
       return (
         <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <rect x="4.5" y="2.5" width="7" height="11" rx="1.5" fill="#fbbf24" />
+          <rect x="4.5" y="2.5" width="7" height="11" rx="1.5" fill={fill} />
         </svg>
       );
+    }
     case "corner_awarded":
       return (
         <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -110,7 +114,7 @@ function EventTicker({ events }: { events: LiveEvent[] }) {
         {/* Duplicate for seamless loop */}
         {[...recent, ...recent].map((evt, i) => (
           <span key={`${evt.id}-${i}`} className={`ticker-item ticker-item--${evt.type}`}>
-            <span className="ticker-icon"><EventIcon type={evt.type} /></span>
+            <span className="ticker-icon"><EventIcon type={evt.type} cardType={evt.cardType} /></span>
             {evt.label}
           </span>
         ))}
