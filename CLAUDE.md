@@ -39,10 +39,15 @@ Full context: docs/ARCHITECTURE.md (design), docs/DEVELOPMENT.md
    delete the old version in the same commit. If code is dead, remove it
    — git remembers.
 
-7. **Toolchain is pinned: Anchor 0.32.1, committed Cargo.lock.** Do not
-   upgrade Anchor, Solana CLI, or lockfile pins during the hackathon
-   window. If a new Rust dep triggers `edition2024` errors, pin it down
-   (see docs/DEVELOPMENT.md) rather than upgrading the toolchain.
+7. **Solana toolchain is pinned: Anchor 0.32.1, committed Cargo.lock.**
+   Do not upgrade Anchor, Solana CLI, or Rust lockfile pins during the
+   hackathon window. If a new Rust dep triggers `edition2024` errors,
+   pin it down (see docs/DEVELOPMENT.md) rather than upgrading the
+   toolchain. **Scope note:** this pin covers the on-chain stack only.
+   The JS / React / Next toolchain (`package.json`, `package-lock.json`)
+   is not pinned by this rule — bump React, Next, TypeScript, or any
+   npm-managed dep as needed. Treat the on-chain side as immutable and
+   the web side as normal-floating.
 
 8. **The TxLINE credit token is read/validate only.** Never use it for
    staking, wagering, or P2P transfer — locked to TxODDS per the bounty
