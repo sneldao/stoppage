@@ -37,7 +37,7 @@ export function ProofBoard({ markets }: ProofBoardProps) {
   return (
     <section className="proof-board">
       <div className="proof-board-heading">
-        <div><p className="eyebrow">Public protocol board</p><h2>Verified form table.</h2></div>
+        <div><h2>Proven leaderboard.</h2></div>
         <span>On-chain positions</span>
       </div>
       <div className="proof-board-metrics">

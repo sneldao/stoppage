@@ -49,15 +49,56 @@ function snapshotIsFresh(snapshot: LiveMatchSnapshot | null) {
 
 // ─── EventTicker ──────────────────────────────────────────────────────────────
 
-const EVENT_ICONS: Record<string, string> = {
-  goal_scored: "⚽",
-  own_goal: "⚽",
-  card_shown: "🟨",
-  corner_awarded: "🚩",
-  substitution: "🔄",
-  var_review: "📺",
-  penalty_awarded: "⚡",
-};
+/** Drawn event glyphs — one consistent stroke, colored by the ticker's
+ *  per-type CSS (currentColor). Replaces emoji so the ticker renders the
+ *  same on every platform. */
+function EventIcon({ type }: { type: string }) {
+  const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  switch (type) {
+    case "goal_scored":
+    case "own_goal":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <circle cx="8" cy="8" r="5.6" {...stroke} />
+          <path d="M8 8l3.4-1.7M8 8L6.6 4.6M8 8l-3.4 1.2" {...stroke} strokeWidth="1.1" />
+        </svg>
+      );
+    case "card_shown":
+      // A card keeps its own color — the semantic (red/yellow) must not inherit.
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="4.5" y="2.5" width="7" height="11" rx="1.5" fill="#fbbf24" />
+        </svg>
+      );
+    case "corner_awarded":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M6.5 14V4.5M6.5 4.5l5.5 1.9L6.5 8.3" {...stroke} />
+        </svg>
+      );
+    case "substitution":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 5.5h7M8.5 3.5l2 2-2 2M13 10.5H6M7.5 8.5l-2 2 2 2" {...stroke} />
+        </svg>
+      );
+    case "var_review":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="10" height="7" rx="1" {...stroke} />
+          <path d="M8 11v1.5M6 13.5h4" {...stroke} strokeWidth="1.2" />
+        </svg>
+      );
+    case "penalty_awarded":
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M9.2 2l-4.6 7h3.1l-.7 5 4.4-7H8.8l.4-5z" fill="currentColor" />
+        </svg>
+      );
+    default:
+      return <span aria-hidden="true">·</span>;
+  }
+}
 
 function EventTicker({ events }: { events: LiveEvent[] }) {
   const recent = events.slice(0, 6);
@@ -69,7 +110,7 @@ function EventTicker({ events }: { events: LiveEvent[] }) {
         {/* Duplicate for seamless loop */}
         {[...recent, ...recent].map((evt, i) => (
           <span key={`${evt.id}-${i}`} className={`ticker-item ticker-item--${evt.type}`}>
-            <span className="ticker-icon">{EVENT_ICONS[evt.type] ?? "·"}</span>
+            <span className="ticker-icon"><EventIcon type={evt.type} /></span>
             {evt.label}
           </span>
         ))}

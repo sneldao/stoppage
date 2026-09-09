@@ -162,7 +162,17 @@ export function InstrumentNav() {
           <span className="nav-feed-label">{feedLabel}</span>
         </span>
         <button type="button" className="nav-sound-toggle" onClick={toggleSound} aria-label={soundOn ? "Mute match sounds" : "Unmute match sounds"} title={soundOn ? "Mute match sounds" : "Unmute match sounds"}>
-          {soundOn ? "🔊" : "🔇"}
+          {soundOn ? (
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M3 6.2v3.6h2.4L9 12.6V3.4L5.4 6.2H3z" fill="currentColor" />
+              <path d="M11 5.5a3.4 3.4 0 0 1 0 5M12.6 4a5.4 5.4 0 0 1 0 8" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M3 6.2v3.6h2.4L9 12.6V3.4L5.4 6.2H3z" fill="currentColor" />
+              <path d="M11.2 6.2l3.6 3.6M14.8 6.2l-3.6 3.6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            </svg>
+          )}
         </button>
         <Link
           href="/#setup-prompt"
