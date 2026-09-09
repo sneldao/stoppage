@@ -87,9 +87,7 @@ export function ProofPath({ status, oracle }: { status: MarketStatus; oracle?: s
         <div
           className="proof-path-line-fill"
           style={{
-            width: status === "settled" || status === "void" ? "100%" :
-                   status === "awaiting_settlement" ? "62%" :
-                   "12%",
+            transform: `scaleX(${status === "settled" || status === "void" ? 1 : status === "awaiting_settlement" ? 0.62 : 0.12})`,
           }}
         />
       </div>

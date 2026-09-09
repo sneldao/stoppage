@@ -16,7 +16,7 @@ export function MatchSignal({ markets }: { markets: Market[] }) {
     <section className="match-signal" aria-label="Live call balance">
       <div><p className="eyebrow">Live call balance</p><h2>How this match is being read.</h2></div>
       <div className="match-signal-meter" aria-label={`${yesShare}% YES, ${100 - yesShare}% NO`}>
-        <i style={{ width: `${yesShare}%` }} />
+        <i style={{ transform: `scaleX(${yesShare / 100})` }} />
       </div>
       <div className="match-signal-values"><strong>YES {yesShare}%</strong><span>{openMarkets.length} live {openMarkets.length === 1 ? "call" : "calls"} · peer-funded signal, not advice</span><strong>NO {100 - yesShare}%</strong></div>
     </section>

@@ -30,6 +30,7 @@ import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs, listReplayableFi
 import { useAttestHero } from "@/lib/match/useAttestHero";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
+import { StadiumDial } from "@/components/StadiumDial";
 
 const StoppageClock = dynamic(
   () => import("@/components/StoppageClock").then((m) => m.StoppageClock),
@@ -254,6 +255,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <StadiumDial />
 
       {/* ── Live moment alert overlay ──
           Suppressed entirely in preview: a scripted goal firing the
