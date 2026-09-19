@@ -57,7 +57,10 @@ import {
   type MarketPredicate,
 } from "@stoppage/sdk";
 
-const HERMES = process.env.HERMES_URL ?? "https://hermes.pyth.network";
+// Pyth Core upgrade (2026-08-26): Hermes requires Bearer auth. Get a key
+// from Pyth Terminal (free trial) and set PYTH_API_KEY on the agent host.
+const HERMES = process.env.HERMES_URL ?? "https://pyth.dourolabs.app/hermes";
+const PYTH_API_KEY = process.env.PYTH_API_KEY ?? "";
 const FEED_ID = process.env.PRICE_FEED_ID ?? PYTH_FEED_IDS["SOL/USD"];
 const SYMBOL = process.env.PRICE_SYMBOL ?? "SOL/USD";
 const MAX_STALENESS_SECONDS = 120;
@@ -74,7 +77,8 @@ interface HermesUpdate {
 
 async function fetchLatestUpdate(): Promise<HermesUpdate> {
   const res = await fetch(
-    `${HERMES}/v2/updates/price/latest?ids[]=${FEED_ID}&encoding=base64&parsed=true`
+    `${HERMES}/v2/updates/price/latest?ids[]=${FEED_ID}&encoding=base64&parsed=true`,
+    { headers: PYTH_API_KEY ? { authorization: `Bearer ${PYTH_API_KEY}` } : {} }
   );
   if (!res.ok) throw new Error(`Hermes ${res.status}: ${await res.text()}`);
   const j = (await res.json()) as HermesUpdate;

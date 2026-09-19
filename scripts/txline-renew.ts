@@ -89,7 +89,11 @@ function syncToVps() {
     "sleep 5",
     `curl -s --max-time 12 http://localhost:${AGENT_PORT}/health; echo`,
   ].join("\n");
-  execFileSync("ssh", ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", VPS_HOST, "bash", "-s"], { input: remote, stdio: "inherit" });
+  // stdin must be "pipe" for `input` to reach `bash -s` — with
+  // stdio:"inherit" the remote script is silently dropped (bash reads
+  // the parent's tty and exits 0), which is how a "successful" renewal
+  // once shipped zero bytes to .env.agent.
+  execFileSync("ssh", ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", VPS_HOST, "bash", "-s"], { input: remote, stdio: ["pipe", "inherit", "inherit"] });
   fs.rmSync("/tmp/txrefresh.json", { force: true });
 }
 

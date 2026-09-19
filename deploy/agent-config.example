@@ -27,3 +27,9 @@ TXLINE_COMPETITIONS=33,8
 # USEPOD_MODEL=gpt-4o-mini
 # USEPOD_PAYMENT_RPC=https://api.mainnet-beta.solana.com
 # USEPOD_MAX_PAYMENT_LAMPORTS=100000
+
+# Price keeper (stoppage-price) — Pyth Hermes auth. Required since the
+# Pyth Core upgrade (2026-08-26): get a key from Pyth Terminal (free
+# trial tier) or ticks log "Hermes 401" and no new price contracts mint.
+# PYTH_API_KEY=your-pyth-terminal-key
+# HERMES_URL=https://pyth.dourolabs.app/hermes
