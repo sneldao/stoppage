@@ -1869,6 +1869,24 @@ body { background: var(--paper); }
 .setup-guide-revoke:hover { color: var(--red); }
 .setup-guide-revoke:disabled { opacity: .5; cursor: not-allowed; }
 
+.setup-guide-faucet {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed var(--line);
+}
+.setup-guide-faucet .setup-guide-cta { justify-self: start; }
+.setup-guide-faucet-link {
+  color: var(--blue);
+  font: 500 9px "DM Mono", monospace;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.setup-guide-faucet-link:hover { text-decoration: underline; }
+
 @media (max-width: 540px) {
   .setup-guide-steps { flex-direction: column; }
   .setup-step { border-right: 0; border-bottom: 1px solid var(--line); }

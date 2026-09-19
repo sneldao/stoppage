@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useStoppageStore } from "@/store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SetupPromptProps {
   marketHref?: string;
@@ -23,12 +24,18 @@ interface SetupPromptProps {
  * so the user always knows where they are in the journey.
  */
 export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
+  const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const { state, delegate, pause, resume, revoke } = useSessionKey();
   const positions = useStoppageStore((s) => s.positions);
   const [busy, setBusy] = useState<"delegate" | "resume" | "revoke" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Devnet hospitality: a fresh wallet has 0 SOL and no way forward without
+  // it — surface a one-tap airdrop before sending them to the tape.
+  const [solBalance, setSolBalance] = useState<number | null>(null);
+  const [airdropBusy, setAirdropBusy] = useState(false);
+  const [airdropFailed, setAirdropFailed] = useState(false);
   // Rule 9 nudge: default to the suggested cap, but let the user opt out
   // to "no limit" (maxTotalStake: 0). The default is a nudge, not a mandate.
   const [noLimit, setNoLimit] = useState(false);
@@ -42,6 +49,53 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
 
   // Current step (1-indexed)
   const currentStep = !step1Done ? 1 : !step2Done ? 2 : !step3Done ? 3 : 0;
+
+  useEffect(() => {
+    if (!publicKey) {
+      setSolBalance(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () =>
+      connection
+        .getBalance(publicKey, "confirmed")
+        .then((lamports) => {
+          if (!cancelled) setSolBalance(lamports / LAMPORTS_PER_SOL);
+        })
+        .catch(() => {});
+    refresh();
+    const id = setInterval(refresh, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [connection, publicKey]);
+
+  const needsDevnetSol = step1Done && solBalance !== null && solBalance < 0.05;
+
+  const airdrop = async () => {
+    if (!publicKey) return;
+    setAirdropBusy(true);
+    setAirdropFailed(false);
+    try {
+      try {
+        const sig = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
+        await connection.confirmTransaction(sig, "confirmed");
+      } catch {
+        // Some RPC providers disable airdrops — retry on the public
+        // devnet endpoint before sending the user to the web faucet.
+        const fallback = new Connection("https://api.devnet.solana.com", "confirmed");
+        const sig = await fallback.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
+        await fallback.confirmTransaction(sig, "confirmed");
+      }
+      const lamports = await connection.getBalance(publicKey, "confirmed");
+      setSolBalance(lamports / LAMPORTS_PER_SOL);
+    } catch {
+      setAirdropFailed(true);
+    } finally {
+      setAirdropBusy(false);
+    }
+  };
 
   const run = async (action: "delegate" | "resume" | "revoke") => {
     setBusy(action);
@@ -79,6 +133,34 @@ export function SetupPrompt({ marketHref = "/markets" }: SetupPromptProps) {
 
       {/* One primary action at a time */}
       <div className="setup-guide-action">
+        {/* Connected but empty — devnet SOL is free and required for
+            stakes, delegation and fees. Airdrop first, bet second. */}
+        {needsDevnetSol && (
+          <div className="setup-guide-faucet">
+            <span className="setup-guide-hint">
+              Your wallet needs devnet test SOL — it&apos;s free.
+            </span>
+            <button
+              type="button"
+              className="setup-guide-cta"
+              disabled={airdropBusy}
+              onClick={() => void airdrop()}
+            >
+              {airdropBusy ? "Requesting…" : "Get 1 devnet SOL"} <span>→</span>
+            </button>
+            {airdropFailed && (
+              <a
+                className="setup-guide-faucet-link"
+                href="https://faucet.solana.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Rate-limited — try faucet.solana.com ↗
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Step 1: Connect wallet */}
         {!step1Done && (
           <>
