@@ -13,12 +13,7 @@
  */
 
 import { NextRequest } from "next/server";
-import {
-  clusterApiUrl,
-  Connection,
-  PublicKey,
-  Transaction,
-} from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import {
   buildJoinViaWalletIx,
   getMarket,
@@ -28,6 +23,7 @@ import { fetchFixtures, loadCredentials, attachReplayableFlags, matchIdFromFixtu
 import { validateFixtureForBettingAsync } from "@/lib/markets/fixtureValidator";
 import { formatMarketQuestion } from "@/lib/format";
 import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/actions/cors";
+import { devnetConnection } from "@/lib/rpc";
 
 // Default stake for a Blink join (0.05 SOL). The Actions spec allows a
 // parameterized amount via linked actions; for the demo a fixed default
@@ -35,8 +31,7 @@ import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/action
 const DEFAULT_AMOUNT_LAMPORTS = 50_000_000;
 
 function connection() {
-  const url = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
-  return new Connection(url && !url.includes("YOUR_API_KEY") ? url : clusterApiUrl("devnet"), "confirmed");
+  return devnetConnection();
 }
 
 export async function OPTIONS() {

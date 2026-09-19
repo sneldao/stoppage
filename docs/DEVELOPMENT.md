@@ -153,6 +153,8 @@ an embedded HTTP server so the web app never needs shared filesystem access.
 2. Set the following env vars in the Vercel dashboard (or `.env.production`):
    - `NEXT_PUBLIC_APP_URL` — public domain
    - `NEXT_PUBLIC_HELIUS_RPC_URL` — Helius RPC endpoint
+   - `NEXT_PUBLIC_ALCHEMY_RPC_URL` — optional Alchemy devnet fallback in
+     the RPC chain (lib/rpc.ts: Helius → Alchemy → public gateway)
    - `TXLINE_NETWORK`, `TXLINE_JWT`, `TXLINE_API_TOKEN` — server-only TxLINE
      credentials for the `/api/fixtures` proxy
    - `AGENT_API_URL` — `http://<VPS_IP>:18766` (the VPS IP, not the SSH alias — Vercel serverless can't resolve `nuncio-vultr`)

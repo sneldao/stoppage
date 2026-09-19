@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { HeliusMonitor } from "@/lib/helius/monitor";
+import { devnetRpcUrls } from "@/lib/rpc";
 import { MARKET_PROGRAM_ID, getMarket } from "@stoppage/sdk";
 import { useStoppageStore } from "@/store";
 
@@ -39,14 +40,13 @@ export function useHeliusMonitor() {
 
   useEffect(() => {
     // transactionSubscribe WebSockets only work on Helius (or similar enhanced
-    // RPC). Public cluster endpoints (api.devnet.solana.com) reject them — fall
-    // back to polling instead of spamming failed connections.
-    const heliusUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
-    const rpcUrl =
-      heliusUrl && !heliusUrl.includes("YOUR_API_KEY") ? heliusUrl : undefined;
+    // RPC — Alchemy is the configured fallback). Public cluster endpoints
+    // (api.devnet.solana.com) reject them — fall back to polling instead of
+    // spamming failed connections.
+    const rpcUrl = devnetRpcUrls()[0];
 
     if (!rpcUrl) {
-      // No Helius URL configured — polling via useMarkets.refresh().
+      // No enhanced RPC configured — polling via useMarkets.refresh().
       setFeedState("polling");
       return;
     }

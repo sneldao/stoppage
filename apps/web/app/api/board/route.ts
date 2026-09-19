@@ -9,6 +9,7 @@ import {
   type Market,
 } from "@stoppage/sdk";
 import { NextResponse } from "next/server";
+import { devnetRpcUrls } from "@/lib/rpc";
 
 const POSITION_ACCOUNT_SIZE = 8 + 32 + 32 + 1 + 8 + 1 + 1;
 const PUBLIC_DEVNET_RPC = "https://api.devnet.solana.com";
@@ -34,13 +35,6 @@ interface PositionRecord {
 function shyftDevnetUrl() {
   const key = process.env.SHYFT_API_KEY;
   return key ? `https://devnet-rpc.shyft.to/?api_key=${encodeURIComponent(key)}` : null;
-}
-
-/** The app's existing Helius devnet RPC, reused server-side as a more
- *  reliable fallback than the public gateway for getProgramAccounts scans. */
-function heliusDevnetUrl() {
-  const url = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
-  return url && !url.includes("YOUR_API_KEY") ? url : null;
 }
 
 const RETRYABLE_RPC_ERROR = /429|too many requests|503|timed out|timeout|fetch failed|econnreset|socket hang up/i;
@@ -147,14 +141,14 @@ async function readBoard(rpcUrl: string) {
 /**
  * A public board derived directly from on-chain Market and Position accounts.
  * RPC candidates are tried in order: Shyft (when its free plan supports
- * getProgramAccounts), the app's Helius devnet RPC, then the bounded public
- * devnet gateway. Every candidate computes the full board; if we had to
+ * getProgramAccounts), the app's configured devnet RPCs (Helius, then
+ * Alchemy — lib/rpc.ts), then the bounded public devnet gateway. Every candidate computes the full board; if we had to
  * fall back to a later candidate or drop unparseable accounts, the response
  * is flagged `degraded: true` instead of returning silent partial data.
  */
 export async function GET() {
   const shyftUrl = shyftIndexAvailable !== false ? shyftDevnetUrl() : null;
-  const candidates = [shyftUrl, heliusDevnetUrl(), PUBLIC_DEVNET_RPC].filter((url): url is string => Boolean(url));
+  const candidates = [shyftUrl, ...devnetRpcUrls(), PUBLIC_DEVNET_RPC].filter((url): url is string => Boolean(url));
   let fellBack = false;
   for (const url of candidates) {
     try {

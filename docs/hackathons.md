@@ -146,4 +146,179 @@ SigNoz is an open-source observability platform built on OpenTelemetry. This hac
 
 ---
 
+## 3. AnsemHack — The Clawrena (Aug 19 – Oct 1, 2026)
+
+### Overview
+
+**AnsemHack** is ClawPump's build-in-public arena on Solana: build an
+agent, put a token on it, ship in front of the judges on stream.
+(clawpump.tech/ansemhack)
+
+**Prize pool:** $350K — $250K of $ANSEM (0.1% of supply, 3-month vest
+behind a 1-month cliff) + $65K sponsor cash + $10K compute.
+
+**Timeline (UTC):**
+
+| Date | Event |
+|---|---|
+| Aug 19 | Registration opens; Helius RPC + Alchemy credits unlock |
+| Aug–Sept | Build in public; weekly livestream slots (MCG, EasyA, Ansem) |
+| **Sept 20, 23:59** | **Register AND tokenize deadline — both** |
+| Sept 21–30 | Judging; finalists join the stream |
+| Oct 1 | Winners announced |
+
+**Target track: ClawPump × pump.fun** (50% of $ANSEM ≈ $125K + $40K
+cash, judged by ClawPump and pump.fun together). Every tokenized team
+is automatically in the running for Overall Winner (25% of $ANSEM) —
+no separate application.
+
+### Eligibility — all three required by Sept 20, 23:59 UTC
+
+Miss any one and the judges can't consider the build, however good it
+is.
+
+1. **Register the team** on the page — one entry per project. This is
+   the official registry every judge and partner works from. *(manual —
+   needs the team X handle)*
+2. **Post the entry on X and follow @clawpumptech** — there is no
+   confirmation email; the pre-written announcement post is the
+   receipt, and the follow is how they reach you about stream slots.
+   *(manual — X account)*
+3. **Tokenize on ClawPump** (or EasyA Kickstart) — the token is the
+   entry ticket. It must be verified against the **same X handle** the
+   team registered with; it attaches to the entry automatically.
+   *(manual — launch UI + wallet)*
+
+Also manual, at registration: claim the Helius RPC credits and apply
+for the Alchemy credits (up to $25K).
+
+### Track fit
+
+The ClawPump × pump.fun award is a **builder and trader** award. Its
+own wording splits two ways: "turn an agent into a company that does
+real work" (builder) or "ship an agent that trades a live market and
+survives it, across spot, perps, market making and prediction markets"
+(trader).
+
+Stoppage pitches under the **builder** half: Matchkeeper *operates*
+markets — it creates, settles and voids them autonomously from TxLINE
+events — it does not trade them. Prediction markets is the thematic
+hook, but be precise: this is a market operator, not a trading agent.
+The track's scoring line ("we score what you added, not what you
+wrapped") favors the proof-gated settlement primitive — net-new
+tooling, not a wrapper on existing infra.
+
+### Caveats (recorded 2026-09-19; decision logged in ROADMAP.md)
+
+- **The token is an entry ticket, not protocol equity.** Scope it
+  publicly as: devnet settlement infrastructure; this token is our
+  Clawrena entry; no promised utility. The moment the token promises
+  in-protocol utility (fee share, governance, staking) it merges with
+  protocol economics and inherits the legal surface the
+  infrastructure path deliberately avoids (devnet, no real-money
+  betting). Don't do that.
+- **Devnet honesty.** "Onchain volume" to date is devnet, largely
+  self-staged (0.01 SOL/side via `scripts/stage-keystone.ts`). The
+  page states judges "see the onchain data." Pitch the verifiable
+  receipts — settle txs, CPI into the TxLINE devnet validator, vault
+  drained to rent-exempt — never implied mainnet traction. "Live on
+  Solana" to a pump.fun-adjacent audience implies mainnet; the honest
+  line is "working proof-gated settlement on devnet, receipts
+  on-chain," which lands better with this judge panel anyway
+  (Solana Foundation, Helius, pump.fun, Colosseum).
+- **Attention is the real cost.** Judging (Sept 21–30) scores what
+  ships during the window. A token launched and ghosted reads worse
+  than no token. Minimum viable stewardship: the X entry post, a
+  couple of build-in-public updates during judging week, and a stream
+  slot if offered.
+- **Holder expectations exist regardless of disclaimers.** A token
+  launched and abandoned carries a small reputational debt — the
+  standard shape of hackathon entries, but real. Budget the
+  stewardship above, not zero.
+- **Does not void the infra path.** The token is a
+  distribution/marketing layer over unchanged code, SDK and operator
+  pitch. The entry exists because infra traction has been
+  distribution-limited: the Clawrena's streams and judge panel are a
+  better operator funnel than cold OPERATORS.md outreach — ROADMAP
+  already says "one operator pilot pulls the B2B thread," and this is
+  where operators are watching.
+
+### What wins (per the page)
+
+- Builders: "novel use of existing tech, or net-new tooling on the
+  Hermes harness."
+- Traders: "realised performance, risk control, onchain volume on
+  Solana."
+
+Stoppage's case: proof-gated settlement primitive (resolve_market +
+settle_from_proof atomic via TxLINE validator CPI) plus the autonomous
+agent already running it on live fixtures — settled, claimed, vault
+drained, receipts on-chain (see ROADMAP.md Aug 21/24 keystone record).
+
+### Sponsor stack (assessed 2026-09-19)
+
+The sponsors are the scoring surface beyond the track itself — each
+one already touches the stack or costs nothing to claim.
+
+| Sponsor | What they give | Stoppage fit | Action |
+|---|---|---|---|
+| **Helius** | Free RPC credits for registered teams | Already load-bearing — `NEXT_PUBLIC_HELIUS_RPC_URL` feeds every API route and the live monitor | Claim at registration; zero code work |
+| **UsePod** | Inference Markets track: 15% of $ANSEM + $10K compute | **Integrated (2026-09-19).** Advisory layer only — see verdict below. `apps/agent/src/usepodAdvisor.ts` pays per call via x402 (SOL on mainnet, on-chain verified) at `match_started`; the model narrows/adjusts the bounded template set through the `templates` seam in `decideActions`. Non-gating: failures fall back to `DEFAULT_TEMPLATES` | Built; enable via `USEPOD_ADVISORY=1` (needs mainnet SOL on the agent keypair) |
+| **Alchemy** | Up to $25K credits (application + approval) | **Integrated (2026-09-19) as the RPC fallback.** `apps/web/lib/rpc.ts` resolves Helius → Alchemy → public devnet for every API route, the calibration report, the board scan, and the live monitor | Apply for credits; set `NEXT_PUBLIC_ALCHEMY_RPC_URL` |
+| **ClawPump** | Launchpad + trading fees from day one | Required — the entry itself | Tokenize (eligibility step 3) |
+| **Streamflow** | Vesting rails for the $ANSEM award | Nothing to build — they vest the winnings | No action unless we win |
+| **EasyA** | Kickstart track ($25K cash) | Alternative launchpad — "pick it instead of the ClawPump tracks, not alongside" | Skip — ClawPump is the better thematic fit |
+| **Colosseum / MCG / Superteam / BlockZero** | Founder support, media spotlights, post-hackathon | Distribution, not integration | Take the stream slot; follow up after Oct 1 |
+
+**UsePod verdict (researched 2026-09-19, docs.usepod.ai).** UsePod is a
+two-sided **LLM inference marketplace**: a drop-in OpenAI-/Anthropic-
+compatible proxy backed by independent GPU operators and BYO-key
+relays, billed in USDC on Solana. Two payment rails: prepaid token
+balance, or **x402** — accountless pay-per-request in USDC or SOL,
+verified on-chain (quote → pay → settle with `PAYMENT-SIGNATURE`).
+Text/chat endpoints only.
+
+What that rules out: the original idea of hosting `@stoppage/quant`'s
+Monte Carlo on UsePod. It serves LLM calls, not arbitrary binaries —
+there is no "same model code, same seed" determinism story, and the
+pricing receipts must stay on the local deterministic model. This is
+the same boundary as the TypeSafe icebox line: **probabilistic
+inference never gates a market action or the settle path.**
+
+What remains viable (advisory, non-gating — same guardrail as
+TypeSafe, but with track credit):
+
+- **Market selection.** At `match_started`, ask a model which proven
+  templates to run for this fixture. The `templates` param on
+  `decideActions` (`apps/agent/src/strategy.ts`) is the seam: an
+  upstream advisory call returns a `MatchTemplates` subset — the model
+  can only *narrow* the proven set, never invent predicates or move
+  settlement. Bounded failure mode, keeps on-chain correctness
+  untouched.
+- **Per-market preview copy.** Model-written context per created
+  market for the UI; cosmetic but genuinely per-call inference.
+- **Ops triage.** Model summarises stuck markets / keeper anomalies
+  for the operator.
+
+Payment story that fits the theme: the agent pays for each advisory
+call via x402 in SOL on Solana — "the market operator buys its own
+judgment calls on-chain, per decision, with receipts."
+
+**Integrated 2026-09-19:** `apps/agent/src/usepodAdvisor.ts` +
+`loop.ts` wiring. Env: `USEPOD_ADVISORY=1` (default off),
+`USEPOD_MODEL`, `USEPOD_PAYMENT_RPC` (mainnet), `USEPOD_MAX_PAYMENT_
+LAMPORTS` (safety cap, default 100_000). The advisory note lands in the
+ledger as a `decision_logged` event with the x402 payment signature.
+**Caveat for ops:** x402 settles on Solana mainnet — the agent keypair
+needs a small mainnet SOL balance even though everything else is
+devnet.
+
+Honest read: real but thin. The track rewards "how deep the inference
+goes and what it unlocks" — an advisory layer is genuinely in the loop
+but not load-bearing in the way a resell/provider play would be. It's
+in because it was cheap and on-theme, not because it wins the track on
+its own.
+
+---
+
 *Archived: Aug 2026*

@@ -78,6 +78,21 @@ carries the roadmap.
   build a general predicate system until two specific predicates have
   settled real markets.
 
+**AnsemHack entry decided (2026-09-19): Stoppage enters the Clawrena —
+ClawPump × pump.fun track.** Fit notes and caveats:
+docs/hackathons.md §3. The ClawPump token is scoped as the hackathon
+entry ticket and a distribution artifact, **not protocol equity** — no
+promised in-protocol utility (no fee share, governance, staking). That
+boundary is what keeps the settlement-infrastructure identity and the
+devnet legal posture unchanged; the infra path continues in parallel.
+Rationale: infra traction has been distribution-limited, and the
+Clawrena's streams and judge panel (Solana Foundation, Helius,
+pump.fun, Colosseum) are the best available operator-funnel surface.
+All marketing states devnet status honestly — receipts over volume
+claims. Eligibility (all three by **2026-09-20 23:59 UTC**): register,
+post the entry on X + follow @clawpumptech, tokenize on ClawPump
+verified against the same X handle.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding
@@ -1102,7 +1117,10 @@ compliance note), mobile app, ELO/agent-vs-agent markets, market
 creation UI for arbitrary predicates (launch templates are hardcoded),
 multi-oracle aggregation, AG Grid for position history / market tape /
 proof board (sortable tables — `@tanstack/react-table` alternative if
-bundle size matters).
+bundle size matters), TypeSafe Jev as advisory layer for fixture
+triage / feed-anomaly flagging (assessed 2026-09-19 — revisit only as
+a non-gating signal alongside deterministic rules, never in the
+settle path; determinism is the differentiator).
 
 ## Risk register
 

@@ -17,3 +17,13 @@ TXLINE_COMPETITIONS=33,8
 # OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 # OTEL_SERVICE_NAME=stoppage-agent
 # OTEL_METRIC_EXPORT_INTERVAL_MS=10000
+
+# UsePod advisory (optional; AnsemHack Inference Markets track — see
+# docs/hackathons.md §3). At match_started the agent pays per call via
+# x402 (SOL on MAINNET — the agent keypair needs a small mainnet SOL
+# balance) for a template-selection advisory. Non-gating: any failure
+# falls back to DEFAULT_TEMPLATES.
+# USEPOD_ADVISORY=1
+# USEPOD_MODEL=gpt-4o-mini
+# USEPOD_PAYMENT_RPC=https://api.mainnet-beta.solana.com
+# USEPOD_MAX_PAYMENT_LAMPORTS=100000

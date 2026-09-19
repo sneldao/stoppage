@@ -11,7 +11,8 @@ import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { formatSigningSpeed, formatMarketQuestion, formatSol as SOL } from "@/lib/format";
 import { useStoppageStore } from "@/store";
 import { SetupPrompt } from "@/components/SetupPrompt";
-import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
+import { ExpectationsStrip } from "@/components/ExpectationsStrip";
+import { AgentStrip } from "@/components/AgentStrip";
 import { LiveInstrument, type PreviewBeatHandler } from "@/components/LiveInstrument";
 import { MomentAlert } from "@/components/MomentAlert";
 import { SharpMoves } from "@/components/SharpMoves";
@@ -300,14 +301,17 @@ export default function Home() {
         {/* Left column: copy + CTA */}
         <div className="command-copy">
           {primaryPosition && primaryMarket ? (
-            <PersonalizedHero
-              markets={markets}
-              positions={positions}
-              history={history}
-              fixtures={fixtures}
-              primaryMarket={primaryMarket}
-              primaryPosition={primaryPosition}
-            />
+            <>
+              <PersonalizedHero
+                markets={markets}
+                positions={positions}
+                history={history}
+                fixtures={fixtures}
+                primaryMarket={primaryMarket}
+                primaryPosition={primaryPosition}
+              />
+              <KeystoneBanner compact />
+            </>
           ) : (
             <>
               <h1>Bet on what happens next.</h1>
@@ -317,11 +321,14 @@ export default function Home() {
                 anyone&apos;s say-so.
               </p>
               <RightNowLine />
+              {/* Receipts before the ask — the proof artifact is the
+                  credibility hook for first-time evaluators. */}
+              <KeystoneBanner compact />
               <SetupPrompt marketHref={marketHref} />
             </>
           )}
+          <ExpectationsStrip />
           <OpenPositionsBanner />
-          <KeystoneBanner compact />
           {state.delegated && lastSigningMs !== null && (
             <p className="hero-speed-note">
               <i className="live-dot" /> Last bet {formatSigningSpeed(lastSigningMs)}
@@ -393,16 +400,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Matchkeeper compact badge — only after connect ── */}
-      {publicKey && (
-        <div className="keeper-strip" aria-label="Agent status">
-          <MatchkeeperStatus
-            updatedAt={liveSnapshot?.updatedAt}
-            marketPhase={featuredMarket?.status}
-            compact
-          />
-        </div>
-      )}
+      {/* ── Matchkeeper — visible to every visitor, wallet or not.
+          The agent is the entry; hiding it behind connect hid the pitch. ── */}
+      <AgentStrip />
 
       <footer className="app-footer">
         <div>

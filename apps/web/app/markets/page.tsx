@@ -49,6 +49,18 @@ const STATUS_CLASS: Record<Market["status"], string> = {
   void: "market-tape-row__status--void",
 };
 
+// Pyth `price_above` markets mint one market per timestamp
+// ("SOL/USD:1785…"), so grouping by matchId produces dozens of
+// identical single-market groups that read as manufactured noise.
+// They collapse into one `price:<symbol>` group instead — same
+// markets, same rows, honest labeling (UX-GLOSSARY: never "match"
+// for financial contracts).
+const PRICE_GROUP_PREFIX = "price:";
+
+function isPriceGroupKey(key: string) {
+  return key.startsWith(PRICE_GROUP_PREFIX);
+}
+
 function formatKickoffMs(ms: number | null | undefined): string | null {
   if (!ms) return null;
   const d = new Date(ms);
@@ -174,7 +186,10 @@ function MatchGroup({
   onToggle: () => void;
 }) {
   const live = isFixtureLive(fixture) || (attest?.inPlay ?? false);
-  const label = fixture
+  const isPriceGroup = isPriceGroupKey(matchId);
+  const label = isPriceGroup
+    ? `${matchId.slice(PRICE_GROUP_PREFIX.length)} price contracts`
+    : fixture
     ? `${fixture.Participant1} v ${fixture.Participant2}`
     : attest
     ? `${attest.homeTeam} v ${attest.awayTeam}`
@@ -251,6 +266,9 @@ function buildDefaultExpanded(
   const next = new Set<string>();
   let nonLiveCount = 0;
   for (const [matchId] of byMatch) {
+    // Price-contract groups stay collapsed — sports are the first
+    // impression; the Pyth tape expands on demand.
+    if (isPriceGroupKey(matchId)) continue;
     const fixture = fixtures.get(matchId);
     const attest = attestByMatchId?.get(matchId);
     if (isFixtureLive(fixture) || (attest?.inPlay ?? false)) {
@@ -307,10 +325,17 @@ export default function MarketsPage() {
     const groups = new Map<string, Market[]>();
     const list = filter === "all" ? sorted : sorted.filter((m) => m.status === filter);
     for (const market of list) {
-      const key = String(market.predicate.matchId);
+      const matchId = String(market.predicate.matchId);
+      const key =
+        market.predicate.kind === "price_above"
+          ? `${PRICE_GROUP_PREFIX}${matchId.split(":")[0]}`
+          : matchId;
       groups.set(key, [...(groups.get(key) ?? []), market]);
     }
-    return [...groups.entries()];
+    // Sports groups first, price-contract groups last.
+    return [...groups.entries()].sort(
+      (a, b) => Number(isPriceGroupKey(a[0])) - Number(isPriceGroupKey(b[0]))
+    );
   }, [filter, sorted]);
 
   const fixtureByMatchId = useMemo(() => {

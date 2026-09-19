@@ -42,7 +42,15 @@ import {
   type NormalizedEvent,
 } from "@stoppage/txline";
 import type { MatchEvent } from "@stoppage/sdk";
-import { decideActions, quoteOpenMarkets, type AgentAction, type OpenMarket } from "./strategy";
+import {
+  decideActions,
+  quoteOpenMarkets,
+  DEFAULT_TEMPLATES,
+  type AgentAction,
+  type MatchTemplates,
+  type OpenMarket,
+} from "./strategy";
+import { adviseTemplates, usepodAdvisoryEnabled } from "./usepodAdvisor";
 import { buildSettleFromProofIxs, attestVerification } from "./settle";
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
@@ -267,7 +275,38 @@ export class Agent {
         this.updateMatchState(event);
 
         const eventMatchId = "matchId" in event ? event.matchId : undefined;
-        const { actions, notes } = decideActions(event, this.openMarkets);
+
+        // Optional UsePod advisory (hackathons.md §3): at match start the
+        // model may narrow/adjust the bounded template set. Non-gating —
+        // null falls back to DEFAULT_TEMPLATES; it can never invent
+        // predicates or touch settlement.
+        let templates: MatchTemplates = DEFAULT_TEMPLATES;
+        if (event.type === "match_started" && usepodAdvisoryEnabled()) {
+          const advisory = await withSpan(
+            "agent.usepod_advisory",
+            { "match.id": event.matchId, "fixture.id": event.fixtureId },
+            () =>
+              adviseTemplates({
+                wallet: this.config.wallet,
+                matchId: event.matchId,
+                homeTeam: this.homeTeamFor(event.matchId),
+                awayTeam: this.awayTeamFor(event.matchId),
+              })
+          );
+          if (advisory) {
+            templates = advisory.templates;
+            this.config.onMatchEvent?.({
+              occurredAt: Date.now(),
+              kind: "decision_logged",
+              label: advisory.note,
+              matchId: event.matchId,
+              fixtureId: event.fixtureId,
+              source: "matchkeeper",
+            });
+          }
+        }
+
+        const { actions, notes } = decideActions(event, this.openMarkets, templates);
 
         for (const note of notes) {
           this.config.onMatchEvent?.({

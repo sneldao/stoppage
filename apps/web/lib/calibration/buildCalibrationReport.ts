@@ -6,7 +6,7 @@
  * Void markets are excluded. No fabricated backtest numbers.
  */
 
-import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import {
   MARKET_PROGRAM_ID,
   MARKET_ACCOUNT_SIZE,
@@ -16,6 +16,7 @@ import {
 } from "@stoppage/sdk";
 import { backtest } from "@stoppage/quant";
 import { formatMarketQuestion } from "@/lib/format";
+import { devnetConnection } from "@/lib/rpc";
 import type { CalibrationPayload, PredictionSource, SettledCalibrationRow } from "@/lib/calibration/types";
 
 export type { CalibrationPayload, PredictionSource, SettledCalibrationRow } from "@/lib/calibration/types";
@@ -26,11 +27,7 @@ const AGENT_QUOTE_TIMEOUT_MS = 4000;
 const OVERALL_TIMEOUT_MS = 9000;
 
 function rpcConnection(): Connection {
-  const url = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
-  return new Connection(
-    url && !url.includes("YOUR_API_KEY") ? url : clusterApiUrl("devnet"),
-    "confirmed"
-  );
+  return devnetConnection();
 }
 
 /** Clamp a fair value to the valid [0,1] probability range. Non-finite → 0.5. */

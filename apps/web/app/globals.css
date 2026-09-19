@@ -1900,6 +1900,94 @@ body { background: var(--paper); }
 }
 
 /* ================================================================
+   AGENT STRIP — public Matchkeeper presence, no wallet required.
+   Stats from the live tape, last action from the keeper ledger.
+   ================================================================ */
+
+.agent-strip {
+  width: min(1200px, calc(100% - 48px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 32px;
+  align-items: center;
+  padding: 16px 20px;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+  color: #dce4ea;
+}
+.agent-strip-id { display: grid; gap: 5px; }
+.agent-strip-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lime);
+  font: 700 11px "DM Mono", monospace;
+  letter-spacing: .08em;
+}
+.agent-strip-role {
+  color: #9fb0bd;
+  font: 500 8px "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.agent-strip-stats {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+}
+.agent-strip-stats span {
+  display: grid;
+  gap: 3px;
+  color: #9fb0bd;
+  font: 500 8px "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.agent-strip-stats b {
+  color: var(--lime);
+  font-size: 15px;
+  font-weight: 500;
+}
+.agent-strip-latest {
+  display: grid;
+  gap: 5px;
+  max-width: 360px;
+  color: #b6c4d0;
+  font: 500 9px/1.5 "DM Mono", monospace;
+}
+.agent-strip-latest a {
+  color: var(--lime);
+  text-decoration: none;
+}
+.agent-strip-latest a:hover { text-decoration: underline; }
+.agent-strip-advisory {
+  color: var(--blue);
+  border-left: 2px solid var(--blue);
+  padding-left: 8px;
+}
+
+/* Expectations strip — pre-launch delineation inside command-copy */
+
+.expectations {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 11px 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font: 500 9px/1.5 "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.expectations b {
+  margin-right: 5px;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+/* ================================================================
    STAKE HINT — interactive quick-stake buttons on featured market card
    ================================================================ */
 
@@ -1960,6 +2048,15 @@ body { background: var(--paper); }
 @media (max-width: 800px) {
   .setup-prompt { gap: 10px; }
   .keeper-strip { padding-top: 8px; }
+  .agent-strip {
+    width: min(100% - 32px, 620px);
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .agent-strip-stats { justify-content: start; gap: 18px; }
+  .agent-strip-stats span { text-align: left; }
+  .agent-strip-latest { max-width: none; }
 }
 
 /* ================================================================

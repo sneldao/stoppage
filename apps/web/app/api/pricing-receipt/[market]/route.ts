@@ -9,19 +9,12 @@
  */
 
 import { NextRequest } from "next/server";
-import {
-  clusterApiUrl,
-  Connection,
-  PublicKey,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { getPricingReceipt } from "@stoppage/sdk";
+import { devnetConnection } from "@/lib/rpc";
 
 function connection() {
-  const url = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
-  return new Connection(
-    url && !url.includes("YOUR_API_KEY") ? url : clusterApiUrl("devnet"),
-    "confirmed"
-  );
+  return devnetConnection();
 }
 
 export async function GET(
