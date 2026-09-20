@@ -5055,3 +5055,22 @@ body {
   .keystone-receipt-row > span:nth-child(2) { grid-column: 1 / -1; }
   .keystone-banner-body strong { font-size: 16px; }
 }
+
+/* ── Jev mind vs proof split screen (advisory only) ── */
+.jev-mind { margin-top: 22px; padding: 20px; border: 1px solid var(--line); background: #0d1526; }
+.jev-mind-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 16px; }
+.jev-mind-head h2 { margin: 0; color: #fff; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
+.jev-source { align-self: center; padding: 6px 10px; border: 1px solid #4d6485; color: #c3d0e1; font: 500 9px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.jev-source--jev { border-color: #a6f0b8; color: #a6f0b8; }
+.jev-source--heuristic { border-color: #ffd56a; color: #ffd56a; }
+.jev-mind-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; }
+.jev-bars { display: grid; gap: 14px; align-content: start; }
+.jev-empty { color: #8ea2bd; font-size: 12px; }
+.jev-bar-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; color: #dbe5f2; font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
+.jev-bar-top strong { color: #fff; }
+.jev-bar-track { height: 12px; overflow: hidden; background: rgba(255,255,255,.08); }
+.jev-bar-fill { display: block; height: 100%; transform-origin: left; transition: transform 600ms var(--ease); }
+.jev-disclaimer { color: #8ea2bd; font-size: 10px; line-height: 1.5; }
+.jev-proof .eyebrow { margin-bottom: 10px; }
+.jev-proof .proof-path { margin-top: 0; }
+@media (max-width: 800px) { .jev-mind-grid { grid-template-columns: 1fr; } }

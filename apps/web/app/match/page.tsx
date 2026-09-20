@@ -16,6 +16,8 @@ import { LiveMatchBar, type MatchPhaseState } from "@/components/LiveMatchBar";
 import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MatchSignal } from "@/components/MatchSignal";
+import { JevMind } from "@/components/JevMind";
+import { useJevMind } from "@/lib/jev/useJevMind";
 import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
 import { MatchFixturePicker } from "@/components/MatchFixturePicker";
@@ -171,6 +173,27 @@ function MatchRoomContent() {
     ? "scheduled"
     : "idle";
 
+  // Advisory Jev reads: snapshot + pool context in, animated bars out.
+  // Display only — never gates betting, creation, or settlement.
+  const jevInput = useMemo(() => {
+    if (!selectedMatchId) return null;
+    const open = matchMarkets.filter((m) => m.status === "open");
+    const yes = open.reduce((t, m) => t + m.yesPool, 0);
+    const no = open.reduce((t, m) => t + m.noPool, 0);
+    return {
+      matchId: selectedMatchId,
+      home: effectiveFixture?.Participant1 ?? null,
+      away: effectiveFixture?.Participant2 ?? null,
+      scoreHome: snapshot?.score.home ?? 0,
+      scoreAway: snapshot?.score.away ?? 0,
+      corners: snapshot?.stats.corners ?? 0,
+      cards: snapshot?.stats.cards ?? 0,
+      openMarkets: open.length,
+      yesShare: yes + no > 0 ? yes / (yes + no) : null,
+    };
+  }, [selectedMatchId, effectiveFixture, snapshot, matchMarkets]);
+  const { data: jevMind, pending: jevPending } = useJevMind(jevInput, signalVersion);
+
   return (
     <main className="app-shell">
       <div className="match-room">
@@ -239,6 +262,12 @@ function MatchRoomContent() {
         </section>
 
         <MatchSignal markets={matchMarkets} />
+
+        {/* Live Jev reads sit beside the proof path — narrating momentum,
+            never gating anything. Hidden until a match is in focus. */}
+        {selectedMatchId && (
+          <JevMind mind={jevMind} pending={jevPending} status={phase as Market["status"]} oracle={matchMarkets[0]?.oracle} />
+        )}
 
         {/* Positions only make sense once a wallet is connected — hide the
             whole block (not just the list) until then. */}
