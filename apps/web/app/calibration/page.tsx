@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ModelQuoteStrip } from "@/components/ModelQuoteStrip";
 import { CalibrationQuoteRow } from "@/components/CalibrationQuoteRow";
 import { CalibrationScoreboard } from "@/components/CalibrationScoreboard";
+import { YouVsQuant } from "@/components/YouVsQuant";
 import { ElectricBorder } from "@/components/ElectricBorder";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { PagePulse } from "@/components/MatchPulse";
@@ -54,6 +55,8 @@ export default function CalibrationPage() {
         </details>
 
         <CalibrationScoreboard />
+
+        <YouVsQuant />
 
         <section className="cal-board">
           <div className="cal-board-head">

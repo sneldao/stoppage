@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Keypair } from "@solana/web3.js";
@@ -20,6 +20,7 @@ import { OddsSurgeCallout } from "@/components/OddsSurgeCallout";
 import { SlipErrorCard } from "@/components/SlipErrorCard";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
+import { computeHistoryStats } from "@/store/historySlice";
 import { ShareBar } from "@/components/ShareBar";
 import dynamic from "next/dynamic";
 import { ElectricBorder } from "@/components/ElectricBorder";
@@ -68,9 +69,23 @@ interface LockedCall {
   probability: number;
 }
 
+/**
+ * BusyMs — live elapsed-ms ticker while the slip is submitting. Mounted
+ * only during execution so it never ticks idle. Makes one-tap speed felt
+ * before confirmation lands (the receipt carries the final number).
+ */
+function BusyMs() {
+  const [ms, setMs] = useState(0);
+  const startedAt = useRef(performance.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setMs(Math.round(performance.now() - startedAt.current)), 47);
+    return () => window.clearInterval(id);
+  }, []);
+  return <span className="busy-ms">{ms}ms</span>;
+}
+
 // Border variant driven by market status
-function borderVariant(status: Market["status"]): "lime" | "amber" | "blue" | "green" {
-  if (status === "open") return "lime";
+function borderVariant(status: Market["status"]): "lime" | "amber" | "blue" | "green" {  if (status === "open") return "lime";
   if (status === "awaiting_settlement") return "amber";
   if (status === "settled") return "blue";
   return "green";
@@ -94,6 +109,12 @@ export default function MarketDetailPage() {
     publicKey ? s.positions[`${marketAddr}:${publicKey.toBase58()}`] : undefined
   );
   const hasAnyHistory = useStoppageStore((s) => s.history.length > 0);
+  const history = useStoppageStore((s) => s.history);
+  const currentStreak = computeHistoryStats(history).currentStreak;
+  const streakNudge =
+    currentStreak === 2 ? "Two in a row — one more win to Hot Streak."
+    : currentStreak === 1 ? "One win banked — a streak starts at three."
+    : null;
 
   const [liveMarket, setLiveMarket] = useState<Market | null>(storeMarket ?? null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -620,10 +641,15 @@ export default function MarketDetailPage() {
                 onClick={onJoin}
               >
                 {executionBusy
-                  ? (submittedWithSession ? "Signing locally…" : "Awaiting wallet…")
+                  ? (submittedWithSession ? <span>Signing locally… <BusyMs /></span> : "Awaiting wallet…")
                   : selectedSide ? `Place ${selectedSide.toUpperCase()} bet` : "Choose YES or NO"}
                 <span>→</span>
               </button>
+
+              {/* Streak proximity — progress nudges outperform badges. */}
+              {canJoin && !receipt && streakNudge && (
+                <p className="slip-streak-nudge" aria-live="polite">{streakNudge}</p>
+              )}
 
               {/* First one-tap celebration */}
               {justOnboarded && receipt?.viaSession && (

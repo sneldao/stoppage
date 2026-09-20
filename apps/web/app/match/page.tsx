@@ -23,6 +23,7 @@ import { MomentAlert } from "@/components/MomentAlert";
 import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
+import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { useAttestEvent } from "@/lib/match/useAttestEvent";
 import { useAttestEvents } from "@/lib/match/useAttestEvents";
@@ -157,6 +158,13 @@ function MatchRoomContent() {
   // operator-attested (tsdb) synthetic one.
   const effectiveFixture = fixture ?? attestFixture;
 
+  // Empty-room honesty with direction: a scheduled fixture points at
+  // kickoff instead of a generic void.
+  const emptyKickoff = effectiveFixture && isFixtureScheduled(effectiveFixture)
+    ? safeStartTime(effectiveFixture)
+    : null;
+  const emptyCountdown = useCountdown(emptyKickoff);
+
   // Operator-attested matches have no TxLINE SSE stream, and price-feed /
   // custom markets never carry match events — only render the live bar for
   // a matchId the TxLINE fixture plane actually knows about (or a replay).
@@ -266,7 +274,7 @@ function MatchRoomContent() {
         {/* Live Jev reads sit beside the proof path — narrating momentum,
             never gating anything. Hidden until a match is in focus. */}
         {selectedMatchId && (
-          <JevMind mind={jevMind} pending={jevPending} status={phase as Market["status"]} oracle={matchMarkets[0]?.oracle} />
+          <JevMind mind={jevMind} pending={jevPending} status={phase as Market["status"]} oracle={matchMarkets[0]?.oracle} lastSignal={lastSignalType} />
         )}
 
         {/* Positions only make sense once a wallet is connected — hide the
@@ -312,7 +320,7 @@ function MatchRoomContent() {
             }
             
             return <Link className={`match-market-row match-market-${market.status}`} href={`/markets/${market.id}`} key={market.id}><div><span>{market.status.replace("_", " ")}{bettingBlocked && <span className="market-tape-row__blocked" title={blockedReason}>⚠</span>}</span><strong>{formatMarketQuestion(market.predicate)}</strong><small>Closes {new Date(market.closesAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div><MarketWindow closesAt={market.closesAt} status={market.status} compact /><div className="match-market-odds"><OddsSparkline marketId={market.id} currentYes={odds.yes} /><b>YES {Math.round(odds.yes * 100)}%</b><b>NO {Math.round(odds.no * 100)}%</b></div><i>→</i></Link>;
-          })}</div> : <div className="match-room-empty">Markets will appear here when the match context supports them.</div>}
+          })}</div> : <div className="match-room-empty">{emptyCountdown ? `Betting opens 2h before kickoff · starts in ${emptyCountdown}.` : "Markets will appear here when the match context supports them."}</div>}
         </section>
 
         {/* System chrome (Matchkeeper + proof path) only when there's a real

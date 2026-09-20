@@ -21,11 +21,13 @@ export function JevMind({
   pending,
   status,
   oracle,
+  lastSignal,
 }: {
   mind: JevMindResponse | null;
   pending: boolean;
   status: MarketStatus;
   oracle?: string;
+  lastSignal?: "goal" | "corner" | "card" | null;
 }) {
   const reads = mind?.reads ?? [];
   return (
@@ -38,6 +40,9 @@ export function JevMind({
         <span className={`jev-source jev-source--${mind?.source ?? "idle"}`} aria-live="polite">
           {pending ? "reading…" : mind ? `${mind.source === "jev" ? `jev ${mind.model ?? ""}`.trim() : "heuristic"} · ${mind.latencyMs}ms` : "waiting for feed"}
         </span>
+        {lastSignal && (
+          <span className="jev-event" aria-live="polite">feed: {lastSignal} → reads refreshed</span>
+        )}
       </div>
       <div className="jev-mind-grid">
         <div className="jev-bars" aria-live="polite">

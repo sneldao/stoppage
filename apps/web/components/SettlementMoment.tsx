@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Market, Position } from "@stoppage/sdk";
 import { formatSol as SOL } from "@/lib/format";
+import { buildResolutionTweet, buildTweetIntent } from "@/lib/share/tweet";
+import { useStoppageStore } from "@/store";
 import { useCountUp } from "@/lib/anim/useCountUp";
 
 /**
@@ -23,6 +25,9 @@ function proRataPayoutLamports(stake: number, yourPool: number, oppPool: number)
 
 export function SettlementMoment({ market, myPosition }: { market: Market; myPosition?: Position }) {
   const prevStatus = useRef(market.status);
+  const recordShare = useStoppageStore((s) => s.recordShare);
+  const referrer = useStoppageStore((s) => s.referrer);
+  const [copied, setCopied] = useState(false);
   const [moment, setMoment] = useState<null | { kind: "settled" | "void"; outcome: string; won: boolean; payout: number }>(null);
 
   useEffect(() => {
@@ -52,6 +57,28 @@ export function SettlementMoment({ market, myPosition }: { market: Market; myPos
   }, [market.status, market.outcome, market.yesPool, market.noPool, myPosition]);
 
   const count = useCountUp(moment?.payout ?? 0, 1_200, Boolean(moment));
+
+  // Winner share row — the viral moment: proof-backed bragging rights with
+  // referral attribution, at the emotional peak. Uses only settled data.
+  const showShare = Boolean(
+    moment && moment.won && moment.kind === "settled" && myPosition && myPosition.amountLamports > 0
+  );
+  const marketUrl = typeof window !== "undefined" ? `${window.location.origin}/markets/${market.id}` : "";
+  const refUrl = referrer ? `${marketUrl}?ref=${encodeURIComponent(referrer)}` : marketUrl;
+  const shareIntent = showShare && myPosition
+    ? buildTweetIntent(buildResolutionTweet(market, myPosition.side, true, refUrl))
+    : "";
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(refUrl);
+      setCopied(true);
+      recordShare();
+      window.setTimeout(() => setCopied(false), 2_000);
+    } catch {
+      // Embedded clients may block clipboard access.
+    }
+  };
+
   if (!moment) return null;
 
   return (
@@ -72,6 +99,14 @@ export function SettlementMoment({ market, myPosition }: { market: Market; myPos
       <a className="settlement-moment-proof" href={`https://explorer.solana.com/address/${market.id}?cluster=devnet`} target="_blank" rel="noreferrer">
         ✓ Proof path verified · view market ↗
       </a>
+      {showShare && (
+        <div className="settlement-moment-share">
+          <a href={shareIntent} target="_blank" rel="noopener noreferrer" onClick={() => recordShare()}>
+            Share called-it on X
+          </a>
+          <button type="button" onClick={() => void copyLink()}>{copied ? "Link copied" : "Copy call link"}</button>
+        </div>
+      )}
     </div>
   );
 }

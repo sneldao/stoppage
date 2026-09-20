@@ -20,7 +20,14 @@ interface WinCardData {
   payoutLamports: number;
 }
 
-export type ShareCardData = StreakCardData | WinCardData;
+interface ProofCardData {
+  kind: "proof";
+  market: Market;
+  merkleRoot: string;
+  settleSig: string;
+}
+
+export type ShareCardData = StreakCardData | WinCardData | ProofCardData;
 
 const W = 640;
 const H = 360;
@@ -106,6 +113,31 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
     ctx.font = "500 12px 'Courier New', monospace";
     ctx.fillStyle = MUTED;
     ctx.fillText(`Best ever: ${data.bestStreak} · Verified on Solana`, 38, 190);
+  } else if (data.kind === "proof") {
+    const question = formatMarketQuestion(data.market.predicate);
+    const root = data.merkleRoot.length > 20
+      ? `${data.merkleRoot.slice(0, 10)}…${data.merkleRoot.slice(-10)}`
+      : data.merkleRoot;
+    const sig = data.settleSig.length > 16
+      ? `${data.settleSig.slice(0, 8)}…${data.settleSig.slice(-8)}`
+      : data.settleSig;
+
+    ctx.font = "700 11px 'Courier New', monospace";
+    ctx.fillStyle = LIME;
+    ctx.fillText("STOPPAGE · SETTLEMENT VERIFIED", 38, 42);
+
+    ctx.font = "700 19px Georgia, serif";
+    ctx.fillStyle = INK;
+    ctx.fillText(question.length > 42 ? question.slice(0, 42) + "…" : question, 38, 84);
+
+    ctx.font = "700 44px 'Courier New', monospace";
+    ctx.fillStyle = LIME;
+    ctx.fillText(`${(data.market.outcome ?? "—").toUpperCase()} WINS`, 38, 148);
+
+    ctx.font = "500 12px 'Courier New', monospace";
+    ctx.fillStyle = MUTED;
+    ctx.fillText(`Root ${root}`, 38, 182);
+    ctx.fillText(`Settle ${sig}`, 38, 202);
   } else {
     const question = formatMarketQuestion(data.market.predicate);
     ctx.font = "700 18px Georgia, serif";
@@ -132,10 +164,16 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Footer
+  // Footer — co-branded stack line: every card is a four-logo artifact.
   ctx.font = "500 11px 'Courier New', monospace";
   ctx.fillStyle = MUTED;
-  ctx.fillText("stoppage.fun", 38, 270);
+  ctx.fillText(
+    data.kind === "proof"
+      ? "Settled on Stoppage · Data TxLINE · Reads Jev via Vercel"
+      : "stoppage.fun",
+    38,
+    270
+  );
 
   ctx.font = "500 10px 'Courier New', monospace";
   ctx.fillStyle = "rgba(255,255,255,0.25)";

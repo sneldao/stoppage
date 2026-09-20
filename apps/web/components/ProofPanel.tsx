@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { Market } from "@stoppage/sdk";
 import { oracleInfoFor } from "@/lib/oracle";
 import { buildProofTweet, buildTweetIntent } from "@/lib/share/tweet";
+import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
+import { useStoppageStore } from "@/store";
 
 interface ProofPanelProps {
   market: Market;
@@ -41,8 +43,23 @@ function shortHash(hex: string | undefined, chars = 6): string {
 
 export function ProofPanel({ market }: ProofPanelProps) {
   const [verify, setVerify] = useState<VerifyState>({ kind: "idle" });
+  const recordShare = useStoppageStore((s) => s.recordShare);
+  const referrer = useStoppageStore((s) => s.referrer);
   const oracle = oracleInfoFor(market.oracle);
   const explorerUrl = `https://explorer.solana.com/address/${market.id}?cluster=devnet`;
+  const marketUrl = typeof window !== "undefined" ? `${window.location.origin}/markets/${market.id}` : "";
+  const refUrl = referrer ? `${marketUrl}?ref=${encodeURIComponent(referrer)}` : marketUrl;
+
+  const downloadProofCard = () => {
+    if (verify.kind !== "receipt-checked") return;
+    void exportCardAsPng({
+      kind: "proof",
+      market,
+      merkleRoot: verify.data.merkleRoot ?? "",
+      settleSig: verify.data.signature ?? "",
+    }, `stoppage-proof-${market.id.slice(0, 8)}.png`);
+    recordShare();
+  };
 
   if (market.status === "void") {
     return (
@@ -269,14 +286,22 @@ export function ProofPanel({ market }: ProofPanelProps) {
                 market,
                 verify.data.merkleRoot ?? "",
                 verify.data.explorerUrl,
-                typeof window !== "undefined" ? `${window.location.origin}/markets/${market.id}` : "",
+                refUrl,
               ),
             )}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => recordShare()}
           >
             Share the proof on X
           </a>
+          <button
+            type="button"
+            className="proof-share-btn proof-share-btn--card"
+            onClick={downloadProofCard}
+          >
+            Download proof card
+          </button>
         </>
       )}
 

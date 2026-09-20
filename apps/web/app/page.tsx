@@ -23,6 +23,8 @@ import { RightNowLine } from "@/components/RightNowLine";
 import { PersonalizedHero, usePrimaryOpenPosition } from "@/components/PersonalizedHero";
 import { StreakCelebration } from "@/components/StreakCelebration";
 import { Achievements } from "@/components/Achievements";
+import { ReferralStrip } from "@/components/ReferralStrip";
+import { MatchSlate } from "@/components/MatchSlate";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
@@ -394,6 +396,7 @@ export default function Home() {
             <SharpMoves />
           </LazyWhenVisible>
           <HeroMarketRail markets={otherMarkets} />
+          <ReferralStrip />
           {publicKey && (
             <Achievements history={history} positions={positions} />
           )}
@@ -403,6 +406,9 @@ export default function Home() {
       {/* ── Matchkeeper — visible to every visitor, wallet or not.
           The agent is the entry; hiding it behind connect hid the pitch. ── */}
       <AgentStrip />
+
+      {/* ── Today's slate — the matchday ritual, one screen. ── */}
+      <MatchSlate fixtures={fixtures} />
 
       <footer className="app-footer">
         <div>
