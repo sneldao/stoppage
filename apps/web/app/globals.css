@@ -570,6 +570,37 @@ body { background: var(--paper); }
 .token-strip strong { color: #ffd56a; font-variant-numeric: tabular-nums; }
 .token-strip a { color: var(--lime); font: 600 10px "DM Mono", monospace; text-transform: uppercase; white-space: nowrap; }
 .gate-open-chip { padding: 7px 12px; border: 1px solid var(--lime); background: rgba(0,255,136,.1); color: var(--lime); font: 600 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; text-decoration: none; white-space: nowrap; animation: pulse-dot 1.8s infinite; }
+
+/* ── /tactics: retro gaffer stage, single viewport at 1280×800 ── */
+.tactics { min-height: 100vh; padding: 26px 34px 20px; background: #0a1410; color: #f2f5ec; display: grid; grid-template-rows: auto auto 1fr; gap: 16px; align-content: start; }
+.tactics-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; flex-wrap: wrap; }
+.tactics-head h1 { margin: 4px 0 0; font: 400 clamp(30px, 3.4vw, 44px)/1 "Instrument Serif", Georgia, serif; color: #ffd56a; }
+.tactics-stats { display: flex; gap: 10px; align-items: center; }
+.tactics-board { display: grid; grid-template-columns: 1fr auto 1fr auto auto; gap: 18px; align-items: center; padding: 14px 18px; background: #10241a; border: 1px solid #2c4a38; }
+.tactics-board strong { font-size: 20px; }
+.tactics-board b { color: var(--lime); font: 500 40px "DM Mono", monospace; }
+.tactics-minute { color: #ffd56a; font: 700 22px "DM Mono", monospace; }
+.tactics-script { color: #8ea2bd; font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
+.tactics-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; align-items: start; }
+.tactics-card { padding: 18px; border: 1px solid #2c4a38; background: #0d1c14; }
+.tactics-card h2 { margin: 2px 0 12px; font: 400 30px/1 "Instrument Serif", Georgia, serif; }
+.tactics-attrs { display: grid; gap: 8px; }
+.tactics-attr { display: grid; grid-template-columns: 36px 1fr 28px; gap: 10px; align-items: center; font: 600 10px "DM Mono", monospace; color: #9db3a5; }
+.tactics-attr b { color: #fff; text-align: right; font-size: 13px; }
+.tactics-pips { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.tactics-pips i { height: 10px; background: rgba(255,255,255,.09); }
+.tactics-pips i.on { background: #a6f0b8; }
+.tactics-situation { margin: 14px 0 0; color: #dbe5d2; font-size: 13px; line-height: 1.5; }
+.tactics-call { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #ffd56a; background: rgba(255, 213, 106, .07); color: #ffd56a; font: 600 12px "DM Mono", monospace; animation: card-glow-in .5s var(--ease) both; }
+.tactics-feed { padding: 18px; border: 1px solid var(--line); background: #0d1526; display: grid; gap: 8px; align-content: start; }
+.tactics-feed p { margin: 0; font-size: 12px; line-height: 1.5; color: #c3d0e1; }
+.tactics-feed-latest { color: #fff !important; font-size: 14px !important; }
+.tactics-feed-idle { color: #8ea2bd; }
+.tactics-fulltime { padding: 34px; border: 1px solid #ffd56a; background: #101a10; text-align: center; }
+.tactics-fulltime h2 { margin: 0 0 10px; color: #ffd56a; font: 400 40px/1 "Instrument Serif", Georgia, serif; }
+.tactics-fulltime p { color: #c3d0e1; }
+.tactics-fulltime button { margin-top: 14px; padding: 10px 16px; border: 1px solid var(--lime); background: rgba(0,255,136,.1); color: var(--lime); font: 600 11px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
+@media (max-width: 800px) { .tactics-grid { grid-template-columns: 1fr; } }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
 .you-vs-quant { margin-top: 22px; padding: 20px; border: 1px solid var(--line); background: #0d1526; }
