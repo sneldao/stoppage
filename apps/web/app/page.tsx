@@ -25,6 +25,7 @@ import { StreakCelebration } from "@/components/StreakCelebration";
 import { Achievements } from "@/components/Achievements";
 import { ReferralStrip } from "@/components/ReferralStrip";
 import { MatchSlate } from "@/components/MatchSlate";
+import { ReminderWatcher } from "@/components/ReminderWatcher";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
@@ -291,6 +292,7 @@ export default function Home() {
 
       {/* ── Streak celebration — global milestone moment ── */}
       <StreakCelebration history={history} />
+      <ReminderWatcher fixtures={fixtures} />
 
       {/* ── Command centre ── */}
       <section className="command-center">

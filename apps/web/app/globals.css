@@ -553,13 +553,20 @@ body { background: var(--paper); }
 
 .match-slate { width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 34px 0; }
 .slate-list { display: grid; gap: 8px; margin-top: 14px; }
-.slate-row { display: grid; grid-template-columns: 74px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.slate-row { display: grid; grid-template-columns: 74px 1fr auto auto auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .slate-row strong { font-size: 14px; }
 .slate-time { color: var(--lime); font: 600 11px "DM Mono", monospace; }
 .slate-row--live { border-color: var(--lime); }
 .slate-row--live .slate-time { animation: pulse-dot 1.6s infinite; }
 .slate-meta { color: var(--muted); font-size: 11px; }
 .slate-count { color: var(--blue); font: 500 10px "DM Mono", monospace; text-transform: uppercase; }
+.slate-remind { padding: 6px 10px; border: 1px dashed #4d6485; background: transparent; color: #8ea2bd; font: 500 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.slate-remind--on { border-style: solid; border-color: #ffd56a; color: #ffd56a; }
+.reminder-banner { display: grid; gap: 8px; width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding-top: 14px; }
+.reminder-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid #ffd56a; background: rgba(255, 213, 106, .07); color: var(--ink); font-size: 12px; }
+.reminder-row a { color: var(--lime); font: 600 10px "DM Mono", monospace; text-transform: uppercase; }
+.reminder-row button { margin-left: auto; border: none; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; }
+.gate-open-chip { padding: 7px 12px; border: 1px solid var(--lime); background: rgba(0,255,136,.1); color: var(--lime); font: 600 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; text-decoration: none; white-space: nowrap; animation: pulse-dot 1.8s infinite; }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
 .you-vs-quant { margin-top: 22px; padding: 20px; border: 1px solid var(--line); background: #0d1526; }

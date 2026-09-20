@@ -22,6 +22,7 @@ import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
 import { MatchFixturePicker } from "@/components/MatchFixturePicker";
 import { MatchSlate } from "@/components/MatchSlate";
+import { ReminderWatcher } from "@/components/ReminderWatcher";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
@@ -29,7 +30,7 @@ import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { useAttestEvent } from "@/lib/match/useAttestEvent";
 import { useAttestEvents } from "@/lib/match/useAttestEvents";
 import { isAttestMatchId } from "@/lib/match/attest";
-import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
+import { isFixtureGatedMarket, useBettingGate } from "@/lib/match/useBettingGate";
 import { useMatchRoomReplay } from "@/lib/replay/useMatchRoomReplay";
 import { snapshotIsFresh, type LiveMatchSnapshot } from "@/lib/match/types";
 
@@ -200,6 +201,12 @@ function MatchRoomContent() {
     ? "scheduled"
     : "idle";
 
+  // Betting-open moment: gate allow + an open market = the highest-value
+  // seconds in the room. A pulsing chip carries straight to the slip.
+  const roomGate = useBettingGate(selectedMatchId ?? "");
+  const firstOpenMarket = matchMarkets.find((m) => m.status === "open");
+  const gateOpen = roomGate.canBet && Boolean(firstOpenMarket);
+
   // Advisory Jev reads: snapshot + pool context in, animated bars out.
   // Display only — never gates betting, creation, or settlement.
   const jevInput = useMemo(() => {
@@ -246,6 +253,7 @@ function MatchRoomContent() {
         </header>
 
         <MatchFixturePicker fixtures={fixtures} matchIds={matchIds} selectedMatchId={selectedMatchId} attestByMatchId={attestList.byMatchId} />
+        <ReminderWatcher fixtures={fixtures} />
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
           <div className="control-scoreboard-top">
@@ -316,7 +324,7 @@ function MatchRoomContent() {
         )}
 
         <section className="match-live-reads" aria-labelledby="match-live-reads-title">
-          <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2 id="match-live-reads-title">Markets for this match.</h2></div><span>{matchMarkets.length} active</span></div>
+          <div className="section-heading"><div><p className="eyebrow">Live markets</p><h2 id="match-live-reads-title">Markets for this match.</h2></div><span>{matchMarkets.length} active</span>{gateOpen && firstOpenMarket && (<Link className="gate-open-chip" href={`/markets/${firstOpenMarket.id}`}>Betting open · one-tap ready →</Link>)}</div>
           {matchMarkets.length ? <div className="match-market-list">{matchMarkets.map((market) => {
             const odds = impliedProbability(market);
             

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { FixtureWithMatchId } from "@/lib/match/types";
 import { isFixtureLive } from "@/lib/match/fixtures";
 import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
+import { ReminderButton } from "@/components/ReminderButton";
 
 function utcDay(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
@@ -29,6 +30,7 @@ function SlateRow({ fixture }: { fixture: FixtureWithMatchId }) {
       <strong>{fixture.Participant1} v {fixture.Participant2}</strong>
       <span className="slate-meta">{fixture.Country ?? fixture.Competition ?? ""}</span>
       <span className="slate-count">{live ? "In play →" : countdown ? `${countdown} →` : "→"}</span>
+      {!live && <ReminderButton matchId={fixture.matchId} />}
     </Link>
   );
 }

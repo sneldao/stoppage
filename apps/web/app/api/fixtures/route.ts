@@ -50,9 +50,12 @@ export async function GET() {
       { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
     );
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "failed to fetch fixtures" },
-      { status: 500 }
-    );
+    // Forward TxLINE's status (401 stale creds, 429 rate limit) instead of
+    // a blanket 500 — the client backs off by status, and operators can
+    // tell a credential lapse from a rate limit at a glance.
+    const message = e instanceof Error ? e.message : "failed to fetch fixtures";
+    const upstream = /failed: (\d{3})/.exec(message)?.[1];
+    const status = upstream === "401" || upstream === "429" ? Number(upstream) : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

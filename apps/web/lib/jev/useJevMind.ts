@@ -29,10 +29,11 @@ export function useJevMind(input: JevMindInput | null, signalVersion: number) {
     if (!input || !input.matchId) return;
     const key = JSON.stringify([input.matchId, input.scoreHome, input.scoreAway, input.corners, input.cards, input.openMarkets, input.yesShare, signalVersion]);
     if (key === keyRef.current) return;
-    keyRef.current = key;
     let cancelled = false;
+    let onVisible: (() => void) | null = null;
     setPending(true);
-    const t = setTimeout(async () => {
+    const fire = async () => {
+      keyRef.current = key;
       try {
         const res = await fetch("/api/jev-mind", {
           method: "POST",
@@ -47,10 +48,26 @@ export function useJevMind(input: JevMindInput | null, signalVersion: number) {
       } finally {
         if (!cancelled) setPending(false);
       }
+    };
+    const t = setTimeout(() => {
+      // Background tabs wait for return instead of burning Jev calls no
+      // one watches — the key is claimed only on fire, so nothing is lost.
+      if (typeof document !== "undefined" && document.hidden) {
+        onVisible = () => {
+          if (!document.hidden) {
+            if (onVisible) document.removeEventListener("visibilitychange", onVisible);
+            void fire();
+          }
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return;
+      }
+      void fire();
     }, 650);
     return () => {
       cancelled = true;
       clearTimeout(t);
+      if (onVisible) document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input?.matchId, input?.scoreHome, input?.scoreAway, input?.corners, input?.cards, input?.openMarkets, input?.yesShare, signalVersion]);
