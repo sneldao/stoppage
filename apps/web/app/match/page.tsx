@@ -21,6 +21,7 @@ import { useJevMind } from "@/lib/jev/useJevMind";
 import { MatchPulse } from "@/components/MatchPulse";
 import { MomentAlert } from "@/components/MomentAlert";
 import { MatchFixturePicker } from "@/components/MatchFixturePicker";
+import { MatchSlate } from "@/components/MatchSlate";
 import { useMatchSignals } from "@/lib/match/useMatchSignals";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { safeStartTime, useCountdown } from "@/lib/time/useCountdown";
@@ -58,12 +59,18 @@ function MatchRoomContent() {
   const attestList = useAttestEvents();
 
   const requestedMatchId = searchParams.get("match");
-  // Selection: an explicit ?match= wins; otherwise the first match with
-  // real context (TxLINE fixture or attested event), live ones first.
+  // Selection: an explicit ?match= wins — for a market OR any known
+  // fixture/attested event, so slate links can pre-focus a room before
+  // its markets exist; otherwise the first match with real context
+  // (TxLINE fixture or attested event), live ones first.
   // Price-feed and custom /launch markets never auto-focus the room —
   // their raw ids ("SOL/USD:<ts>", "DEMO-…") used to drown it.
   const selectedMatchId = useMemo(() => {
-    if (requestedMatchId && matchIds.includes(requestedMatchId)) return requestedMatchId;
+    if (requestedMatchId && (
+      matchIds.includes(requestedMatchId)
+      || fixtures.some((f) => f.matchId === requestedMatchId)
+      || attestList.byMatchId.has(requestedMatchId)
+    )) return requestedMatchId;
     const contextIds = matchIds.filter(
       (id) => fixtures.some((f) => f.matchId === id) || attestList.byMatchId.has(id)
     );
@@ -74,10 +81,22 @@ function MatchRoomContent() {
     return liveId ?? contextIds[0] ?? null;
   }, [requestedMatchId, matchIds, fixtures, attestList.byMatchId]);
 
+  // Void-state killer: the nearest scheduled kickoff. The room always
+  // has a subject — a live match, a replay, or the next kickoff — so it
+  // never reads as stale. Falls back to legacy first-fixture behaviour
+  // only when nothing is scheduled ahead.
+  const nextFixture = useMemo(() => {
+    const now = Date.now();
+    const upcoming = fixtures
+      .filter((item) => isFixtureScheduled(item) && fixtureStartTimeMs(item) > now)
+      .sort((a, b) => fixtureStartTimeMs(a) - fixtureStartTimeMs(b));
+    return upcoming[0] ?? null;
+  }, [fixtures]);
+
   const fixture = useMemo(() => {
     if (selectedMatchId) return fixtures.find((item) => item.matchId === selectedMatchId) ?? null;
-    return fixtures.find((item) => isFixtureLive(item)) ?? fixtures[0] ?? null;
-  }, [fixtures, selectedMatchId]);
+    return fixtures.find((item) => isFixtureLive(item)) ?? nextFixture ?? fixtures[0] ?? null;
+  }, [fixtures, selectedMatchId, nextFixture]);
 
   const attest = useAttestEvent(selectedMatchId);
   const attestFixture = attest?.fixture ?? null;
@@ -248,6 +267,12 @@ function MatchRoomContent() {
           {effectiveFixture || snapshot ? (
             <>
               <div className="control-scoreline"><strong>{effectiveFixture?.Participant1 ?? "Home"}</strong><b key={snapshot ? `${snapshot.score.home}-${snapshot.score.away}` : "vs"} className={snapshot ? "score-flash" : ""}>{snapshot ? `${snapshot.score.home}—${snapshot.score.away}` : "vs"}</b><strong>{effectiveFixture?.Participant2 ?? "Away"}</strong></div>
+              {/* Scheduled context counts down — the room always has time. */}
+              {!live && !isReplay && effectiveFixture && emptyCountdown && (
+                <div className="control-stats">
+                  <span>Kicks off in {emptyCountdown} · betting opens 2h before</span>
+                </div>
+              )}
               {(snapshot || live) && (
                 <div className="control-stats">
                   {snapshot ? <span>Corners {snapshot.stats.corners} · Cards {snapshot.stats.cards}</span> : <span>Awaiting first feed update</span>}
@@ -257,7 +282,7 @@ function MatchRoomContent() {
               )}
             </>
           ) : (
-            <p className="control-scoreboard-idle">Pick a match above, or wait for the keeper to spot one — the scoreboard fills in when a fixture lands.</p>
+            <p className="control-scoreboard-idle">No fixture data right now — <Link href="/markets">browse markets →</Link></p>
           )}
           {barMatchId && (
             <LiveMatchBar
@@ -268,6 +293,10 @@ function MatchRoomContent() {
           )}
           {deadTime && <ReplayLauncher />}
         </section>
+
+        {/* Idle room becomes the matchday hub: slate links pre-focus a
+            fixture (?match=) even before its markets exist. */}
+        {!live && !isReplay && <MatchSlate fixtures={fixtures} />}
 
         <MatchSignal markets={matchMarkets} />
 

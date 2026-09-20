@@ -42,11 +42,14 @@ export function MatchSlate({ fixtures }: { fixtures: FixtureWithMatchId[] }) {
   const today = useMemo(() => {
     const now = Date.now();
     const day = utcDay(now);
+    // Drop fixtures whose kickoff is long past unless live — TxLINE states
+    // can lag, and a noon room must not list dawn games as NOW.
+    const staleBefore = now - 3 * 3_600_000;
     return fixtures
       .filter((f) => {
         if (f.GameState === 6) return false;
         const t = startMs(f);
-        if (!Number.isFinite(t)) return false;
+        if (!Number.isFinite(t) || t < staleBefore) return false;
         // Today (UTC) or currently live.
         return utcDay(t) === day || isFixtureLive(f);
       })
