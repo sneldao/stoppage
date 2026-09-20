@@ -297,6 +297,7 @@ function MatchRoomContent() {
               matchId={barMatchId}
               onNewEvent={onMatchEvent}
               onPhase={onReplayPhase}
+              snapshotFresh={snapshotIsFresh(snapshot)}
             />
           )}
           {deadTime && <ReplayLauncher />}

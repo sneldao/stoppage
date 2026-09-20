@@ -262,6 +262,7 @@ function MatchFace({
           matchId={feedMatchId}
           onNewEvent={handleNewEvent as any}
           onPhase={onPhase as any}
+          snapshotFresh={snapshotIsFresh(snapshot)}
         />
       )}
     </div>

@@ -120,7 +120,7 @@ function playEventSound(type: string) {
   }
 }
 
-export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: string; onNewEvent?: (event: LiveEvent) => void; onPhase?: (phase: MatchPhaseState) => void }) {
+export function LiveMatchBar({ matchId, onNewEvent, onPhase, snapshotFresh }: { matchId?: string; onNewEvent?: (event: LiveEvent) => void; onPhase?: (phase: MatchPhaseState) => void; snapshotFresh?: boolean }) {
   const [phase, setPhase] = useState<MatchPhaseState | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -200,13 +200,15 @@ export function LiveMatchBar({ matchId, onNewEvent, onPhase }: { matchId?: strin
 
   // Progressive disclosure: until the stream delivers a phase or an event,
   // show one quiet connected strip instead of a block full of "--" and
-  // "Listening" placeholders.
+  // "Listening" placeholders. When the event stream is down but polled
+  // snapshots are fresh, say so — the room has two feeds and must not
+  // report only the broken one.
   if (!phase && events.length === 0) {
     return (
       <div className="live-match-bar live-match-bar--idle" aria-label="Live match feed">
         <div className="live-bar-meta live-bar-meta--idle">
-          <span className={`live-bar-dot ${connected ? "live" : "dead"}`} title={connected ? "Connected" : "Disconnected"} />
-          <span className="live-bar-events-count">{connected ? "Feed connected · waiting for the first event" : "Connecting to match feed…"}</span>
+          <span className={`live-bar-dot ${connected || snapshotFresh ? "live" : "dead"}`} title={connected ? "Connected" : snapshotFresh ? "Score feed live" : "Disconnected"} />
+          <span className="live-bar-events-count">{connected ? "Feed connected · waiting for the first event" : snapshotFresh ? "Live score updating · event stream reconnecting" : "Connecting to match feed…"}</span>
         </div>
       </div>
     );
