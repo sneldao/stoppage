@@ -470,7 +470,12 @@ with the first live MLS week and EPL start (Aug 21). Not entering.
 Free subscriptions are still 28-day and lapse silently — re-run
 `scripts/subscribe-txline.ts` every ~3.5 weeks. Paid tiers remain
 mainnet-only (useless for the devnet CPI path). Mainnet still needs
-legal review.
+legal review. Renewal is three surfaces, not one: the repo-root creds
+file self-renews (daily LaunchAgent), the VPS gets `--deploy`, and the
+**Vercel dashboard vars (`TXLINE_JWT` / `TXLINE_API_TOKEN`) are manual**
+— stale pasted values shadow everything and 401 the fixture feed (bit
+2026-09-20; pasted env beats the renewed file). Current sub started
+2026-09-19 → renew by **2026-10-15**, lapses ~2026-10-17.
 
 ## Previous state (2026-08-10)
 
