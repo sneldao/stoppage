@@ -255,6 +255,30 @@ settle_from_proof atomic via TxLINE validator CPI) plus the autonomous
 agent already running it on live fixtures — settled, claimed, vault
 drained, receipts on-chain (see ROADMAP.md Aug 21/24 keystone record).
 
+### Shipped Sept 20, inside the judging window (scores Sept 21–30)
+
+All web-layer, all demoable on stream, none touching settlement:
+
+- **Jev live reads in the match room** (`typesafe-ai/jev` via Vercel AI
+  Gateway, free promo): four parallel questions per feed tick beside the
+  proof path. Novel use of launch-week tech, honestly labeled fallback.
+- **Shareable proof cards** (canvas PNG + X intent from the settlement
+  climax and the proof panel, co-branded Stoppage · TxLINE · Jev via
+  Vercel) — the "see the onchain data" artifact as a viral unit.
+- **Matchday surfaces**: void-state room became next-kickoff room with
+  live countdowns, today's slate, gate-open reminders (localStorage +
+  Browser Notification), betting-open chip, streak nudges, referral
+  visibility, you-vs-quant tally.
+- **Reliability hardening**: score-route caching, fixtures failure
+  backoff with 401/429 forwarding, hidden-tab read guards — the keeper
+  story for a triple-header afternoon.
+- **Distribution plumbing**: OG image cache-busted and verified for
+  link previews (the X entry post needs its card), demo clips cut.
+
+Net: the entry now shows a living product (reads move, countdowns tick,
+settles mint cards) instead of a protocol diagram — strictly better for
+stream judges and the builder-half scoring line.
+
 ### Sponsor stack (assessed 2026-09-19)
 
 The sponsors are the scoring surface beyond the track itself — each
