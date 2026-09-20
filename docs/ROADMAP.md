@@ -93,6 +93,16 @@ claims. Eligibility (all three by **2026-09-20 23:59 UTC**): register,
 post the entry on X + follow @clawpumptech, tokenize on ClawPump
 verified against the same X handle.
 
+**Jev live reads shipped in web (2026-09-20).** The match room renders
+advisory momentum reads (goal/corners/chaos/anomaly — one request, four
+parallel questions) beside the proof path: fast guesses on the left,
+slow proof on the right. Precedence is Vercel AI Gateway (free promo
+till 2026-09-25) → direct TypeSafe key → labeled heuristic, always
+badged in the UI. Co-branded proof cards (Stoppage · TxLINE · Jev via
+Vercel) are the partnership surface. Advisory only: no agent, SDK, or
+program changes, nothing in the settle path. Agent-side Jev (pre-flight
+template selection) stays in the Icebox.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding
@@ -1117,10 +1127,11 @@ compliance note), mobile app, ELO/agent-vs-agent markets, market
 creation UI for arbitrary predicates (launch templates are hardcoded),
 multi-oracle aggregation, AG Grid for position history / market tape /
 proof board (sortable tables — `@tanstack/react-table` alternative if
-bundle size matters), TypeSafe Jev as advisory layer for fixture
-triage / feed-anomaly flagging (assessed 2026-09-19 — revisit only as
-a non-gating signal alongside deterministic rules, never in the
-settle path; determinism is the differentiator).
+bundle size matters), TypeSafe Jev in the agent loop (fixture triage /
+template narrowing — the web live-reads layer shipped 2026-09-20, see
+Strategic direction; agent-side stays out: revisit only as a non-gating
+signal alongside deterministic rules, never in the settle path;
+determinism is the differentiator).
 
 ## Risk register
 

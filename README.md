@@ -104,6 +104,27 @@ Full toolchain, deploy, and agent ops: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.
 
 Working rules for contributors: [CLAUDE.md](./CLAUDE.md).
 
+## Jev live reads (advisory)
+
+The match room shows live momentum reads from TypeSafe's Jev (a System
+One evaluation model): each feed tick sends one request with four
+parallel questions — goal pressure, corners pressure, chaos, feed
+anomaly — rendered beside the deterministic proof path as a
+fast-guess / slow-proof split screen.
+
+Boundaries that keep the differentiator intact:
+
+- Jev narrates momentum; it never creates a market, never verifies a
+  proof, and never gates betting or settlement. Settlement truth stays
+  on-chain (`resolve_market` CPI → receipt → `settle_from_proof`).
+- Resolution path: Vercel AI Gateway (`AI_GATEWAY_API_KEY`, model
+  `typesafe-ai/jev`) → direct TypeSafe API (`TYPESAFE_API_KEY`) →
+  labeled heuristic fallback. The UI always shows which path served the
+  read. Both keys are server-only.
+- Web layer only: `apps/web/app/api/jev-mind/route.ts` + `apps/web/components/JevMind.tsx`.
+  No agent, SDK, or program changes. Proof cards co-brand the stack
+  (Stoppage · TxLINE · Jev via Vercel) for the partnership surface.
+
 ## Compliance
 
 Escrow and payout logic tied to real-world outcomes may trigger gambling
