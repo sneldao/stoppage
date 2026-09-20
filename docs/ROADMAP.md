@@ -1136,7 +1136,11 @@ bundle size matters), TypeSafe Jev in the agent loop (fixture triage /
 template narrowing — the web live-reads layer shipped 2026-09-20, see
 Strategic direction; agent-side stays out: revisit only as a non-gating
 signal alongside deterministic rules, never in the settle path;
-determinism is the differentiator).
+determinism is the differentiator), Rive interactive animation (CLI/RML
+spike approved for the SettlementMoment celebrate trigger — free during
+the technical preview, agent-authored, no account; ship gated on spike
+quality AND Cadet ($9/mo) to remove the free-plan splash screen;
+production integration stays out until post-Oct 1).
 
 ## Risk register
 
