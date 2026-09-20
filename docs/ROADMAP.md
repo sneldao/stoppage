@@ -89,9 +89,10 @@ Rationale: infra traction has been distribution-limited, and the
 Clawrena's streams and judge panel (Solana Foundation, Helius,
 pump.fun, Colosseum) are the best available operator-funnel surface.
 All marketing states devnet status honestly — receipts over volume
-claims. Eligibility (all three by **2026-09-20 23:59 UTC**): register,
-post the entry on X + follow @clawpumptech, tokenize on ClawPump
-verified against the same X handle.
+claims. Eligibility: registered 2026-09-20 as `stoppage` / `@sportwarren`
+/ `$STOPPAGE` (ClawPump × pump.fun + Inference Markets); X post +
+follow + tokenize due **by 1 Oct 2026** per the confirmation screen
+(earlier is better — judging runs Sept 21–30).
 
 **Jev live reads shipped in web (2026-09-20).** The match room renders
 advisory momentum reads (goal/corners/chaos/anomaly — one request, four

@@ -172,22 +172,23 @@ cash, judged by ClawPump and pump.fun together). Every tokenized team
 is automatically in the running for Overall Winner (25% of $ANSEM) —
 no separate application.
 
-### Eligibility — all three required by Sept 20, 23:59 UTC
+### Eligibility — registration done 2026-09-20; remainder by Oct 1
 
-Miss any one and the judges can't consider the build, however good it
-is.
+Registered as `stoppage` / `@sportwarren` / `$STOPPAGE` (ClawPump ×
+pump.fun + Inference Markets). The confirmation screen overrides the
+earlier read: the remaining steps are due **by 1 Oct 2026**, not Sept
+20 — but earlier is strictly better, since judging (Sept 21–30) scores
+what ships during the window and token activity needs time to exist.
 
-1. **Register the team** on the page — one entry per project. This is
-   the official registry every judge and partner works from. *(manual —
-   needs the team X handle)*
-2. **Post the entry on X and follow @clawpumptech** — there is no
-   confirmation email; the pre-written announcement post is the
-   receipt, and the follow is how they reach you about stream slots.
-   *(manual — X account)*
-3. **Tokenize on ClawPump** (or EasyA Kickstart) — the token is the
-   entry ticket. It must be verified against the **same X handle** the
-   team registered with; it attaches to the entry automatically.
-   *(manual — launch UI + wallet)*
+1. **Post the entry on X and follow @clawpumptech** — the provided
+   announcement text (tags them already) plus their image (X can't
+   attach it; download/copy it into the post manually). No
+   confirmation email; the post is the receipt. Attach it at the entry
+   page (`/ansemhack/entry`).
+2. **Tokenize on ClawPump**, verified against `@sportwarren` — attaches
+   automatically. Same caveats as ever: entry ticket, no promised
+   utility. Sooner beats Oct 1: a token born Sept 21 has nine judging
+   days of history; one born Sept 30 has none.
 
 Also manual, at registration: claim the Helius RPC credits and apply
 for the Alchemy credits (up to $25K).
