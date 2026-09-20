@@ -180,15 +180,17 @@ earlier read: the remaining steps are due **by 1 Oct 2026**, not Sept
 20 — but earlier is strictly better, since judging (Sept 21–30) scores
 what ships during the window and token activity needs time to exist.
 
-1. **Post the entry on X and follow @clawpumptech** — the provided
-   announcement text (tags them already) plus their image (X can't
-   attach it; download/copy it into the post manually). No
-   confirmation email; the post is the receipt. Attach it at the entry
-   page (`/ansemhack/entry`).
-2. **Tokenize on ClawPump**, verified against `@sportwarren` — attaches
-   automatically. Same caveats as ever: entry ticket, no promised
-   utility. Sooner beats Oct 1: a token born Sept 21 has nine judging
-   days of history; one born Sept 30 has none.
+1. **Post the entry on X and follow @clawpumptech** — DONE 2026-09-20
+   (attached at `/ansemhack/entry`). The provided announcement text
+   (tags them already) plus their image (X can't attach it; download/copy
+   it into the post manually). No confirmation email; the post is the
+   receipt.
+2. **Tokenize on ClawPump**, verified against `@sportwarren` — PLANNED
+   **2026-09-27 12:00 UTC** with a week-long countdown (on-site
+   `TokenCountdown` strip + daily beats below). Attaches automatically.
+   Same caveats as ever: entry ticket, no promised utility. Sept 27
+   leaves Sept 27–30 of token history inside judging plus a full
+   weekend of settles to post alongside.
 
 Also manual, at registration: claim the Helius RPC credits and apply
 for the Alchemy credits (up to $25K).
@@ -279,6 +281,21 @@ All web-layer, all demoable on stream, none touching settlement:
 Net: the entry now shows a living product (reads move, countdowns tick,
 settles mint cards) instead of a protocol diagram — strictly better for
 stream judges and the builder-half scoring line.
+
+### Countdown to $STOPPAGE (Sept 20 → Sept 27 12:00 UTC)
+
+One beat per day; every beat is a dated receipt inside judging week:
+
+| Day | Beat |
+|---|---|
+| Sept 20 | Entry post (done) + Jev speed clip |
+| Sept 21 | Judging opens — live room on the day's slate |
+| Sept 22 | Proof cards from the Sept 20 settles |
+| Sept 23 | Settlement explainer (fast guesses / slow proof) |
+| Sept 24 | You-vs-quant game |
+| Sept 25 | Gateway promo ends — "last day of free reads" tie-in |
+| Sept 26 | Weekend slate + reminders |
+| Sept 27 | Tokenize → attach → launch post with token link + room video |
 
 ### Sponsor stack (assessed 2026-09-19)
 
