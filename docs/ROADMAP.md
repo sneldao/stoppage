@@ -170,6 +170,36 @@ TxLINE-oracle market on the same fixture settles from a TxODDS Merkle
 proof. Two oracles, one match, two receipts — comparison artifact, not
 a permanent dual plane.
 
+## Keeper ops: TxLINE lapse crash-loop fixed, renewal automated (2026-09-21)
+
+**The TxLINE free subscription lapsed Sept 15 and crash-looped the
+keeper for ~4 days** (`Fixtures snapshot failed: 401` on boot; 55,022
+pm2 restarts, ~2s uptime). The ledger kept emitting a trickle of
+`txline_observed` events, which masked the failure as "flaky" rather
+than "dead." Renewed via `scripts/txline-renew.ts --deploy`, synced
+creds to `.env.agent` on nuncio-vultr, redeployed to current main.
+
+**Renewal is now automated:** launchd job `com.stoppage.txline-renew`
+on the wallet host, daily 09:00, `--days=10 --deploy` (launchd fires
+missed runs on wake). Also fixed the `syncToVps` stdin bug — `stdio:
+"inherit"` makes Node drop `input`, so the remote script previously
+never ran; stdin is now `pipe`.
+
+**`stoppage-price` restored.** It was absent from the pm2 dump — now
+running from `deploy/ecosystem.agent.config.cjs`. Pyth's Aug 26 Core
+upgrade made Hermes auth mandatory; the keeper sends `PYTH_API_KEY`
+(Bearer) to `pyth.dourolabs.app/hermes`. Key is the Claflin Pyth
+Terminal trial key, granted All Access by Pyth until trial end —
+**shared across both projects; lapsing = price keeper 401s again**
+(calendar check Sept 30).
+
+**Web resilience:** `/api/match-events` serves the last-good ledger
+snapshot flagged `stale` when the agent is unreachable (warm-instance
+module cache). Homepage gained a public `AgentStrip` (tape stats, last
+keeper action, UsePod advisory verbatim) and `ExpectationsStrip`
+(devnet/token boundary). Tape groups `price_above` markets into one
+collapsed `SOL/USD price contracts` section, sports first.
+
 ## EPL keystone settled + claimed — M2 acceptance ticked (2026-08-24)
 
 **The Aug 21 EPL keystone (Arsenal v Coventry, fixture 18146819) settled
