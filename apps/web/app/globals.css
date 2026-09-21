@@ -584,7 +584,21 @@ body { background: var(--paper); }
 .tactics-board b { color: var(--lime); font: 500 40px "DM Mono", monospace; }
 .tactics-minute { color: #ffd56a; font: 700 22px "DM Mono", monospace; }
 .tactics-script { color: #8ea2bd; font: 500 9px "DM Mono", monospace; text-transform: uppercase; }
-.tactics-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; align-items: start; }
+.tactics-grid { display: grid; grid-template-columns: 1.15fr 1fr .85fr; gap: 16px; align-items: start; }
+.tactics-pitch-wrap { padding: 14px; border: 1px solid #2c4a38; background: #0d1c14; }
+.tactics-pitch { position: relative; width: 100%; aspect-ratio: 105 / 68; border-radius: 6px; overflow: hidden; background: repeating-linear-gradient(90deg, #12402a 0, #12402a 44px, #0f3824 44px, #0f3824 88px); border: 1px solid #2c4a38; }
+.tactics-pitch-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pitch-zone-tag { position: absolute; top: 8px; left: 10px; font: 600 9px "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: #ffd56a; background: rgba(10,20,16,.75); padding: 3px 7px; border: 1px solid #2c4a38; }
+.pitch-dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; transition: left 1s var(--ease), top 1s var(--ease); }
+.pitch-dot--away { background: #e5534b; border: 1.5px solid rgba(255,255,255,.75); }
+.pitch-dot--keeper { background: #86a3c8; }
+.pitch-dot--home { background: var(--lime); border: 1.5px solid #0a1410; box-shadow: 0 0 0 1.5px rgba(166,240,184,.5); }
+.pitch-dot--runner { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: .85; }
+.pitch-dot--active { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; background: #ffd56a; border: 2px solid #fff; z-index: 3; box-shadow: 0 0 10px rgba(255,213,106,.8); }
+.pitch-dot--active em { position: absolute; top: 17px; left: 50%; transform: translateX(-50%); font: 600 9px "DM Mono", monospace; font-style: normal; color: #fff; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.pitch-dot--thinking { animation: pulse-dot .7s infinite; }
+.pitch-ball { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.9); z-index: 2; transition: left .9s cubic-bezier(.3,.7,.4,1), top .9s cubic-bezier(.3,.7,.4,1); }
+.pitch-goal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(255,213,106,.12); color: #ffd56a; font: 400 44px/1 "Instrument Serif", Georgia, serif; letter-spacing: .04em; text-shadow: 0 2px 20px rgba(0,0,0,.7); animation: card-glow-in .4s var(--ease) both; z-index: 4; }
 .tactics-card { padding: 18px; border: 1px solid #2c4a38; background: #0d1c14; }
 .tactics-card h2 { margin: 2px 0 12px; font: 400 30px/1 "Instrument Serif", Georgia, serif; }
 .tactics-attrs { display: grid; gap: 8px; }
@@ -595,6 +609,7 @@ body { background: var(--paper); }
 .tactics-pips i.on { background: #a6f0b8; }
 .tactics-situation { margin: 14px 0 0; color: #dbe5d2; font-size: 13px; line-height: 1.5; }
 .tactics-call { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #ffd56a; background: rgba(255, 213, 106, .07); color: #ffd56a; font: 600 12px "DM Mono", monospace; animation: card-glow-in .5s var(--ease) both; }
+.tactics-call-probs { display: block; margin-top: 6px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,213,106,.65); }
 .tactics-feed { padding: 18px; border: 1px solid var(--line); background: #0d1526; display: grid; gap: 8px; align-content: start; }
 .tactics-feed p { margin: 0; font-size: 12px; line-height: 1.5; color: #c3d0e1; }
 .tactics-feed-latest { color: #fff !important; font-size: 14px !important; }

@@ -98,6 +98,167 @@ const ATTRS = ["pace", "shooting", "passing", "dribbling"] as const;
 
 const BEAT_MS = 5200;
 
+/* ── pitch view ────────────────────────────────────────────────
+   Top-down match-engine strip. Positions are deterministic per
+   beat; the action + execution Jev returns decide where the ball
+   and the active player end up. */
+
+type PitchXY = { x: number; y: number };
+
+const ZONE_POS: Record<string, PitchXY> = {
+  "Right wing": { x: 66, y: 20 },
+  "Centre circle": { x: 44, y: 50 },
+  "Corner flag": { x: 86, y: 8 },
+  "Penalty spot": { x: 78, y: 50 },
+  "Left edge": { x: 62, y: 78 },
+  Halfway: { x: 40, y: 55 },
+};
+
+const GOAL_MOUTH: PitchXY = { x: 97.5, y: 50 };
+
+interface PitchState {
+  player: PitchXY;
+  ball: PitchXY;
+  runners: [PitchXY, PitchXY];
+  defenders: PitchXY[];
+  beaten: boolean; // defender left for dead
+}
+
+function pitchStateFor(
+  b: ScriptBeat,
+  answer: TacticAnswer | null,
+  pending: boolean
+): PitchState {
+  const z = ZONE_POS[b.zone] ?? { x: 50, y: 50 };
+  const state: PitchState = {
+    player: { ...z },
+    ball: { ...z },
+    runners: [
+      { x: 86, y: 42 },
+      { x: 86, y: 60 },
+    ],
+    defenders: [
+      { x: Math.min(z.x + 12, 84), y: z.y + (z.y > 50 ? -9 : 9) },
+      { x: 82, y: 38 },
+      { x: 82, y: 62 },
+      { x: 94.5, y: 50 }, // keeper
+    ],
+    beaten: false,
+  };
+  if (!answer || pending) return state;
+
+  const ex = answer.execution; // 0 fluff · 1 decent · 2 superb
+  switch (answer.action) {
+    case "shoot":
+      state.ball =
+        ex === 2 ? GOAL_MOUTH : ex === 1 ? { x: 93, y: 33 } : { x: 98.5, y: 30 };
+      break;
+    case "chip":
+      state.ball =
+        ex === 2 ? GOAL_MOUTH : ex === 1 ? { x: 94, y: 56 } : { x: 98.5, y: 60 };
+      break;
+    case "dribble":
+      state.player = { x: Math.min(z.x + (ex === 2 ? 18 : 12), 90), y: z.y };
+      state.ball = { ...state.player };
+      state.beaten = ex >= 1;
+      break;
+    case "cross":
+    case "cross_near":
+      state.ball = ex === 2 ? { x: 96, y: 46 } : { x: 89, y: 42 };
+      state.runners[0] = { x: 90, y: 43 };
+      break;
+    case "cross_far":
+      state.ball = ex === 2 ? { x: 96, y: 54 } : { x: 89, y: 58 };
+      state.runners[1] = { x: 90, y: 58 };
+      break;
+    case "cross_short":
+      state.ball = ex === 2 ? { x: 96, y: 50 } : { x: 84, y: 12 };
+      if (ex === 2) state.runners[0] = { x: 90, y: 50 };
+      break;
+    case "through_ball":
+      state.ball = ex === 2 ? GOAL_MOUTH : { x: 90, y: 48 };
+      state.runners[0] = { x: 89, y: 48 };
+      break;
+    case "hold":
+    default:
+      state.ball = { x: z.x - 6, y: z.y };
+      state.player = { x: z.x - 4, y: z.y };
+      break;
+  }
+  if (state.beaten) {
+    state.defenders[0] = { x: z.x + 2, y: z.y + 6 }; // turned inside out
+  }
+  return state;
+}
+
+function TacticsPitch({
+  b,
+  answer,
+  pending,
+  goalFlash,
+}: {
+  b: ScriptBeat;
+  answer: TacticAnswer | null;
+  pending: boolean;
+  goalFlash: boolean;
+}) {
+  const s = pitchStateFor(b, answer, pending);
+  return (
+    <div className="tactics-pitch" aria-label="Pitch view">
+      <svg viewBox="0 0 1050 680" preserveAspectRatio="none" className="tactics-pitch-lines">
+        <g stroke="rgba(242,245,236,0.28)" strokeWidth="2" fill="none">
+          <rect x="8" y="8" width="1034" height="664" />
+          <line x1="525" y1="8" x2="525" y2="672" />
+          <circle cx="525" cy="340" r="91.5" />
+          <rect x="884" y="174" width="158" height="332" />
+          <rect x="967" y="264" width="75" height="152" />
+          <rect x="8" y="174" width="158" height="332" />
+          <rect x="8" y="264" width="75" height="152" />
+        </g>
+        <rect x="1042" y="294" width="10" height="92" fill="rgba(255,213,106,0.8)" />
+      </svg>
+
+      <span className="pitch-zone-tag">
+        {b.minute}&prime; · {b.zone}
+      </span>
+
+      {/* defenders */}
+      {s.defenders.map((d, i) => (
+        <span
+          key={`d${i}`}
+          className={`pitch-dot pitch-dot--away${i === 3 ? " pitch-dot--keeper" : ""}`}
+          style={{ left: `${d.x}%`, top: `${d.y}%` }}
+        />
+      ))}
+
+      {/* runners */}
+      {s.runners.map((r, i) => (
+        <span
+          key={`r${i}`}
+          className="pitch-dot pitch-dot--home pitch-dot--runner"
+          style={{ left: `${r.x}%`, top: `${r.y}%` }}
+        />
+      ))}
+
+      {/* active player */}
+      <span
+        className={`pitch-dot pitch-dot--home pitch-dot--active${pending ? " pitch-dot--thinking" : ""}`}
+        style={{ left: `${s.player.x}%`, top: `${s.player.y}%` }}
+      >
+        <em>{b.player.name.split(" ").pop()}</em>
+      </span>
+
+      {/* ball */}
+      <span
+        className={`pitch-ball${answer && !pending ? " pitch-ball--moving" : ""}`}
+        style={{ left: `${s.ball.x}%`, top: `${s.ball.y}%` }}
+      />
+
+      {goalFlash && <div className="pitch-goal">GOAL!</div>}
+    </div>
+  );
+}
+
 export default function TacticsPage() {
   const [beat, setBeat] = useState(0);
   const [answer, setAnswer] = useState<TacticAnswer | null>(null);
@@ -108,7 +269,9 @@ export default function TacticsPage() {
   const [requests, setRequests] = useState(0);
   const [latencies, setLatencies] = useState<number[]>([]);
   const [finished, setFinished] = useState(false);
+  const [goalFlash, setGoalFlash] = useState(false);
   const scoredRef = useRef<Set<number>>(new Set());
+  const goalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ask = useCallback(async (index: number, h: number, a: number) => {
     const b = SCRIPT[index];
@@ -128,6 +291,9 @@ export default function TacticsPage() {
       if (goal && !scoredRef.current.has(index)) {
         scoredRef.current.add(index);
         setHome((v) => v + 1);
+        setGoalFlash(true);
+        if (goalTimer.current) clearTimeout(goalTimer.current);
+        goalTimer.current = setTimeout(() => setGoalFlash(false), 2200);
       }
     } catch {
       setLog((l) => [`${b.minute}' Jev unreachable — play safe, keep the ball.`, ...l].slice(0, 6));
@@ -182,6 +348,9 @@ export default function TacticsPage() {
 
       {!finished ? (
         <div className="tactics-grid">
+          <section className="tactics-pitch-wrap" aria-label="Match engine pitch">
+            <TacticsPitch b={b} answer={answer} pending={pending} goalFlash={goalFlash} />
+          </section>
           <section className="tactics-card" aria-label="Player card" key={b.minute}>
             <p className="eyebrow">{b.player.pos} · {b.zone}</p>
             <h2>{b.player.name}</h2>
@@ -202,6 +371,11 @@ export default function TacticsPage() {
             {answer && (
               <p className="tactics-call" key={`${beat}-${answer.action}`}>
                 JEV SAYS: <strong>{answer.actionLabel.toUpperCase()}</strong> · {BAND[answer.execution]} · conf {Math.round(answer.confidence * 100)}%
+                {answer.executionProbs && (
+                  <span className="tactics-call-probs">
+                    odds — fluff {Math.round((answer.executionProbs["0"] ?? 0) * 100)}% · decent {Math.round((answer.executionProbs["1"] ?? 0) * 100)}% · superb {Math.round((answer.executionProbs["2"] ?? 0) * 100)}%
+                  </span>
+                )}
               </p>
             )}
           </section>

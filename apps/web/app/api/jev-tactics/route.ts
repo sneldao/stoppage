@@ -40,6 +40,25 @@ export interface TacticAnswer {
   confidence: number;
   /** 0 = fluffed it, 1 = decent, 2 = superb */
   execution: number;
+  /** Jev's outcome distribution over [fluffed, decent, superb] — execution is sampled from this. */
+  executionProbs?: Record<string, number>;
+}
+
+/** Sample a band index from Jev's outcome distribution; falls back to rounding the point score. */
+function sampleExecution(a: { score?: number; probabilities?: Record<string, number> } | undefined): { execution: number; executionProbs?: Record<string, number> } {
+  const probs = a?.probabilities;
+  if (probs && Object.keys(probs).length) {
+    const p0 = clamp01(Number(probs["0"] ?? 0));
+    const p1 = clamp01(Number(probs["1"] ?? 0));
+    const p2 = clamp01(Number(probs["2"] ?? 0));
+    const total = p0 + p1 + p2;
+    if (total > 0) {
+      const roll = Math.random() * total;
+      const execution = roll < p0 ? 0 : roll < p0 + p1 ? 1 : 2;
+      return { execution, executionProbs: { "0": p0 / total, "1": p1 / total, "2": p2 / total } };
+    }
+  }
+  return { execution: Math.max(0, Math.min(2, Math.round(Number(a?.score ?? 1)))) };
 }
 
 function clamp01(v: number): number {
@@ -90,7 +109,7 @@ async function gatewayAnswer(beat: TacticBeat): Promise<Omit<TacticAnswer, "sour
     actionLabel: opt.label,
     probabilities: answers.action?.probabilities ?? {},
     confidence: clamp01(Number(confidence.action ?? 0.5)),
-    execution: Math.max(0, Math.min(2, Math.round(Number(answers.execution?.score ?? 1)))),
+    ...sampleExecution(answers.execution),
   };
 }
 
@@ -130,7 +149,7 @@ async function directAnswer(beat: TacticBeat, apiKey: string): Promise<Omit<Tact
     actionLabel: opt.label,
     probabilities: answers.action?.probabilities ?? {},
     confidence: clamp01(Number(answers.action?.confidence ?? 0.5)),
-    execution: Math.max(0, Math.min(2, Math.round(Number(answers.execution?.score ?? 1)))),
+    ...sampleExecution(answers.execution),
   };
 }
 
