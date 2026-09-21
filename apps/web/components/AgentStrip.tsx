@@ -30,7 +30,9 @@ function latestUsePodAdvisory(activity: MatchEvent[]): MatchEvent | undefined {
  */
 export function AgentStrip() {
   const markets = useStoppageStore((s) => s.markets);
-  const activity = useStoppageStore((s) => s.activity);
+  // s.feed is the merged keeper ledger (activityFeedSlice) — s.activity is
+  // the visitor's own wallet actions, which is empty for spectators.
+  const activity = useStoppageStore((s) => s.feed);
 
   const list = Object.values(markets);
   const operated = list.length;
