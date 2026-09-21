@@ -51,6 +51,10 @@ export interface AdvisoryResult {
   templates: MatchTemplates;
   /** One-line ledger summary of what the model chose and why. */
   note: string;
+  /** x402 payment tx signature on mainnet — the verifiable receipt. */
+  paymentSignature?: string;
+  /** Model's self-reported confidence 0-100, if it returned one. */
+  confidence?: number;
 }
 
 interface X402Accept {
@@ -191,11 +195,15 @@ function parseAdvisory(content: string, model: string, paymentSignature?: string
   };
 
   const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 140) : "";
+  const confidence = clampInt(parsed.confidence, 0, 100, -1);
   const paid = paymentSignature ? ` · x402 ${paymentSignature.slice(0, 8)}…` : "";
+  const conf = confidence >= 0 ? ` · conf ${confidence}%` : "";
   const describe = (line: number | null, kind: string) => (line === null ? `${kind} off` : `${kind} over ${line}`);
   return {
     templates,
-    note: `UsePod advisory (${model}${paid}): ${describe(templates.totalGoalsOver, "goals")}, ${describe(templates.cornersOver, "corners")}${reason ? ` — ${reason}` : ""}`,
+    paymentSignature,
+    confidence: confidence >= 0 ? confidence : undefined,
+    note: `UsePod advisory (${model}${paid}${conf}): ${describe(templates.totalGoalsOver, "goals")}, ${describe(templates.cornersOver, "corners")}${reason ? ` — ${reason}` : ""}`,
   };
 }
 
@@ -230,7 +238,7 @@ export async function adviseTemplates(args: {
             `- total_goals_over: threshold ${GOALS_LINE_RANGE.min}–${GOALS_LINE_RANGE.max}, default 3\n` +
             `- corners_over: threshold ${CORNERS_LINE_RANGE.min}–${CORNERS_LINE_RANGE.max}, default 9\n` +
             `Choose which to open and the line. ` +
-            `JSON: {"goals":{"enabled":bool,"threshold":int},"corners":{"enabled":bool,"threshold":int},"reason":"<=140 chars"}`,
+            `JSON: {"goals":{"enabled":bool,"threshold":int},"corners":{"enabled":bool,"threshold":int},"reason":"<=140 chars","confidence":0-100}`,
         },
       ],
     });

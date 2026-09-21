@@ -301,6 +301,7 @@ export class Agent {
               label: advisory.note,
               matchId: event.matchId,
               fixtureId: event.fixtureId,
+              signature: advisory.paymentSignature,
               source: "matchkeeper",
             });
           }

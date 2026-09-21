@@ -85,7 +85,22 @@ export function AgentStrip() {
           <span>listening for keeper activity…</span>
         )}
         {advisory && (
-          <span className="agent-strip-advisory">{advisory.label}</span>
+          <span className="agent-strip-advisory">
+            {advisory.label}
+            {advisory.signature && (
+              <>
+                {" · "}
+                <a
+                  href={`${EXPLORER_TX}${advisory.signature}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="x402 payment receipt on Solana mainnet"
+                >
+                  paid ↗
+                </a>
+              </>
+            )}
+          </span>
         )}
       </div>
     </section>

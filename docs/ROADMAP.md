@@ -1167,7 +1167,12 @@ bundle size matters), TypeSafe Jev in the agent loop (fixture triage /
 template narrowing — the web live-reads layer shipped 2026-09-20, see
 Strategic direction; agent-side stays out: revisit only as a non-gating
 signal alongside deterministic rules, never in the settle path;
-determinism is the differentiator), Rive interactive animation (CLI/RML
+determinism is the differentiator), model-assisted market suggestions via
+sampled distributions (the /tactics execution-sampling pattern — a model
+returns an outcome distribution and the product samples from it, so
+displayed odds are honest by construction; revisit only if a
+probabilistic surface earns a place alongside deterministic settlement),
+Rive interactive animation (CLI/RML
 spike approved for the SettlementMoment celebrate trigger — free during
 the technical preview, agent-authored, no account; ship gated on spike
 quality AND Cadet ($9/mo) to remove the free-plan splash screen;
