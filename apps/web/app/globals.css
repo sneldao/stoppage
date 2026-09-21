@@ -254,7 +254,10 @@ button:disabled { cursor: not-allowed; opacity: .56; }
   text-transform: uppercase;
   opacity: .85;
 }
+.tape-match-pyth { color: var(--blue); }
 .app-footer { border-top: 1px solid var(--line); }
+.app-footer a:not(.wordmark) { color: var(--blue); text-decoration: none; }
+.app-footer a:not(.wordmark):hover { text-decoration: underline; }
 .claim-action { background: var(--blue); color: #fff; box-shadow: 0 0 20px rgba(96,165,250,.25); }
 .claim-action:hover { box-shadow: 0 0 35px rgba(96,165,250,.4); }
 .position-win { color: var(--lime) !important; }

@@ -231,6 +231,14 @@ function MatchGroup({
                 operator-attested
               </em>
             )}
+            {isPriceGroup && (
+              <em
+                className="tape-match-attested tape-match-pyth"
+                title="Priced from Pyth Hermes updates at creation; settled by the on-chain pyth_validator against a guardian-verified price."
+              >
+                settled via pyth
+              </em>
+            )}
             {time && <small className="tape-match-heading__time">{time}</small>}
           </span>
           <span className="tape-match-heading__right">
