@@ -1,0 +1,47 @@
+name: CI
+
+# Minimal JS safety net: typecheck the web app + ops scripts, run the quant
+# and SDK unit suites. Anchor program tests and check:ids are intentionally
+# excluded — they need the pinned Solana/Anchor toolchain (see CLAUDE.md).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # A production NODE_ENV makes npm omit devDependencies (mocha, tsx, tsc).
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Typecheck web
+        run: npm run typecheck
+
+      - name: Typecheck scripts
+        run: npm run typecheck:scripts
+
+      - name: Test quant
+        run: npm run test:quant
+
+      - name: Test SDK
+        run: npm run test:sdk
