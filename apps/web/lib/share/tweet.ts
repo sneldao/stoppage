@@ -115,12 +115,15 @@ export function buildResolutionTweet(
  * @param merkleRoot - The anchored Merkle root (hex string)
  * @param explorerUrl - Solana Explorer link to the settlement transaction
  * @param marketUrl - The market page URL for "verify yourself"
+ * @param verifyLine - Optional validator-specific confirmation line
+ *                     (defaults to the TxLINE CPI wording)
  */
 export function buildProofTweet(
   market: Market,
   merkleRoot: string,
   explorerUrl: string,
   marketUrl: string,
+  verifyLine = "TxLINE validate_stat CPI confirmed in-tx.",
 ): string {
   const label = formatMarketQuestion(market.predicate);
   const shortRoot = merkleRoot.length > 16
@@ -131,9 +134,31 @@ export function buildProofTweet(
     ``,
     `${label} → outcome ${market.outcome.toUpperCase()}`,
     `Merkle root: ${shortRoot}`,
-    `TxLINE validate_stat CPI confirmed in-tx.`,
+    verifyLine,
     ``,
     `Inspect the proof:`,
+    explorerUrl,
+  ].join("\n");
+}
+
+/**
+ * Build the weekly SOL/USD receipt tweet — the Settled Week social artifact.
+ * Leads with the week label and the line, states the proof path, and keeps
+ * the devnet labeling honest.
+ */
+export function buildWeekReceiptTweet(
+  market: Market,
+  explorerUrl: string,
+): string {
+  const thresholdUsd = Number(market.predicate.params.threshold ?? 0) / 1e8;
+  return [
+    `⚽ ${market.predicate.matchId} settled by proof.`,
+    ``,
+    `SOL/USD above $${thresholdUsd.toFixed(0)} → ${market.outcome.toUpperCase()}`,
+    `Guardian-verified Pyth price, checked on-chain in the settle tx.`,
+    `0 admin keys moved a lamport.`,
+    ``,
+    `Inspect the receipt:`,
     explorerUrl,
   ].join("\n");
 }

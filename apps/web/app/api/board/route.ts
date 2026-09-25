@@ -1,15 +1,11 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import {
   MARKET_PROGRAM_ID,
-  MARKET_ACCOUNT_SIZE,
-  LEGACY_MARKET_ACCOUNT_SIZE,
-  parseMarket,
-  upgradeLegacyMarketData,
   readU64LE,
-  type Market,
 } from "@stoppage/sdk";
 import { NextResponse } from "next/server";
 import { devnetRpcUrls } from "@/lib/rpc";
+import { scanMarketAccounts, withRetry } from "@/lib/rpcScan";
 
 const POSITION_ACCOUNT_SIZE = 8 + 32 + 32 + 1 + 8 + 1 + 1;
 const PUBLIC_DEVNET_RPC = "https://api.devnet.solana.com";
@@ -37,50 +33,20 @@ function shyftDevnetUrl() {
   return key ? `https://devnet-rpc.shyft.to/?api_key=${encodeURIComponent(key)}` : null;
 }
 
-const RETRYABLE_RPC_ERROR = /429|too many requests|503|timed out|timeout|fetch failed|econnreset|socket hang up/i;
-
-/** Retry transient RPC failures (public devnet rate-limits hard) with backoff. */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt === attempts - 1 || !RETRYABLE_RPC_ERROR.test(message)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 300 * 2 ** attempt));
-    }
-  }
-  throw new Error("unreachable");
-}
-
 async function readBoard(rpcUrl: string) {
   const connection = new Connection(rpcUrl, "confirmed");
   const programId = new PublicKey(MARKET_PROGRAM_ID);
-  // Market accounts exist in two on-chain layouts: accounts created before
-  // the oracle-agnostic pivot lack the 32-byte `oracle` field and keep the
-  // smaller size after the program upgrade. dataSize filters are ANDed by
-  // the RPC, so each layout needs its own scan (LEGACY_MARKET_ACCOUNT_SIZE).
-  const [modernMarketAccounts, legacyMarketAccounts, positionAccounts] = await withRetry(() =>
-    Promise.all([
-      connection.getProgramAccounts(programId, { filters: [{ dataSize: MARKET_ACCOUNT_SIZE }], commitment: "confirmed" }),
-      connection.getProgramAccounts(programId, { filters: [{ dataSize: LEGACY_MARKET_ACCOUNT_SIZE }], commitment: "confirmed" }),
-      connection.getProgramAccounts(programId, { filters: [{ dataSize: POSITION_ACCOUNT_SIZE }], commitment: "confirmed" }),
-    ])
-  );
-
-  const markets = new Map<string, Market>();
-  let droppedAccounts = 0;
-  for (const { pubkey, account } of [...modernMarketAccounts, ...legacyMarketAccounts]) {
-    try {
-      const data = account.data.length === LEGACY_MARKET_ACCOUNT_SIZE ? upgradeLegacyMarketData(account.data) : account.data;
-      markets.set(pubkey.toBase58(), parseMarket(data, pubkey.toBase58()));
-    } catch (error) {
-      // Never drop an account silently (CLAUDE.md: partial data is worse
-      // than loud failure) — count it and flag the response as degraded.
-      droppedAccounts++;
-      console.error("[board] failed to parse market account", pubkey.toBase58(), error);
-    }
-  }
+  // Two market layouts (legacy + modern) + positions; the market scan is
+  // shared with /api/receipts (lib/rpcScan). Positions are scanned here so
+  // the whole read retries as one atomic snapshot attempt.
+  const [{ markets, droppedAccounts: droppedMarketAccounts }, positionAccounts] = await withRetry(async () => {
+    const scanned = await scanMarketAccounts(connection);
+    const positions = await connection.getProgramAccounts(programId, {
+      filters: [{ dataSize: POSITION_ACCOUNT_SIZE }],
+      commitment: "confirmed",
+    });
+    return [scanned, positions] as const;
+  });
 
   const positions: PositionRecord[] = [];
   const sideCounts = new Map<string, { yes: number; no: number }>();
@@ -134,7 +100,7 @@ async function readBoard(rpcUrl: string) {
     verifiedMarketCount: verifiedMarkets.length,
     totalAttestations: verifiedMarkets.reduce((total, market) => total + market.verifications, 0),
     entries: ranked,
-    degraded: droppedAccounts > 0,
+    degraded: droppedMarketAccounts > 0,
   };
 }
 

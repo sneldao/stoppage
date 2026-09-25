@@ -22,6 +22,7 @@ const primaryRoutes = [
 ];
 
 const secondaryRoutes = [
+  { href: "/receipts", label: "Receipts", title: "Every proof-gated settlement — the cumulative track record" },
   { href: "/calibration", label: "Calibration", title: "Model pricing calibration" },
   { href: "/operators", label: "Operators", title: "Validator integration for operators" },
   { href: "/tactics", label: "Gaffer", title: "Watch Jev manage the last ten minutes — simulated passage, every decision live" },

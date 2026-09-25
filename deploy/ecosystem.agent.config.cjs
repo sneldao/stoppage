@@ -39,5 +39,26 @@ module.exports = {
         OTEL_SERVICE_NAME: "stoppage-price",
       },
     },
+    {
+      // Settled Week: one named SOL/USD window market per week, settled
+      // proof-gated on Sunday 23:00 UTC. Appends receipt facts to the same
+      // match-events ledger the main keeper serves (shared cwd → shared
+      // .runtime/match-events.ndjson).
+      name: "stoppage-week",
+      cwd: "/home/linuxuser/stoppage",
+      script: "node_modules/.bin/tsx",
+      args: "apps/agent/src/index.ts week --live-tx",
+      interpreter: "none",
+      exec_mode: "fork",
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 20,
+      min_uptime: 10000,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        OTEL_SERVICE_NAME: "stoppage-week",
+      },
+    },
   ],
 };

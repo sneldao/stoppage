@@ -25,6 +25,9 @@ interface ProofCardData {
   market: Market;
   merkleRoot: string;
   settleSig: string;
+  /** Validator short name (oracleInfoFor(...).name). Non-TxLINE cards are
+   *  labeled with their data source and marked devnet. */
+  oracleLabel?: string;
 }
 
 export type ShareCardData = StreakCardData | WinCardData | ProofCardData;
@@ -169,7 +172,9 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
   ctx.fillStyle = MUTED;
   ctx.fillText(
     data.kind === "proof"
-      ? "Settled on Stoppage · Data TxLINE · Reads Jev via Vercel"
+      ? data.oracleLabel && data.oracleLabel !== "TxLINE"
+        ? `Settled on Stoppage · Data ${data.oracleLabel} · Devnet`
+        : "Settled on Stoppage · Data TxLINE · Reads Jev via Vercel"
       : "stoppage.fun",
     38,
     270

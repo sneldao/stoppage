@@ -27,6 +27,7 @@ import { ReferralStrip } from "@/components/ReferralStrip";
 import { MatchSlate } from "@/components/MatchSlate";
 import { ReminderWatcher } from "@/components/ReminderWatcher";
 import { TokenCountdown } from "@/components/TokenCountdown";
+import { WeekStrip } from "@/components/WeekStrip";
 import { KeystoneBanner } from "@/components/KeystoneBanner";
 import { useAutoReplay } from "@/lib/replay/useAutoReplay";
 import { usePreviewLoop } from "@/lib/replay/usePreviewLoop";
@@ -295,6 +296,7 @@ export default function Home() {
       <StreakCelebration history={history} />
       <ReminderWatcher fixtures={fixtures} />
       <TokenCountdown />
+      <WeekStrip />
 
       {/* ── Command centre ── */}
       <section className="command-center">

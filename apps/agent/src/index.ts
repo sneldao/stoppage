@@ -10,6 +10,7 @@
  *   npx tsx apps/agent/src/index.ts replay <fixtureId>
  *   npx tsx apps/agent/src/index.ts replay <fixtureId> --live-tx --speed=10
  *   npx tsx apps/agent/src/index.ts price --live-tx --interval=1800
+ *   npx tsx apps/agent/src/index.ts week --live-tx [--delta=0]
  *   npx tsx apps/agent/src/index.ts attest --event=<tsdbEventId> --line=2 --live-tx
  *
  * Environment:
@@ -38,7 +39,9 @@ import {
   type TxLineCredentials,
 } from "@stoppage/txline";
 import { Agent } from "./loop";
-import { runPriceKeeper } from "./priceKeeper";
+import { runPriceKeeper, type PriceSettleFact, type TrackedPriceMarket } from "./priceKeeper";
+import { runWeekKeeper } from "./weekKeeper";
+import { PYTH_VALIDATOR_PROGRAM_ID } from "@stoppage/sdk";
 import { loadAttestor, runAttestationKeeper } from "./attestationKeeper";
 import {
   createLiveSource,
@@ -86,7 +89,53 @@ async function main() {
       const balance = await connection.getBalance(wallet.publicKey);
       console.log(`Balance: ${balance / 1e9} SOL`);
     }
-    await runPriceKeeper({ connection, wallet, dryRun, intervalSeconds: priceIntervalSeconds });
+    const ledger = createMatchEventLedger();
+    await runPriceKeeper({
+      connection,
+      wallet,
+      dryRun,
+      intervalSeconds: priceIntervalSeconds,
+      onSettled: (m: TrackedPriceMarket, fact: PriceSettleFact) => {
+        ledger.append({
+          occurredAt: Date.now(),
+          kind: "settlement_confirmed",
+          label: `price: ${fact.statement} -> ${fact.outcome.toUpperCase()}`,
+          matchId: m.predicate.matchId,
+          marketId: m.marketPda.toBase58(),
+          signature: fact.signature,
+          source: "pyth",
+          outcome: fact.outcome,
+          oracle: PYTH_VALIDATOR_PROGRAM_ID,
+          statement: fact.statement,
+        });
+      },
+    });
+    return;
+  }
+
+  // Settled Week: one named SOL/USD window market per week (line = spot at
+  // creation, closes Sunday 23:00 UTC), settled through the same proof-gated
+  // Pyth path. Each settlement lands a receipt fact in the shared ledger.
+  if (mode === "week") {
+    const deltaArg = process.argv.find((arg) => arg.startsWith("--delta="));
+    const deltaUsd = Number(deltaArg?.split("=")[1] ?? 0) || 0;
+    const walletPath = process.env.SOLANA_KEYPAIR_PATH
+      ?? process.env.HOME + "/.config/solana/id.json";
+    const wallet = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
+    );
+    const rpcUrl = process.env.SOLANA_RPC_URL ?? clusterApiUrl("devnet");
+    const connection = new Connection(rpcUrl, "confirmed");
+    console.log("Mode: week (Settled Week — Pyth SOL/USD window market)");
+    console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
+    console.log(`Line delta: ${deltaUsd >= 0 ? "+" : ""}${deltaUsd} USD vs spot at creation`);
+    console.log(`Keeper wallet: ${wallet.publicKey.toBase58()}`);
+    if (!dryRun) {
+      const balance = await connection.getBalance(wallet.publicKey);
+      console.log(`Balance: ${balance / 1e9} SOL`);
+    }
+    const ledger = createMatchEventLedger();
+    await runWeekKeeper({ connection, wallet, dryRun, deltaUsd, ledger });
     return;
   }
 

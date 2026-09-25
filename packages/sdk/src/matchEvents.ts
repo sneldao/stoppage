@@ -27,5 +27,13 @@ export interface MatchEvent {
   fixtureId?: number;
   marketId?: string;
   signature?: string;
-  source: "txline" | "matchkeeper" | "solana" | "wallet" | "housekeep";
+  source: "txline" | "matchkeeper" | "solana" | "wallet" | "housekeep" | "pyth";
+  /** Present on settlement_confirmed facts. */
+  outcome?: "yes" | "no";
+  /** Validator program the proof was verified against (settlement facts). */
+  oracle?: string;
+  /** On-chain verification counter at time of the fact. */
+  verifications?: number;
+  /** Proof statement carried by the settlement receipt. */
+  statement?: string;
 }
