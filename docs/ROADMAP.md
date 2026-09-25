@@ -104,6 +104,17 @@ Vercel) are the partnership surface. Advisory only: no agent, SDK, or
 program changes, nothing in the settle path. Agent-side Jev (pre-flight
 template selection) stays in the Icebox.
 
+**Next after AnsemHack decided (2026-09-25): Colosseum Crypto World's
+Fair, submissions due Oct 12, 2026.** Fit notes, judging factors, open
+questions and the plan: docs/hackathons.md §4. It is a startup
+competition judged by Colosseum's fund, so it rewards the
+infrastructure identity directly — and scores traction, which is the
+gap: the Oct 12 target is the existing milestone (one real operator
+settling one real market), with in-window product work aimed at
+operator self-serve. Work is judged only if done Sep 14 – Oct 12;
+prior hackathon work must be disclosed. Stocklana (tokenized stocks,
+closed Sept 25) was assessed and skipped as off-identity.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding

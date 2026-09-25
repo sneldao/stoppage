@@ -363,4 +363,62 @@ its own.
 
 ---
 
+## 4. Colosseum — Crypto World's Fair (Sep 14 – Oct 12, 2026)
+
+### Overview
+
+Colosseum's fall startup hackathon (colosseum.com/worldsfair). Online,
+all chains, **submissions due Oct 12, 2026**. $30K grand prize, $15K
+each to the next 20, Solana ecosystem track (10 × $10K), plus
+accelerator interviews for winners ($250K pre-seed, 12 weeks in SF).
+Assessed 2026-09-25 as the next entry after AnsemHack; Stocklana
+(tokenized-stocks hackathon, closed Sept 25) was assessed and skipped —
+wrong user (stock holders), wrong product (consumer stock app).
+
+### How it's judged (per the FAQ)
+
+A startup competition, not a code contest. Factors: founder–market fit,
+insight, product + execution, market size, founder communication,
+viability, **traction**. Submission = pitch to their fund: 2–3 min
+presentation video (reviewed first), ≤3 min demo video, GitHub, GTM
+strategy, demand validation, distribution plan. Shortlist → panel →
+15-min Zoom interview.
+
+**Window rule:** judged only on work completed Sep 14 – Oct 12;
+pre-existing code allowed but **all prior development must be
+disclosed** (TxODDS/Superteam Jul, KeeperHub Aug, AnsemHack Sept).
+Misrepresentation = disqualification.
+
+### Fit
+
+| Factor | Stoppage today | Gap |
+|---|---|---|
+| Insight | Settlement is where prediction markets break (disputes, admin keys, committee votes); proof-gated settlement removes the trust step | Strong — sharpen with real dispute examples |
+| Product + execution | Three oracles through one receipt path, settles on real fixtures, claims drained to rent, 24 commits in-window by Sept 25 | Strong on devnet; needs a clear in-window headline |
+| Market size | Resolution layer across all prediction markets, 25 bps protocol fee on settled volume | Story exists in docs, not in a pitch |
+| **Traction** | Zero operators; devnet; volume self-staged | **Weakest factor — the pitch's milestone ("one real operator settling one real market") is exactly what judges score** |
+| Viability | Infra with a fee; devnet-only pending legal review | Needs a credible mainnet path that isn't "we run the sportsbook" |
+
+### Open questions (decide before Sept 28)
+
+- **`$STOPPAGE` token vs. a venture pitch.** The ClawPump token (Sept
+  27) is scoped as an entry ticket with no utility. Colosseum is judged
+  by a VC fund; a live no-utility token on the same project may read as
+  noise or a red flag. Decide how the submission discloses and frames it.
+- **Team section.** Founder–market fit is judged; solo vs. team and
+  backgrounds need to be written, not implied.
+- **Registration** at colosseum.com/arena (every teammate needs an account).
+
+### Plan (Sept 28 → Oct 12, after AnsemHack judging)
+
+1. **Demand validation first** — operator outreach from OPERATORS.md /
+   `/operators`: aim for one pilot settling one market through the SDK;
+   failing that, recorded conversations / LOIs as evidence.
+2. **One in-window product headline** that serves (1): operator
+   self-serve (SDK consumable by a third party, "settle your market"
+   quickstart), not another consumer surface.
+3. **Pitch + demo videos, GTM write-up, prior-work disclosure.**
+
+---
+
 *Archived: Aug 2026*
