@@ -25,37 +25,89 @@ function connection() {
  * Parse a MarketResolved event from settlement program logs.
  * The event data is base64-encoded in the program log line:
  *   "Program data: <base64>"
+ *
+ * Layout must match programs/settlement/src/lib.rs `MarketResolved`
+ * (Anchor event: 8-byte discriminator, then fields in declaration order):
+ *   8  discriminator = sha256("event:MarketResolved")[0..8]
+ *   32 market (Pubkey)
+ *   32 resolution (Pubkey)
+ *   4  statement length (u32 LE) + statement (String)
+ *   32 validator_program (Pubkey)
+ *   32 merkle_root
+ *   1  outcome (0=yes, 1=no, 2=void)
+ *   32 proof_hash
+ *   32 resolver (Pubkey)
+ *   8  timestamp (i64 LE)
+ *   1  validated_on_chain (bool)
  */
-function parseMarketResolvedFromLogs(logs: string[]): {
+const MARKET_RESOLVED_DISCRIMINATOR = Buffer.from("5943e65f8f6ac7ca", "hex");
+
+interface ParsedMarketResolved {
+  market: string;
+  resolution: string;
   statement: string;
+  validatorProgram: string;
   merkleRoot: string;
   outcome: string;
   outcomeBool: number;
+  proofHash: string;
+  resolver: string;
   timestamp: number;
-} | null {
-  // Look for the MarketResolved discriminator in program data lines
+  validatedOnChain: boolean;
+}
+
+function parseMarketResolvedFromLogs(logs: string[]): ParsedMarketResolved | null {
   for (const log of logs) {
-    if (log.includes("Program data:")) {
-      const b64 = log.replace("Program data:", "").trim();
-      try {
-        const buf = Buffer.from(b64, "base64");
-        // The MarketResolved event layout (Anchor):
-        //   8 bytes discriminator
-        //   32 bytes statement (public key / market address)
-        //   32 bytes merkle root
-        //   1 byte outcome (0=yes, 1=no, 2=void)
-        //   8 bytes timestamp (i64 LE)
-        if (buf.length >= 81) {
-          const statement = new PublicKey(buf.subarray(8, 40)).toBase58();
-          const merkleRoot = buf.subarray(40, 72).toString("hex");
-          const outcomeBool = buf[72];
-          const outcome = outcomeBool === 0 ? "yes" : outcomeBool === 1 ? "no" : "void";
-          const timestamp = buf.readBigInt64LE(73);
-          return { statement, merkleRoot, outcome, outcomeBool, timestamp: Number(timestamp) };
-        }
-      } catch {
-        // Not a valid base64 or wrong format — skip
-      }
+    if (!log.startsWith("Program data:")) continue;
+    let buf: Buffer;
+    try {
+      buf = Buffer.from(log.replace("Program data:", "").trim(), "base64");
+    } catch {
+      continue;
+    }
+    if (buf.length < 8 + 32 + 32 + 4 || !buf.subarray(0, 8).equals(MARKET_RESOLVED_DISCRIMINATOR)) {
+      continue;
+    }
+    try {
+      let off = 8;
+      const market = new PublicKey(buf.subarray(off, off + 32)).toBase58();
+      off += 32;
+      const resolution = new PublicKey(buf.subarray(off, off + 32)).toBase58();
+      off += 32;
+      const statementLen = buf.readUInt32LE(off);
+      off += 4;
+      if (buf.length < off + statementLen + 32 + 32 + 1 + 32 + 32 + 8 + 1) continue;
+      const statement = Buffer.from(buf.subarray(off, off + statementLen)).toString("utf8");
+      off += statementLen;
+      const validatorProgram = new PublicKey(buf.subarray(off, off + 32)).toBase58();
+      off += 32;
+      const merkleRoot = Buffer.from(buf.subarray(off, off + 32)).toString("hex");
+      off += 32;
+      const outcomeBool = buf[off];
+      off += 1;
+      const outcome = outcomeBool === 0 ? "yes" : outcomeBool === 1 ? "no" : "void";
+      const proofHash = Buffer.from(buf.subarray(off, off + 32)).toString("hex");
+      off += 32;
+      const resolver = new PublicKey(buf.subarray(off, off + 32)).toBase58();
+      off += 32;
+      const timestamp = Number(buf.readBigInt64LE(off));
+      off += 8;
+      const validatedOnChain = buf[off] !== 0;
+      return {
+        market,
+        resolution,
+        statement,
+        validatorProgram,
+        merkleRoot,
+        outcome,
+        outcomeBool,
+        proofHash,
+        resolver,
+        timestamp,
+        validatedOnChain,
+      };
+    } catch {
+      // Not a valid event — skip.
     }
   }
   return null;
@@ -93,7 +145,7 @@ export async function GET(
         if (!hasSettlement) continue;
 
         const resolved = parseMarketResolvedFromLogs(tx.meta.logMessages);
-        if (resolved) {
+        if (resolved && resolved.market === market) {
           return Response.json({
             ok: true,
             marketId: market,
@@ -102,7 +154,9 @@ export async function GET(
             merkleRoot: resolved.merkleRoot,
             outcome: resolved.outcome,
             outcomeBool: resolved.outcomeBool,
+            validatorProgram: resolved.validatorProgram,
             timestamp: resolved.timestamp,
+            validatedOnChain: resolved.validatedOnChain,
             explorerUrl: `https://explorer.solana.com/tx/${sig.signature}?cluster=devnet`,
           });
         }
