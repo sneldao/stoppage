@@ -145,6 +145,19 @@ rejects growth <10KiB, and the new binary needed +9,784B. Local
 toolchain: platform-tools v1.48 had been wiped again; reinstall via
 `…/sbf/scripts/install.sh` inside the 2.3.0 release dir.
 
+**Judging-window keystone staged (2026-09-25):** Montreal v FC
+Cincinnati, fixture 17615237 (MLS comp 33), kickoff 2026-09-26T23:30Z —
+Cincinnati storyline continuity with the Aug 15 keystone. Goals-over-3
+market pre-created with the keeper's exact template so the agent adopts
+it at `match_started` (dedup): PDA
+`9kncQURug17LCaAQTi1GfSvMSUNxLugqvgS8ki5bbRC4`, create tx
+`n8jx6QDUUvbbD3xFdGw75DYHkvaScVNrRbCYEAUfEydHWTkUDdZonBi49HTAyp5tviZ6mGZpgKhXyv7ToAtZk8H`,
+closes_at 2026-09-27T01:30Z. Both sides staked 0.01 via
+stage-keystone: deployer YES `63SNwaNi…`, opponent `EgWC985X…` NO
+`3Her8eJ1…`. First live `attest_pricing` since the agent_authority fix
+lands at quote time — watch agent logs for "Attested pricing" at
+23:30Z; corners market is keeper-created at match start as usual.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding
