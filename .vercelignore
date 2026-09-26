@@ -1,0 +1,11 @@
+.anchor
+secrets
+keys
+.env.local
+.claude
+.ego-browser
+target
+node_modules
+.next
+.git
+.runtime
