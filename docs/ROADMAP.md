@@ -115,6 +115,36 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## agent_authority PDA missing — attest_pricing bricked, fixed (2026-09-25)
+
+**Root cause:** the Jul 17 `InitializeProtocol` tx ran under a binary that
+predated the `agent_authority` account, so the PDA was never created on
+this deployment. Once `attest_pricing` required it, every quote
+attestation reverted with `AccountNotInitialized` (misread in logs as
+market-program Custom 3012 — it's Anchor's framework code). Neither
+`initialize_protocol` (`init` on existing `protocol_config` fails) nor
+`set_agent_authority` (required the account already initialized) could
+create it — the deployment had no path to one.
+
+**Fix:** `SetAgentAuthority` gained `init_if_needed` (payer=authority) +
+`system_program`; the handler now stores `ctx.bumps.agent_authority`.
+`init-protocol.ts` became a convergence script: creates config when
+missing, creates/re-points `agent_authority` via `set_agent_authority`
+when absent or different from the target arg/env.
+
+**Deployed (2026-09-25):** market `92TmrM…` upgraded on devnet
+(`46ZsH1iM…`); `agent_authority` created and pointed at the VPS keeper
+wallet `28nQV9M…` via init-protocol (`4MgTFAzb…`). PricingReceipts now
+land on new markets — first live attest expected at the next
+`match_started`.
+
+**Deploy notes:** `deploy.sh` gained `DEPLOY_RPC_URL` (public devnet RPC
+flaked on buffer writes; Helius worked). The market upgrade needed
+`solana program extend 92TmrM… 10240` first — Agave's ExtendProgram
+rejects growth <10KiB, and the new binary needed +9,784B. Local
+toolchain: platform-tools v1.48 had been wiped again; reinstall via
+`…/sbf/scripts/install.sh` inside the 2.3.0 release dir.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding

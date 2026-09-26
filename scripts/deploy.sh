@@ -40,7 +40,9 @@ cp target/idl/settlement.json packages/sdk/idl/settlement.json
 cp target/idl/attestation_validator.json packages/sdk/idl/attestation_validator.json
 
 echo "── 5/5 anchor deploy (devnet)"
-anchor deploy --provider.cluster devnet
+# Public devnet RPC flakes on buffer writes; DEPLOY_RPC_URL overrides the
+# cluster (e.g. a Helius devnet endpoint) without changing the flow.
+anchor deploy --provider.cluster "${DEPLOY_RPC_URL:-devnet}"
 
 echo
 echo "Deployed. Verify with:"

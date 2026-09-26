@@ -409,6 +409,7 @@ export function buildSetAgentAuthorityIx(
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: config, isSigner: false, isWritable: false },
       { pubkey: agentAuthorityPda, isSigner: false, isWritable: true },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.concat([
       ixDiscriminator("set_agent_authority"),

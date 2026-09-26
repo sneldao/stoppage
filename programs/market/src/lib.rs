@@ -81,6 +81,7 @@ pub mod market {
         );
         let agent = &mut ctx.accounts.agent_authority;
         agent.authority = agent_authority;
+        agent.bump = ctx.bumps.agent_authority;
         emit!(AgentAuthoritySet {
             authority: ctx.accounts.authority.key(),
             agent_authority,
@@ -1049,8 +1050,19 @@ pub struct SetAgentAuthority<'info> {
     pub authority: Signer<'info>,
     #[account(seeds = [b"protocol_config"], bump = protocol_config.bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    #[account(mut, seeds = [b"agent_authority"], bump = agent_authority.bump)]
+    // init_if_needed: deployments initialized before this account existed
+    // (pre-agent-authority binaries) can create it here instead of being
+    // permanently bricked — initialize_protocol can't re-run once
+    // protocol_config exists.
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = AgentAuthority::space(),
+        seeds = [b"agent_authority"],
+        bump,
+    )]
     pub agent_authority: Account<'info, AgentAuthority>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
