@@ -762,20 +762,40 @@ export default function MarketDetailPage() {
         />
       )}
 
-      {/* ── Settlement path — always visible, not behind a toggle ── */}
-      <div id="settlement-path" className="market-settlement-path">
-        <div className="market-settlement-path-inner">
-          <MatchkeeperStatus marketPhase={market.status} oracle={market.oracle} compact />
-          <ProofPath status={market.status} oracle={market.oracle} />
+      {/* ── Settlement desk — one instrument, hairline rows. The panels
+              embedded here lose their own card chrome via .market-proof
+              descendant rules; the desk owns the border. ── */}
+      <section id="settlement-path" className="market-proof" aria-label="Proof and settlement">
+        <header className="market-proof-head">
+          <div>
+            <p className="eyebrow">Settlement desk</p>
+            <h2>How this market resolves.</h2>
+          </div>
+          <a
+            className="market-proof-head-link"
+            href={`https://explorer.solana.com/address/${market.id}?cluster=devnet`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Market account ↗
+          </a>
+        </header>
+        <div className="market-proof-body">
+          <div className="market-proof-row">
+            <MatchkeeperStatus marketPhase={market.status} oracle={market.oracle} compact />
+          </div>
+          <div className="market-proof-row">
+            <ProofPath status={market.status} oracle={market.oracle} />
+          </div>
+          <div className="market-proof-row market-proof-pair">
+            <PricingPanel market={market} />
+            <PricingReceiptPanel market={market} />
+          </div>
+          <div className="market-proof-row" id="proof">
+            <ProofPanelLazy market={market} />
+          </div>
         </div>
-      </div>
-
-      {/* ── Verifiable pricing panel (Phase 4) ── */}
-      <PricingPanel market={market} />
-      <PricingReceiptPanel market={market} />
-
-      {/* ── Proof panel ── */}
-      <div id="proof"><ProofPanelLazy market={market} /></div>
+      </section>
 
       {/* Non-slip failures (load / resume / revoke) surface here instead of
           duplicating inside the bet slip. */}

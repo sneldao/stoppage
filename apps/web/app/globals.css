@@ -3405,17 +3405,69 @@ body {
   justify-content: center;
 }
 
-/* ── Settlement path ── */
-.market-settlement-path {
+/* ── Settlement desk — one instrument, hairline rows ── */
+.market-proof {
   margin-top: 32px;
-}
-
-.market-settlement-path-inner {
-  display: grid;
-  gap: 24px;
-  padding: 24px;
+  padding: 0 24px;
   border: 1px solid var(--line);
   background: linear-gradient(165deg, #0f1a34, #0c1428);
+  scroll-margin-top: 80px;
+}
+
+.market-proof-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0 18px;
+}
+.market-proof-head .eyebrow { margin-bottom: 7px; }
+.market-proof-head h2 { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; }
+.market-proof-head-link {
+  color: var(--blue);
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.market-proof-head-link:hover { color: var(--ink); }
+
+.market-proof-body { padding-bottom: 6px; }
+.market-proof-row { padding: 18px 0; border-top: 1px solid var(--line); }
+.market-proof-row:empty { display: none; }
+
+/* Panels embedded in the desk lose their own card chrome — the desk
+   owns the border. Keeps match-page cards untouched (scoped). */
+.market-proof .matchkeeper,
+.market-proof .proof-path,
+.market-proof .pricing-panel,
+.market-proof .pricing-receipt,
+.market-proof .proof-panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.market-proof .matchkeeper-compact { border-width: 0; }
+.market-proof .pricing-panel h2,
+.market-proof .pricing-receipt h2,
+.market-proof .proof-panel h2 {
+  font-size: 22px;
+}
+/* The inspector row's eyebrow duplicates the path row's label — the
+   steps carry that name; the inspector keeps its headline. */
+.market-proof .proof-panel .eyebrow { display: none; }
+
+/* Fair value + reference line sit side by side as one pricing row. */
+.market-proof-pair { display: flex; }
+.market-proof-pair > * { flex: 1 1 0; min-width: 0; }
+.market-proof-pair > * + * {
+  margin-left: 18px;
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
 }
 
 /* ── ProofPath — new step styles ── */
@@ -3645,8 +3697,20 @@ body {
     gap: 12px 8px;
   }
 
-  .market-settlement-path-inner {
-    padding: 16px;
+  .market-proof {
+    padding: 0 16px;
+  }
+
+  .market-proof-pair {
+    flex-direction: column;
+  }
+  .market-proof-pair > * + * {
+    margin-left: 0;
+    padding-left: 0;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
   }
 
   .market-bet-slip .execution-trail {
@@ -3877,15 +3941,24 @@ body {
 .global-ticker-item--web .global-ticker-badge { border-color: var(--muted); color: var(--muted); }
 .global-ticker-item--web .global-ticker-text { color: var(--muted); }
 
-/* Betting blocked state — shown when market is open but fixture data unavailable */
-.market-bet-slip--blocked { padding: 32px 24px; text-align: center; background: var(--panel); border: 1px solid var(--amber); border-radius: 4px; margin: 24px 0; }
-.bet-blocked-icon { font-size: 48px; margin-bottom: 16px; color: var(--amber); }
-.bet-blocked-title { font-size: 20px; font-weight: 600; color: var(--ink); margin: 0 0 8px; font-family: var(--font-mono); letter-spacing: 0.02em; }
-.bet-blocked-reason { font-size: 14px; color: var(--amber); margin: 0 0 20px; font-weight: 500; }
-.bet-blocked-explanation { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 24px; max-width: 480px; margin-left: auto; margin-right: auto; }
-.bet-blocked-hint { text-align: left; max-width: 480px; margin: 0 auto; padding: 16px; background: var(--panel-alt); border-radius: 4px; }
-.bet-blocked-hint strong { display: block; font-size: 12px; color: var(--ink); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-.bet-blocked-hint ul { margin: 0; padding-left: 20px; list-style: none; }
+/* Blocked state is a hairline section of the instrument, not a nested
+   card — same rhythm as the bet slip it swaps in for. */
+.market-bet-slip--blocked {
+  margin-top: 24px;
+  padding: 24px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,.08);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.bet-blocked-icon { display: none; }
+.bet-blocked-title { margin: 0; font: 400 30px/.95 "Instrument Serif", Georgia, serif; color: var(--ink); }
+.bet-blocked-reason { margin: 9px 0 0; color: var(--amber); font: 500 10px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.bet-blocked-explanation { margin: 14px 0 0; max-width: 480px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.bet-blocked-hint { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.bet-blocked-hint strong { display: block; margin-bottom: 10px; color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+.bet-blocked-hint ul { margin: 0; padding: 0; list-style: none; }
 .bet-blocked-hint li { position: relative; padding-left: 16px; margin-bottom: 8px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .bet-blocked-hint li::before { content: "→"; position: absolute; left: 0; color: var(--amber); }
 .bet-blocked-hint li:last-child { margin-bottom: 0; }
