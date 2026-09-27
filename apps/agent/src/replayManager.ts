@@ -29,6 +29,7 @@ import type { AgentAction } from "./strategy";
 import type { MatchEventLedger } from "./eventLedger";
 import type { LiveStore } from "./liveStore";
 import type { OddsTracker } from "./oddsTracker";
+import type { QuoteTracker } from "./quoteTracker";
 import type { EventSource } from "./source";
 
 export interface ReplayStatus {
@@ -57,6 +58,8 @@ export interface ReplayDeps {
   ledger: MatchEventLedger;
   liveStore: LiveStore;
   oddsTracker: OddsTracker;
+  /** Live verifiable quote store — wires quotes + pricing attestation into replays. */
+  quoteTracker?: QuoteTracker;
 }
 
 export class ReplayManager {
@@ -75,7 +78,7 @@ export class ReplayManager {
   async launch(fixture: Fixture): Promise<ReplayStatus> {
     await this.stop();
 
-    const { connection, wallet, dryRun, network, creds, ledger, liveStore, oddsTracker } = this.deps;
+    const { connection, wallet, dryRun, network, creds, ledger, liveStore, oddsTracker, quoteTracker } = this.deps;
     const fixtureId = fixture.FixtureId;
     const matchId = matchIdFromFixture(fixture);
 
@@ -102,6 +105,7 @@ export class ReplayManager {
       dryRun,
       txlineNetwork: network,
       txlineCreds: creds,
+      quoteTracker,
       onEvent: (event: NormalizedEvent) => {
         if (event.type === "heartbeat") return;
         ledger.append({
@@ -112,6 +116,9 @@ export class ReplayManager {
           fixtureId: event.fixtureId,
           source: "txline",
         });
+        if (event.type === "match_started") {
+          agent.registerTeams(event.matchId, event.homeTeam, event.awayTeam);
+        }
         if (!liveScores.has(event.matchId) && event.type === "match_started") {
           liveScores.set(event.matchId, { home: 0, away: 0, homeTeam: event.homeTeam, awayTeam: event.awayTeam });
         }

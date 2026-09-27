@@ -19,7 +19,10 @@ export function formatSol(lamports: number): string {
  * Single source of truth — replaces the 3 local copies that were in
  * page.tsx, match/page.tsx, and markets/[market]/page.tsx.
  */
-export function formatMarketQuestion(predicate: MarketPredicate): string {
+export function formatMarketQuestion(
+  predicate: MarketPredicate,
+  opts?: { scoreUnit?: "goals" | "points" }
+): string {
   if (predicate.kind === "price_above") {
     // threshold is in feed-native units (USD * 1e8 for the Pyth majors)
     const threshold = Number(predicate.params.threshold ?? 0) / 1e8;
@@ -27,7 +30,13 @@ export function formatMarketQuestion(predicate: MarketPredicate): string {
   }
   const param = predicate.params.windowSeconds ?? predicate.params.threshold ?? "";
   const team = predicate.params.team ? ` for ${predicate.params.team}` : "";
-  return `${PREDICATE_LABEL[predicate.kind] ?? predicate.kind} ${param}${team}`;
+  // US football reuses the total_goals_over predicate (it proves stats 1+2)
+  // but the stat carries points — swap the label so NFL markets read right.
+  const label =
+    predicate.kind === "total_goals_over" && opts?.scoreUnit === "points"
+      ? "Total points over"
+      : (PREDICATE_LABEL[predicate.kind] ?? predicate.kind);
+  return `${label} ${param}${team}`;
 }
 
 /**

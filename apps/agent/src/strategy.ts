@@ -10,7 +10,7 @@
  * the returned actions via the SDK.
  */
 
-import type { NormalizedEvent } from "@stoppage/txline";
+import { Competition, type NormalizedEvent } from "@stoppage/txline";
 import {
   PREDICATE_KIND,
   type MarketPredicate,
@@ -78,12 +78,31 @@ export interface StrategyResult {
 export interface MatchTemplates {
   totalGoalsOver: number | null;
   cornersOver: number | null;
+  /** Stat vocabulary for labels — "points" for US football, else "goals". */
+  scoreUnit?: "goals" | "points";
 }
 
 export const DEFAULT_TEMPLATES: MatchTemplates = {
   totalGoalsOver: 3,
   cornersOver: 9,
 };
+
+/**
+ * NFL (comp 500001): total points over a football-scale line. The on-chain
+ * predicate is still total_goals_over (kind 3) — it proves stats 1+2,
+ * which carry total points for US football. No corners market: the stat
+ * doesn't exist for the sport.
+ */
+export const NFL_TEMPLATES: MatchTemplates = {
+  totalGoalsOver: 44,
+  cornersOver: null,
+  scoreUnit: "points",
+};
+
+/** Competition-aware create templates. Unknown competitions get the soccer default. */
+export function templatesForCompetition(competitionId?: number): MatchTemplates {
+  return competitionId === Competition.NFL ? NFL_TEMPLATES : DEFAULT_TEMPLATES;
+}
 
 // ── Strategy ────────────────────────────────────────────────────────
 
@@ -108,7 +127,7 @@ export function decideActions(
     case "match_started":
       if (templates.totalGoalsOver !== null) {
         actions.push(
-          createTotalGoalsMarket(event.matchId, event.ts, templates.totalGoalsOver)
+          createTotalGoalsMarket(event.matchId, event.ts, templates.totalGoalsOver, templates.scoreUnit)
         );
       } else {
         notes.push(
@@ -295,17 +314,17 @@ export interface OpenMarket {
 
 // ── Market creation helpers ─────────────────────────────────────────
 
-function createTotalGoalsMarket(matchId: string, ts: number, threshold: number): AgentAction {
+function createTotalGoalsMarket(matchId: string, ts: number, threshold: number, scoreUnit: "goals" | "points" = "goals"): AgentAction {
   const predicate: MarketPredicate = {
     kind: "total_goals_over",
     matchId,
-    params: { team: "", threshold },
+    params: { team: "", threshold, ...(scoreUnit !== "goals" ? { unit: scoreUnit } : {}) },
   };
   return {
     type: "create_market",
     predicate,
     closesInSeconds: 7200, // Closes at match end
-    label: `Total goals over ${threshold} — ${matchId}`,
+    label: `Total ${scoreUnit} over ${threshold} — ${matchId}`,
   };
 }
 

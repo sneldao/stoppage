@@ -19,6 +19,45 @@ export function isFixtureScheduled(fixture: Pick<FixtureWithMatchId, "GameState"
   return fixture?.GameState === NOT_STARTED;
 }
 
+/**
+ * Resolve the fixture for a market's matchId — exact matchId first, then
+ * bare fixtureId, then substring fallback. Single source of truth so the
+ * market page and match context agree on which fixture a market binds to.
+ */
+export function fixtureForMatchId(
+  fixtures: FixtureWithMatchId[],
+  matchId: string | number
+): FixtureWithMatchId | null {
+  const id = String(matchId);
+  const exact = fixtures.find((f) => f.matchId === id);
+  if (exact) return exact;
+  const byFixtureId = fixtures.find((f) => String(f.FixtureId) === id);
+  if (byFixtureId) return byFixtureId;
+  const lower = id.toLowerCase();
+  return (
+    fixtures.find(
+      (f) =>
+        f.matchId?.toLowerCase() === lower ||
+        f.matchId?.toLowerCase().includes(lower) ||
+        lower.includes(f.matchId?.toLowerCase() ?? "")
+    ) ?? null
+  );
+}
+
+/**
+ * Scoring vocabulary for a fixture's competition. TxLINE US football
+ * (comp 500001) records carry points, not goals — labels and market
+ * questions read "points" so an NFL market doesn't render as soccer.
+ * Literal here for the same bundle reason as the GamePhase constants.
+ */
+const NFL_COMPETITION_ID = 500001;
+
+export function scoreUnitForFixture(
+  fixture: Pick<FixtureWithMatchId, "CompetitionId"> | null | undefined
+): "goals" | "points" {
+  return fixture?.CompetitionId === NFL_COMPETITION_ID ? "points" : "goals";
+}
+
 export function fixtureStartTimeMs(fixture: Pick<FixtureWithMatchId, "StartTime">): number {
   const raw = fixture.StartTime as unknown;
   if (typeof raw === "number") return raw < 1_000_000_000_000 ? raw * 1000 : raw;

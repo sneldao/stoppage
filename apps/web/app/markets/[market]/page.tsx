@@ -29,6 +29,8 @@ import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MarketMatchContext } from "@/components/MarketMatchContext";
 import { useBettingGate } from "@/lib/match/useBettingGate";
+import { useFixtures } from "@/lib/match/useFixtures";
+import { fixtureForMatchId, scoreUnitForFixture } from "@/lib/match/fixtures";
 import { CallCard } from "@/components/CallCard";
 import { ResolutionCard } from "@/components/ResolutionCard";
 import { OdometerPool } from "@/components/OdometerPool";
@@ -204,6 +206,13 @@ export default function MarketDetailPage() {
   // doesn't allow it. The proof path panel shows "awaiting" for these states;
   // the bet slip must not contradict it.
   const bettingGate = useBettingGate(market?.predicate.matchId ?? "");
+
+  // Score-unit for the question label: NFL markets reuse the
+  // total_goals_over predicate but the stat is points (comp 500001).
+  const { fixtures } = useFixtures();
+  const scoreUnit = market
+    ? scoreUnitForFixture(fixtureForMatchId(fixtures, market.predicate.matchId))
+    : "goals";
 
   const run = async (label: string, fn: () => Promise<ActionResult>, viaSession = false) => {
     setBusy(label);
@@ -384,7 +393,7 @@ export default function MarketDetailPage() {
               <MarketWindow closesAt={market.closesAt} status={market.status} />
             </div>
 
-            <h1 className="market-instrument-title">{formatMarketQuestion(market.predicate)}</h1>
+            <h1 className="market-instrument-title">{formatMarketQuestion(market.predicate, { scoreUnit })}</h1>
 
             {/* Pool counter — prominent, centred */}
             <div className="market-instrument-pool">

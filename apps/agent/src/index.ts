@@ -250,6 +250,7 @@ async function main() {
     ledger,
     liveStore,
     oddsTracker,
+    quoteTracker,
   });
 
   // The fixture map is populated below; resolveFixture re-fetches lazily
@@ -487,6 +488,8 @@ function competitionLabel(id: number): string {
       return "MLS";
     case Competition.InternationalFriendlies:
       return "Friendlies";
+    case Competition.NFL:
+      return "NFL";
     default:
       return String(id);
   }
@@ -523,13 +526,27 @@ function formatEvent(event: NormalizedEvent): string {
  * rolling replay window (~2 weeks) means entries age out. See
  * docs/DEVELOPMENT.md → "TxLINE data access & the replay window".
  */
-const PAST_FIXTURES: Record<number, { p1: string; p2: string; startTime: string }> = {
+const PAST_FIXTURES: Record<
+  number,
+  { p1: string; p2: string; startTime: string; competitionId?: number; sport?: string }
+> = {
   18237038: { p1: "France", p2: "Spain", startTime: "2026-07-14T19:00:00Z" },
   // First MLS fixture captured post-match (2026-08-24): goals proof ✓
   // (value=1, settled the Aug 15 keystone NO) and corners proof ✓
   // (stat keys 7/8, value=10) — the corners verdict that enabled MLS
   // corners markets. Names reproduce matchId CIT-CIN-17615188.
   17615188: { p1: "Orlando City", p2: "FC Cincinnati", startTime: "2026-08-15T23:30:00Z" },
+  // Sept-20 EPL keystone fixture — 40 records, produced real proofs.
+  18146847: { p1: "Fulham", p2: "Manchester United", startTime: "2026-09-20T15:30:00Z" },
+  // NFL TNF Sept 25 — final 14-35 (49 total points), 1873 records.
+  // competitionId routes the strategy to the total-points template.
+  18041422: {
+    p1: "Green Bay Packers",
+    p2: "Atlanta Falcons",
+    startTime: "2026-09-25T00:20:00Z",
+    competitionId: Competition.NFL,
+    sport: "UsFootball",
+  },
 };
 
 /**
@@ -572,14 +589,17 @@ function syntheticFixtureForId(fixtureId: number): Fixture | null {
   if (!known) return null;
   return {
     FixtureId: fixtureId,
-    Sport: "Soccer",
+    CompetitionId: known.competitionId,
+    Sport: known.sport ?? "Soccer",
     Country: "International",
     FixtureGroup: "World Cup",
     StartTime: known.startTime,
     Participant1: known.p1,
     Participant2: known.p2,
     Participant1IsHome: true,
-    GameState: 1,
+    // These are completed fixtures — must be a finished GameState
+    // (5/10/13) or ReplayManager's isFixtureFinished gate rejects them.
+    GameState: 5,
   };
 }
 

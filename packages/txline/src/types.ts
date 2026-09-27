@@ -44,13 +44,15 @@ export enum Competition {
   PremierLeague = 8,
   MLS = 33,
   InternationalFriendlies = 430,
+  NFL = 500001,
 }
 
-/** Free-bundle competitions (MLS + Friendlies + EPL fixtures from Aug 21). */
+/** Free-bundle competitions (MLS + Friendlies + EPL + NFL). */
 export const FREE_BUNDLE_COMPETITIONS: readonly Competition[] = [
   Competition.PremierLeague,
   Competition.MLS,
   Competition.InternationalFriendlies,
+  Competition.NFL,
 ] as const;
 
 // ── Game phases (soccer) ────────────────────────────────────────────
@@ -113,6 +115,10 @@ export interface ScoreUpdate {
   Period?: number;
   GameState?: string | number;
   Action?: string;
+  /** Sport discriminator on score records (e.g. "Soccer", "UsFootball"). */
+  Type?: string;
+  /** Live clock (e.g. US football quarter countdown, seconds remaining). */
+  Clock?: { Running?: boolean; Seconds?: number };
   Stats?: Record<string, number>;
   Data?: Record<string, unknown>;
   /** Which participant (1 or 2) the event belongs to. */
@@ -175,11 +181,13 @@ export interface TxLineCredentials {
 // drive market creation and settlement.
 
 export type NormalizedEvent =
-  | { type: "match_started"; fixtureId: number; matchId: string; homeTeam: string; awayTeam: string; ts: number }
-  | { type: "goal_scored"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
+  | { type: "match_started"; fixtureId: number; matchId: string; homeTeam: string; awayTeam: string; competitionId?: number; ts: number }
+  | { type: "goal_scored"; fixtureId: number; matchId: string; team: string; ts: number; seq: number; minute?: number;
+      /** Authoritative running totals for stat-diff sports (US football scores jump by >1). */
+      score?: { home: number; away: number } }
   | { type: "corner_awarded"; fixtureId: number; matchId: string; team: string; ts: number; seq: number }
   | { type: "card_shown"; fixtureId: number; matchId: string; team: string; cardType: "yellow" | "red"; ts: number; seq: number }
-  | { type: "match_ended"; fixtureId: number; matchId: string; finalScore: { home: number; away: number }; finalStats: Record<string, number>; ts: number; seq: number }
+  | { type: "match_ended"; fixtureId: number; matchId: string; finalScore: { home: number; away: number }; finalStats: Record<string, number>; ts: number; seq: number; minute?: number }
   | { type: "halftime"; fixtureId: number; matchId: string; ts: number; seq: number }
   | { type: "second_half_started"; fixtureId: number; matchId: string; ts: number; seq: number }
   | { type: "extra_time_started"; fixtureId: number; matchId: string; ts: number; seq: number }

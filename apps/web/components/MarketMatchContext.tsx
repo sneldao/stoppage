@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { countryFlag } from "@/lib/format";
-import { isFixtureLive } from "@/lib/match/fixtures";
+import { fixtureForMatchId, isFixtureLive } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { snapshotIsFresh } from "@/lib/match/types";
 import type { LiveMatchSnapshot } from "@/lib/match/types";
@@ -122,18 +122,10 @@ export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | 
   const [scoreFlash, setScoreFlash] = useState(0);
   const prevScore = useMemo(() => ({ home: -1, away: -1 }), []);
 
-  const fixture = useMemo(() => {
-    const exact = fixtures.find((f) => f.matchId === String(matchId));
-    if (exact) return exact;
-    const byFixtureId = fixtures.find((f) => String(f.FixtureId) === String(matchId));
-    if (byFixtureId) return byFixtureId;
-    const lower = String(matchId).toLowerCase();
-    return fixtures.find((f) =>
-      f.matchId?.toLowerCase() === lower ||
-      f.matchId?.toLowerCase().includes(lower) ||
-      lower.includes(f.matchId?.toLowerCase() ?? "")
-    ) ?? null;
-  }, [fixtures, matchId]);
+  const fixture = useMemo(
+    () => fixtureForMatchId(fixtures, matchId),
+    [fixtures, matchId]
+  );
 
   const live = isFixtureLive(fixture);
   const snapshot = useFixtureScore(live && fixture ? fixture.FixtureId : null);

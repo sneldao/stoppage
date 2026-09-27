@@ -29,6 +29,7 @@ import {
   signQuote,
   findMarketPdaFromPredicate,
   findPositionPda,
+  deriveResolutionPda,
   getMarket,
   DEFAULT_ORACLE,
   type MarketPredicate,
@@ -37,6 +38,7 @@ import {
 } from "@stoppage/sdk";
 import { hashSnapshot, deriveSeed } from "@stoppage/quant";
 import {
+  Competition,
   type Network,
   type TxLineCredentials,
   type NormalizedEvent,
@@ -46,12 +48,13 @@ import {
   decideActions,
   quoteOpenMarkets,
   DEFAULT_TEMPLATES,
+  templatesForCompetition,
   type AgentAction,
   type MatchTemplates,
   type OpenMarket,
 } from "./strategy";
 import { adviseTemplates, usepodAdvisoryEnabled } from "./usepodAdvisor";
-import { buildSettleFromProofIxs, attestVerification } from "./settle";
+import { buildSettleFromProofIxs, buildSettleTransactions, attestVerification } from "./settle";
 import type { EventSource } from "./source";
 import { getQuantModel, DEFAULT_QUANT_PARAMS, type QuantModel } from "./quantClient";
 import { QuoteTracker } from "./quoteTracker";
@@ -212,7 +215,8 @@ export class Agent {
         next.minute = 0;
         break;
       case "goal_scored":
-        if (event.team === this.homeTeamFor(matchId)) next.score.home += 1;
+        if (event.score) next.score = event.score;
+        else if (event.team === this.homeTeamFor(matchId)) next.score.home += 1;
         else if (event.team === this.awayTeamFor(matchId)) next.score.away += 1;
         break;
       case "corner_awarded":
@@ -239,6 +243,10 @@ export class Agent {
         next.score = event.finalScore ?? next.score;
         break;
     }
+
+    // US football emits a real clock minute (quarter-based); prefer it.
+    const minute = "minute" in event ? event.minute : undefined;
+    if (typeof minute === "number") next.minute = minute;
 
     this.matchState.set(matchId, next);
   }
@@ -280,8 +288,16 @@ export class Agent {
         // model may narrow/adjust the bounded template set. Non-gating —
         // null falls back to DEFAULT_TEMPLATES; it can never invent
         // predicates or touch settlement.
-        let templates: MatchTemplates = DEFAULT_TEMPLATES;
-        if (event.type === "match_started" && usepodAdvisoryEnabled()) {
+        let templates: MatchTemplates =
+          event.type === "match_started"
+            ? templatesForCompetition(event.competitionId)
+            : DEFAULT_TEMPLATES;
+        // UsePod advisory is soccer-shaped (goals/corners); skip for NFL.
+        if (
+          event.type === "match_started" &&
+          event.competitionId !== Competition.NFL &&
+          usepodAdvisoryEnabled()
+        ) {
           const advisory = await withSpan(
             "agent.usepod_advisory",
             { "match.id": event.matchId, "fixture.id": event.fixtureId },
@@ -613,25 +629,44 @@ export class Agent {
       return { success: true, marketPda: market.marketPda };
     }
 
-    // Settlement tx: compute budget + resolve_market (CPIs into TxLINE
-    // validate_stat, creates the receipt) + settle_from_proof (consumes
-    // the receipt to settle the vault). If the proof is invalid the
-    // whole tx reverts. attest_verification runs as a best-effort
-    // follow-up — two-stat proofs fill the 1232-byte tx budget.
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    const tx = new Transaction({
-      feePayer: wallet.publicKey,
-      blockhash,
-      lastValidBlockHeight,
-    });
-    tx.add(...settleIxs);
-    tx.sign(wallet);
-
-    const sig = await this.submitSignedTx(tx, {
+    // Settlement path: compute budget + resolve_market (CPIs into TxLINE
+    // validate_stat, creates the resolution receipt) + settle_from_proof
+    // (consumes the receipt to settle the vault). One tx when it fits —
+    // high-record fixtures (e.g. NFL, ~1900 updates) produce proofs that
+    // push the bundle over the 1232-byte packet limit, in which case
+    // resolve and settle split into two transactions. The receipt is a
+    // persistent on-chain account verified by settle_from_proof, so the
+    // proof gate is identical either way. If the proof is invalid the
+    // resolve tx reverts and the market stays open for retry.
+    const settleAttrs = {
       "action.type": "settle_market",
       "market.pda": market.marketPda,
       outcome: action.outcome,
-    });
+    } as const;
+
+    const { txs, split } = await buildSettleTransactions(connection, wallet, settleIxs);
+    // Retry-safe: if a previous split attempt landed resolve but failed
+    // settle, the resolution receipt already exists — resolve_market
+    // would revert re-initializing it, so skip straight to settle.
+    let toSend = txs;
+    if (split) {
+      const [resolutionPda] = deriveResolutionPda(marketPdaKey);
+      const alreadyResolved = await connection.getAccountInfo(resolutionPda);
+      if (alreadyResolved) toSend = txs.slice(1);
+    }
+    let sig = "";
+    for (const [i, t] of toSend.entries()) {
+      sig = await this.submitSignedTx(t, {
+        ...settleAttrs,
+        step: split ? (i === 0 && toSend.length > 1 ? "resolve_market" : "settle_from_proof") : undefined,
+      });
+      if (split && toSend.length > 1 && i === 0) {
+        logger.info("Resolution receipt landed (split settle)", {
+          "market.pda": market.marketPda,
+          "tx.signature": sig,
+        });
+      }
+    }
     this.openMarkets.splice(idx, 1);
 
     const attestSig = await attestVerification(
@@ -662,7 +697,13 @@ export class Agent {
 
   /** Look up the TxLINE fixture ID for a given match ID. */
   private fixtureIdForMatch(matchId: string): number | null {
-    return this.matchToFixture.get(matchId) ?? null;
+    const direct = this.matchToFixture.get(matchId);
+    if (direct !== undefined) return direct;
+    // TxLINE matchIds end with the fixture ID ("PAC-FAL-18041422").
+    // Pending settlements survive restarts where the fixture map is
+    // cold — parse the suffix rather than dropping a provable settle.
+    const suffix = Number(matchId.split("-").pop());
+    return Number.isFinite(suffix) && suffix > 0 ? suffix : null;
   }
 
   private pendingSettlementsFile(): string {

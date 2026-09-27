@@ -66,6 +66,12 @@ export function normalizeScoreUpdate(
   const statusId = update.StatusId ?? 0;
   const stats = update.Stats ?? {};
   const data = update.Data;
+  // US Football records share the same StatusId layout (2 = first in-play
+  // period, 100 = finalised) and the same total-score stat keys (1/2), but
+  // quarter breaks collide with soccer phase IDs (3/4/5...) — so only
+  // match_started and match_ended are meaningful, and score changes are
+  // detected by stat diff rather than a "goal" action.
+  const isUsFootball = update.Type === "UsFootball";
 
   // ── Match finalised ──────────────────────────────────────────────
   if (action === "game_finalised" || statusId === FINAL_STATUS_ID) {
@@ -79,6 +85,7 @@ export function normalizeScoreUpdate(
       finalStats: stats,
       ts: update.Ts,
       seq: update.Seq,
+      minute: isUsFootball ? 60 : undefined,
     });
     return events;
   }
@@ -92,8 +99,12 @@ export function normalizeScoreUpdate(
         matchId,
         homeTeam: fixture.Participant1,
         awayTeam: fixture.Participant2,
+        competitionId: fixture.CompetitionId,
         ts: update.Ts,
       });
+    } else if (isUsFootball) {
+      // Quarter breaks (3/5/7) and later quarters (4/6/8/9) reuse soccer
+      // phase IDs but aren't halves — suppress them for US football.
     } else if (statusId === GamePhase.Halftime && prevStatusId < GamePhase.Halftime) {
       events.push({ type: "halftime", fixtureId: fixture.FixtureId, matchId, ts: update.Ts, seq: update.Seq });
     } else if (statusId === GamePhase.SecondHalf && prevStatusId < GamePhase.SecondHalf) {
@@ -167,12 +178,53 @@ export function normalizeScoreUpdate(
   } else if (action === "penalty") {
     const t = teamArg ?? null;
     if (t) events.push({ type: "penalty_awarded", fixtureId: fixture.FixtureId, matchId, team: t, ts: update.Ts, seq: update.Seq });
-  } else if (action && !["game_finalised", "scheduled", "fixture_updated"].includes(action)) {
+  } else if (action && !isUsFootball && !["game_finalised", "scheduled", "fixture_updated"].includes(action)) {
     const t = teamArg ?? undefined;
     events.push({ type: "raw_action", fixtureId: fixture.FixtureId, matchId, action, team: t, data: data ?? undefined, ts: update.Ts, seq: update.Seq });
   }
 
+  // ── US football score changes ────────────────────────────────────
+  // Scoring actions (touchdown/field_goal/safety/conversions) confirm
+  // into Stats keys 1/2 (P1/P2 total points) — the same keys the
+  // stat-validation proofs attest. Emit goal_scored so the agent's
+  // score tracking, quotes, and settle path work unchanged.
+  if (isUsFootball) {
+    const t = detectTeamFromStatDiff(prevStats, stats, [StatKey.P1Goals, StatKey.P2Goals], fixture);
+    if (t) {
+      events.push({
+        type: "goal_scored",
+        fixtureId: fixture.FixtureId,
+        matchId,
+        team: t,
+        ts: update.Ts,
+        seq: update.Seq,
+        minute: usFootballMinute(statusId, update.Clock?.Seconds),
+        // A scoring play can add 1/2/3/6/8 points — carry the real
+        // totals so downstream score tracking doesn't assume +1.
+        score: {
+          home: stats[String(StatKey.P1Goals)] ?? 0,
+          away: stats[String(StatKey.P2Goals)] ?? 0,
+        },
+      });
+    }
+  }
+
   return events;
+}
+
+/**
+ * Approximate match minute for US football: quarters are 15-minute blocks
+ * (statusId 2/4/6/8 = Q1-Q4 in play, 3/5/7 = quarter breaks, 9 = ended).
+ * Clock.Seconds counts down within the current quarter when present.
+ */
+function usFootballMinute(statusId: number, clockSeconds?: number): number {
+  const base: Record<number, number> = { 2: 0, 3: 15, 4: 15, 5: 30, 6: 30, 7: 45, 8: 45, 9: 60, 100: 60 };
+  const quarterBase = base[statusId] ?? 0;
+  const inPlay = statusId === 2 || statusId === 4 || statusId === 6 || statusId === 8;
+  if (inPlay && typeof clockSeconds === "number") {
+    return Math.round(quarterBase + (900 - clockSeconds) / 60);
+  }
+  return quarterBase;
 }
 
 /**

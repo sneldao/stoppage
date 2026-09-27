@@ -61,7 +61,7 @@ import {
   type Network,
 } from "@stoppage/txline";
 import { MatchEventLedger } from "../apps/agent/src/eventLedger";
-import { buildSettleFromProofIxs, attestVerification } from "../apps/agent/src/settle";
+import { buildSettleFromProofIxs, buildSettleTransactions, attestVerification } from "../apps/agent/src/settle";
 
 const GRACE_SECONDS_DEFAULT = 3600; // matches the 1h on-chain grace
 const RPC_DEFAULT = clusterApiUrl("devnet");
@@ -107,6 +107,28 @@ function loadWallet(): Keypair {
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8"))));
 }
 
+/** Send pre-signed transactions in order; returns the last signature. */
+async function submitSignedTxs(
+  connection: Connection,
+  txs: Transaction[],
+  label: string
+): Promise<string> {
+  let sig = "";
+  for (const tx of txs) {
+    const raw = tx.serialize();
+    if (dryRun) {
+      log(`  [dry] would submit ${label} tx (${raw.length}B)`);
+      sig = "dry-run";
+      continue;
+    }
+    sig = await connection.sendRawTransaction(raw, { skipPreflight: true });
+    await connection.confirmTransaction(sig, "confirmed");
+    const st = await connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
+    if (st.value[0]?.err) throw new Error(`${label} failed on-chain: ${JSON.stringify(st.value[0].err)} (${sig})`);
+  }
+  return sig;
+}
+
 async function submit(
   connection: Connection,
   wallet: Keypair,
@@ -116,11 +138,7 @@ async function submit(
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   const tx = new Transaction({ feePayer: wallet.publicKey, blockhash, lastValidBlockHeight }).add(...ixs);
   tx.sign(wallet);
-  const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-  await connection.confirmTransaction(sig, "confirmed");
-  const st = await connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
-  if (st.value[0]?.err) throw new Error(`${label} failed on-chain: ${JSON.stringify(st.value[0].err)} (${sig})`);
-  return sig;
+  return submitSignedTxs(connection, [tx], label);
 }
 
 /** Errors we treat as "already handled" so a re-run is a clean no-op. */
@@ -166,7 +184,11 @@ async function settleMarket(
     marketPda,
     wallet: wallet.publicKey,
   });
-  const sig = await submit(connection, wallet, built.instructions, "settle");
+  // Packet-limit-aware: splits resolve/settle into two txs when the
+  // proof is too large (shared packing lives in settle.ts — rule 6).
+  const { txs } = await buildSettleTransactions(connection, wallet, built.instructions);
+  const sig = await submitSignedTxs(connection, txs, "settle");
+  if (sig !== "dry-run") log(`settled :: ${sig}`);
   const attestSig = await attestVerification(connection, wallet, marketPda);
   if (attestSig) log(`attested verification :: ${attestSig}`);
   else log(`attestation follow-up failed (market still settled)`);

@@ -164,6 +164,59 @@ export async function buildSettleFromProofIxs(
 }
 
 /**
+ * Pack settle instructions into signed transactions that fit the
+ * 1232-byte packet limit.
+ *
+ * One tx when the bundle fits. High-record fixtures (e.g. NFL, ~1900
+ * updates) produce Merkle proofs that push past the limit — then the
+ * bundle splits in two: [budget + resolve_market] then
+ * [budget + settle_from_proof]. The resolution receipt is a persistent
+ * on-chain PDA verified by settle_from_proof on read, so the proof gate
+ * is identical either way.
+ *
+ * Callers send the returned transactions in order. Single shared
+ * implementation — the keeper (loop.ts) and scripts/housekeep.ts both
+ * settle through this.
+ */
+export async function buildSettleTransactions(
+  connection: Connection,
+  wallet: Keypair,
+  instructions: TransactionInstruction[]
+): Promise<{ txs: Transaction[]; split: boolean }> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const buildTx = (ixs: TransactionInstruction[]) => {
+    const t = new Transaction({
+      feePayer: wallet.publicKey,
+      blockhash,
+      lastValidBlockHeight,
+    });
+    t.add(...ixs);
+    t.sign(wallet);
+    return t;
+  };
+
+  const single = buildTx(instructions);
+  // serialize() throws "Transaction too large" past the packet limit —
+  // catching it is the size check.
+  try {
+    single.serialize();
+    return { txs: [single], split: false };
+  } catch {
+    const [budgetIx, resolveIx, ...rest] = instructions;
+    return {
+      txs: [
+        buildTx([budgetIx, resolveIx]),
+        buildTx([
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ...rest,
+        ]),
+      ],
+      split: true,
+    };
+  }
+}
+
+/**
  * Best-effort attestation follow-up (permissionless verification
  * counter). Returns the signature, or null if it failed to land — the
  * market is already settled either way; anyone can attest later.

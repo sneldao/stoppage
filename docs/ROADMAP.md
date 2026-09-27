@@ -158,6 +158,57 @@ stage-keystone: deployer YES `63SNwaNi…`, opponent `EgWC985X…` NO
 lands at quote time — watch agent logs for "Attested pricing" at
 23:30Z; corners market is keeper-created at match start as usual.
 
+**Amended 2026-09-27 — MON-CIN could not settle; coverage gap is
+TxLINE's published schedule, not a keeper fault.** Empirically verified:
+heartbeat-only SSE for all fixtures, `[]` snapshots for the entire Sept
+26–27 slate (MLS, EPL, comp 430 alike), while Sept-20 FUL-UTD history
+still serves 40 records. TxLINE's public scores schedule shows MLS
+coverage ended Aug 16–17 and EPL ended Sept 20 — **NFL (comp 500001) is
+the only sport covered Sept 25–29**. The market ran to its close and was
+voided (tx `4oVm1jeDuS9ZkTqCTRhPcBzjVjrQ5jGzwnk4okRrxVuM1ksCzKjU5NVXpnkAYcFvtVmSuYW3SrRUoTUKqFdHzTBt`);
+stakes reclaim via the claim path.
+
+**NFL wired (2026-09-27).** US football records share the soccer
+StatusId layout (2 = in play, 100 = `game_finalised`) and total-score
+stat keys 1/2 carry points — so `total_goals_over` (kind 3) proves an
+NFL points total with zero program changes; `params.unit="points"` is
+metadata for labels only (not in PDA seeds or ix encoding).
+`templatesForCompetition(500001)` → `NFL_TEMPLATES` (total points over
+44, no corners); the normalizer detects score changes via stat diff
+(scoring plays add 1/2/3/6/8 — the event carries real totals), maps
+quarters to minutes, and suppresses quarter-break status transitions
+that collide with soccer phase IDs. `match_started` now carries
+`competitionId`; `/api/fixtures` serves NFL via `FREE_BUNDLE_COMPETITIONS`;
+the market page labels "Total points over" when the fixture's
+competition is NFL. VPS agent runs `TXLINE_COMPETITIONS=33,8,500001`.
+
+**Split-settle fallback (2026-09-27).** High-record fixtures (~1900
+updates) produce Merkle proofs that push the resolve+settle bundle over
+the 1232-byte packet limit — first hit live on GB-ATL (1262 > 1232).
+`settleMarket` now measures the serialized tx and splits
+`resolve_market` / `settle_from_proof` into two transactions when
+needed; the resolution receipt is a persistent PDA verified on read, so
+the proof gate is identical, and the split is retry-safe (receipt-exists
+check skips re-resolve). `fixtureIdForMatch` also falls back to parsing
+the fixture ID off the matchId suffix so pending settlements rehydrated
+after a restart can still fetch proofs for rotated-out fixtures.
+
+**Replay artifact (2026-09-27):** GB Packers v Atlanta Falcons, fixture
+18041422 (final 14–35, 1,873 records), replayed at 20× through the live
+pipeline via `/replay/start` on the VPS agent. `match_started` →
+"Total points over 44 — PAC-FAL-18041422" market
+`BjtzF4PZqePuyQpkhKEdb7v6YdnjjVz3c65rn4fuV8CU` (create tx `32ktK2Qw…`),
+on-chain `Attested pricing` receipts every scoring play through the
+healed `agent_authority` PDA — first live attests since July — then
+split settle at `match_ended` (proof 6+6 stat nodes + 3 subtree + 2
+main, value=14+35, epoch_day 20721): resolve `4Sv8Z9yi…WZLmJqea`,
+settle `qZy8YxuWAfGoz15D7TsnomD6TVWWobULUxqiaE6QGmqjVK3mA98MPHKaQas8kWqvXFPTgrhNv85mHTQkU5hf9D2`,
+outcome YES confirmed on-chain. ReplayManager now wires `quoteTracker`
+(quotes/attests flow through `/quotes`) and `registerTeams` (score
+tracking), and synthetic past fixtures carry finished `GameState` +
+competition so the `isFixtureFinished` gate and NFL template routing
+work.
+
 ## Current state (2026-08-13)
 
 **TxLINE free/devnet now includes MLS — the Aug 10 "MLS is 403" finding
