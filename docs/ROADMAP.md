@@ -115,6 +115,50 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Pyth paused → attested price settles + oversized-proof LUT fix (2026-10-01)
+
+**What broke:** Hermes (all endpoints, including Benchmarks) requires
+Bearer auth since the Pyth Core upgrade; the trial `PYTH_API_KEY` lapsed
+and every price-market settle has failed since ~Sept 25. Interval
+markets were also orphan-creating (~3h cadence, zero settle attempts)
+because a create/Hermes failure threw before the settle pass, and the
+settle path polled `/latest` waiting for `publish_time` to re-enter a
+closed window — it never can. Separately, BEA-EAG's two-stat Merkle
+proof exceeded the 1232-byte packet limit even split (14 fails → void).
+
+**Fixes shipped:**
+- `buildSettleTransactions` packs oversized bundles as v0 transactions
+  against a per-keeper Address Lookup Table, extended on demand with
+  the settle's dynamic metas (market/resolution PDAs, daily roots) —
+  invoked program ids are never LUT-eligible under web3.js, so the
+  statics alone were insufficient. The real BEA-EAG proof (1281B fail)
+  now packs as a single 1205B v0 tx.
+- Price keeper: create/settle loops isolated, settle probes Hermes'
+  timestamped endpoint (`/v2/updates/price/{ts}`) so late orphans still
+  resolve if an in-window observation exists; boot recovery adopts
+  on-chain open markets; no-in-window markets void after the program's
+  grace; post-tx on-chain errors are now checked (a reverted
+  PriceUpdateV2 post was the Custom 6000 root cause — the settle then
+  CPI'd an account the receiver didn't own).
+- **`PRICE_ORACLE=attestation` mode**: new price markets bind the
+  attestation validator and settle on an operator-signed observation of
+  Coinbase's public minute candles (`apps/agent/src/attest/coinbase.ts`
+  — free, unauthenticated, permanent history). Settle dispatch is on
+  the market's *bound* oracle, so pyth-bound legacy markets void past
+  grace instead of looping. Verified end-to-end: `SOL/USD-ATTEST:…`
+  market settled YES proof-gated on devnet. Trust downgrade is honest:
+  operator-signed, not guardian-verified — the receipt labels it.
+- `scripts/pyth-health.ts` (`npm run pyth:health`): Hermes Bearer-auth
+  probe mirroring txline-health — a lapsed key now pages, doesn't
+  silently orphan markets.
+- `pm2` config sets `PRICE_ORACLE=attestation` on stoppage-price and
+  stoppage-week. **VPS needs `secrets/attestor-keypair.json`** (pinned
+  on-chain authority `AeEfbMQm…`) and the deploy.
+
+**Open:** fresh Pyth Terminal key restores the guardian-verified path
+(`PRICE_ORACLE=pyth` + key in `.env.agent`); self-hosted Hermes is the
+key-free alternative if the trial path stays closed.
+
 ## agent_authority PDA missing — attest_pricing bricked, fixed (2026-09-25)
 
 **Root cause:** the Jul 17 `InitializeProtocol` tx ran under a binary that

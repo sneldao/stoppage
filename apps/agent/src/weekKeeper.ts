@@ -23,6 +23,7 @@
 
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import {
+  ATTESTATION_VALIDATOR_PROGRAM_ID,
   buildClaimBondIx,
   buildClaimIx,
   buildVoidMarketIx,
@@ -115,6 +116,7 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
     onSettled: (m, fact) => {
       settledWindow = m.predicate.matchId;
       const thresholdUsd = Math.round(Number(m.thresholdRaw) * 1e-8);
+      const attested = m.oracle === ATTESTATION_VALIDATOR_PROGRAM_ID;
       appendLedger({
         occurredAt: Date.now(),
         kind: "settlement_confirmed",
@@ -122,9 +124,9 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
         matchId: m.predicate.matchId,
         marketId: m.marketPda.toBase58(),
         signature: fact.signature,
-        source: "pyth",
+        source: attested ? "attestation" : "pyth",
         outcome: fact.outcome,
-        oracle: PYTH_VALIDATOR_PROGRAM_ID,
+        oracle: m.oracle ?? PYTH_VALIDATOR_PROGRAM_ID,
         statement: fact.statement,
       });
       void claimReceipts(m);
@@ -214,11 +216,11 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
         appendLedger({
           occurredAt: Date.now(),
           kind: "market_voided",
-          label: `week: ${m.predicate.matchId} voided (no in-window Pyth observation)`,
+          label: `week: ${m.predicate.matchId} voided (${m.oracle === ATTESTATION_VALIDATOR_PROGRAM_ID ? "no Coinbase observation" : "no in-window Pyth observation"})`,
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: sig,
-          source: "pyth",
+          source: m.oracle === ATTESTATION_VALIDATOR_PROGRAM_ID ? "attestation" : "pyth",
         });
       } catch (e) {
         log(`void failed: ${e}`);
@@ -261,7 +263,10 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
       for (const m of [...ctx.tracked.values()]) {
         if (now < m.referenceTs) continue;
         const result = await settlePriceMarket(ctx, m);
-        if (result === "unresolvable" && now > m.referenceTs + VOID_GRACE_SECONDS) {
+        if (
+          (result === "unresolvable" || result === "unsupported") &&
+          now > m.referenceTs + VOID_GRACE_SECONDS
+        ) {
           await voidStale(m);
         }
       }

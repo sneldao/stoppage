@@ -69,11 +69,16 @@ import { recordAction, withSpan } from "./telemetry";
 // ── Stat-key registry (single source of truth for attestation claims) ─
 // Opaque to the validator (bound into the signed message); new sports
 // statistics add an entry here and a source mapping in the adapter.
-export const ATTEST_STAT_KEYS = { total_goals: 1 } as const;
+export const ATTEST_STAT_KEYS = { total_goals: 1, price_usd_e8: 2 } as const;
 
 /** fixture_ref binding: sha256("tsdb:<eventId>")[..16]. */
 export function fixtureRefForEvent(eventId: number): Uint8Array {
   return createHash("sha256").update(`tsdb:${eventId}`).digest().subarray(0, 16);
+}
+
+/** fixture_ref binding for price markets: sha256("price:<matchId>")[..16]. */
+export function fixtureRefForPriceMarket(matchId: string): Uint8Array {
+  return createHash("sha256").update(`price:${matchId}`).digest().subarray(0, 16);
 }
 
 // Earliest plausible full-time is ~105 min after kickoff (90 + 15 HT +
@@ -110,15 +115,21 @@ export function loadAttestor(): Keypair {
   return loadOrCreateAttestor(process.env.ATTESTOR_KEYPAIR_PATH ?? defaultPath);
 }
 
-export async function runAttestationKeeper(cfg: AttestationKeeperConfig): Promise<void> {
+/**
+ * Ensure the attestation validator's Config PDA exists and is pinned to
+ * `attestor`, initializing it (first-init-wins) when absent. Shared by
+ * the sports attestation keeper and the attested price-settle path —
+ * rule 6: one implementation.
+ */
+export async function ensureAttestationConfig(
+  cfg: Pick<AttestationKeeperConfig, "connection" | "wallet" | "attestor" | "dryRun" | "onLog">
+): Promise<void> {
   const log = (msg: string) => {
     console.log(`[attest-keeper] ${msg}`);
     cfg.onLog?.(msg);
   };
   const oraclePubkey = new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID);
   const [configPda] = deriveAttestationConfigPda(oraclePubkey);
-
-  // ── 1. Config: exists, and pinned to OUR attestor key. ─────────────
   const configInfo = await withSpan(
     "attest.ensure_config",
     { config_pda: configPda.toBase58(), attestor: cfg.attestor.publicKey.toBase58() },
@@ -133,17 +144,28 @@ export async function runAttestationKeeper(cfg: AttestationKeeperConfig): Promis
         return sig;
       });
     }
-  } else {
-    const authority = new PublicKey(configInfo.data.subarray(8, 40));
-    if (!authority.equals(cfg.attestor.publicKey)) {
-      throw new Error(
-        `On-chain attestation authority ${authority.toBase58()} != local attestor ` +
-          `${cfg.attestor.publicKey.toBase58()}. Set ATTESTOR_KEYPAIR_PATH to the pinned key; ` +
-          "settlement would revert with SignerMismatch otherwise."
-      );
-    }
-    log(`attestation config OK (authority=${authority.toBase58()})`);
+    return;
   }
+  const authority = new PublicKey(configInfo.data.subarray(8, 40));
+  if (!authority.equals(cfg.attestor.publicKey)) {
+    throw new Error(
+      `On-chain attestation authority ${authority.toBase58()} != local attestor ` +
+        `${cfg.attestor.publicKey.toBase58()}. Set ATTESTOR_KEYPAIR_PATH to the pinned key; ` +
+        "settlement would revert with SignerMismatch otherwise."
+    );
+  }
+  log(`attestation config OK (authority=${authority.toBase58()})`);
+}
+
+export async function runAttestationKeeper(cfg: AttestationKeeperConfig): Promise<void> {
+  const log = (msg: string) => {
+    console.log(`[attest-keeper] ${msg}`);
+    cfg.onLog?.(msg);
+  };
+  const oraclePubkey = new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID);
+
+  // ── 1. Config: exists, and pinned to OUR attestor key. ─────────────
+  await ensureAttestationConfig(cfg);
 
   // ── 2. Event + market. ─────────────────────────────────────────────
   let event = await withSpan("attest.event_fetch", { tsdb_event: cfg.eventId }, () => fetchEvent(cfg.eventId));
@@ -277,8 +299,8 @@ export async function runAttestationKeeper(cfg: AttestationKeeperConfig): Promis
   log(`settled ${marketPda.toBase58()} (proof-gated, operator-attested): ${sig}`);
 }
 
-function buildSettlementBundle(
-  cfg: AttestationKeeperConfig,
+export function buildSettlementBundle(
+  cfg: Pick<AttestationKeeperConfig, "wallet" | "attestor">,
   marketPda: PublicKey,
   statement: string,
   outcome: number,
@@ -320,8 +342,8 @@ function buildSettlementBundle(
   ];
 }
 
-async function sendAndConfirm(
-  cfg: AttestationKeeperConfig,
+export async function sendAndConfirm(
+  cfg: Pick<AttestationKeeperConfig, "connection" | "wallet">,
   instructions: Transaction["instructions"],
   label: string
 ): Promise<string> {

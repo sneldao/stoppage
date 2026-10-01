@@ -48,6 +48,9 @@ const { PythSolanaReceiver } = createRequire(import.meta.url)(
   "@pythnetwork/pyth-solana-receiver"
 ) as typeof import("@pythnetwork/pyth-solana-receiver");
 import {
+  ATTESTATION_OPS,
+  ATTESTATION_VALIDATOR_PROGRAM_ID,
+  buildAttestationMessage,
   buildAttestVerificationIx,
   buildCreateMarketIx,
   buildResolveMarketIxFromOracle,
@@ -62,6 +65,15 @@ import {
   PYTH_VALIDATOR_PROGRAM_ID,
   type MarketPredicate,
 } from "@stoppage/sdk";
+import {
+  ATTEST_STAT_KEYS,
+  buildSettlementBundle,
+  ensureAttestationConfig,
+  fixtureRefForPriceMarket,
+  loadAttestor,
+  sendAndConfirm,
+} from "./attestationKeeper";
+import { fetchSpotUsdAt, fetchSpotUsdNow } from "./attest/coinbase";
 
 // Pyth Core upgrade (2026-08-26): Hermes requires Bearer auth. Get a key
 // from Pyth Terminal (free trial) and set PYTH_API_KEY on the agent host.
@@ -72,6 +84,15 @@ export const PRICE_SYMBOL = process.env.PRICE_SYMBOL ?? "SOL/USD";
 export const MAX_STALENESS_SECONDS = 120;
 // Pyth majors carry expo -8 (price in 1e-8 USD).
 const FEED_EXPO = -8;
+
+/**
+ * Which oracle newly created price markets bind to: "pyth" (Hermes +
+ * PriceUpdateV2 — needs PYTH_API_KEY) or "attestation" (operator-signed
+ * observation over a public spot source — no Pyth dependency). The
+ * settle path always dispatches on the market's BOUND oracle, so mixed
+ * generations coexist; this env only controls what we create.
+ */
+export const PRICE_ORACLE = process.env.PRICE_ORACLE ?? "pyth";
 
 interface HermesUpdate {
   binary: { data: string[] };
@@ -117,8 +138,12 @@ export async function fetchUpdateAt(publishTime: number): Promise<HermesUpdate> 
   );
 }
 
-/** Spot price in native units (i64), from Hermes. */
+/** Spot price in native units (i64) — Hermes for pyth-mode, Coinbase
+ *  ticker for attestation mode (thresholds just need a sane spot). */
 export async function spotNative(): Promise<bigint> {
+  if (PRICE_ORACLE === "attestation") {
+    return BigInt(Math.round((await fetchSpotUsdNow()) * 10 ** -FEED_EXPO));
+  }
   const j = await fetchLatestUpdate();
   return BigInt(j.parsed[0].price.price);
 }
@@ -138,6 +163,8 @@ export interface TrackedPriceMarket {
   marketPda: PublicKey;
   referenceTs: number;
   thresholdRaw: bigint;
+  /** Bound oracle program (base58); absent ⇒ legacy pyth-bound. */
+  oracle?: string;
 }
 
 /** The on-chain fact produced by a live settlement. */
@@ -176,8 +203,11 @@ export const PRICE_VOID_GRACE_SECONDS = 3600 + 900;
  *  - "unresolvable": window fully passed AND Hermes has no observation
  *    in it — the feed gapped for longer than MAX_STALENESS_SECONDS at
  *    close, so no proof exists. Callers should void past grace.
+ *  - "unsupported": the market's bound oracle isn't one this keeper can
+ *    drive (e.g. a pyth-bound market while Pyth is paused). Not
+ *    transient — void past grace.
  */
-export type PriceSettleResult = "settled" | "pending" | "unresolvable";
+export type PriceSettleResult = "settled" | "pending" | "unresolvable" | "unsupported";
 
 export function priceStatement(thresholdRaw: bigint, referenceTs: number): string {
   return `sol_above:${Number(thresholdRaw) / 10 ** -FEED_EXPO}:${referenceTs}`;
@@ -218,6 +248,7 @@ export async function recoverOpenPriceMarkets(
       marketPda: pubkey,
       referenceTs: refTs,
       thresholdRaw,
+      oracle: m.oracle,
     });
     ctx.log(`recovered open market ${pubkey.toBase58()} (ref ${new Date(refTs * 1000).toISOString()})`);
   }
@@ -233,6 +264,8 @@ export async function ensurePriceMarket(
   opts: { matchId: string; referenceTs: number; deltaUsd?: number }
 ): Promise<TrackedPriceMarket | null> {
   const { roundedUsd, thresholdRaw } = roundThresholdUsd(await spotNative(), opts.deltaUsd ?? 0);
+  const boundOracle =
+    PRICE_ORACLE === "attestation" ? ATTESTATION_VALIDATOR_PROGRAM_ID : PYTH_VALIDATOR_PROGRAM_ID;
   const predicate: MarketPredicate = {
     kind: "price_above",
     // The market PDA seeds don't include closes_at, so the round's
@@ -249,7 +282,13 @@ export async function ensurePriceMarket(
   const existing = await ctx.connection.getAccountInfo(marketPda);
   if (existing) {
     ctx.log(`market already exists: ${pdaAddress}`);
-    const m: TrackedPriceMarket = { predicate, marketPda, referenceTs: opts.referenceTs, thresholdRaw };
+    const m: TrackedPriceMarket = {
+      predicate,
+      marketPda,
+      referenceTs: opts.referenceTs,
+      thresholdRaw,
+      oracle: parseMarket(existing.data, pdaAddress).oracle,
+    };
     ctx.tracked.set(pdaAddress, m);
     return m;
   }
@@ -262,7 +301,7 @@ export async function ensurePriceMarket(
       creator: ctx.wallet.publicKey,
       predicate,
       closesAt: opts.referenceTs,
-      oracle: new PublicKey(PYTH_VALIDATOR_PROGRAM_ID),
+      oracle: new PublicKey(boundOracle),
     });
     const { blockhash, lastValidBlockHeight } = await ctx.connection.getLatestBlockhash();
     const tx = new Transaction({ feePayer: ctx.wallet.publicKey, blockhash, lastValidBlockHeight }).add(ix);
@@ -272,7 +311,7 @@ export async function ensurePriceMarket(
     const status = await ctx.connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
     if (status.value[0]?.err) throw new Error(`create tx failed on-chain: ${JSON.stringify(status.value[0].err)} (${sig})`);
     ctx.log(`market created, tx ${sig}`);
-    const m: TrackedPriceMarket = { predicate, marketPda, referenceTs: opts.referenceTs, thresholdRaw };
+    const m: TrackedPriceMarket = { predicate, marketPda, referenceTs: opts.referenceTs, thresholdRaw, oracle: boundOracle };
     ctx.tracked.set(pdaAddress, m);
     ctx.onCreated?.(m, sig);
     return m;
@@ -304,6 +343,20 @@ export async function settlePriceMarket(
 ): Promise<PriceSettleResult> {
   const statement = priceStatement(m.thresholdRaw, m.referenceTs);
   const nowSec = Math.floor(Date.now() / 1000);
+
+  // Dispatch on the oracle the market was BOUND to at creation, not on
+  // PRICE_ORACLE — an attestation-bound market must never see the Pyth
+  // path and vice versa.
+  const boundOracle = m.oracle ?? PYTH_VALIDATOR_PROGRAM_ID;
+  if (boundOracle === ATTESTATION_VALIDATOR_PROGRAM_ID) {
+    return settlePriceMarketAttested(ctx, m, statement, nowSec);
+  }
+  if (boundOracle !== PYTH_VALIDATOR_PROGRAM_ID) return "unsupported";
+  if (PRICE_ORACLE === "attestation") {
+    // Pyth-bound legacy market while Pyth is paused — we cannot produce
+    // a guardian-verified observation, so it can never resolve.
+    return "unsupported";
+  }
 
   // Earliest retrievable post-close observation: probe at increasing
   // offsets; the first response with publish_time >= ref wins.
@@ -434,6 +487,105 @@ export async function settlePriceMarket(
   return "settled";
 }
 
+// ── Attested price settle (PRICE_ORACLE=attestation) ────────────────
+//
+// Same proof-gated bundle the sports attestation keeper drives, with
+// the price observation sourced from Coinbase's public minute candles
+// (free, unauthenticated, permanent history). Trust model: the keeper's
+// pinned attestor key signs {fixtureRef, statKey, value, obsTs}; the
+// attestation validator verifies the ed25519 signature and the
+// value >= threshold claim inside the resolve CPI. No Pyth dependency.
+
+let cachedAttestor: Keypair | null = null;
+let attestationConfigChecked = false;
+
+async function settlePriceMarketAttested(
+  ctx: PythMarketContext,
+  m: TrackedPriceMarket,
+  statement: string,
+  nowSec: number
+): Promise<PriceSettleResult> {
+  const obs = await fetchSpotUsdAt(m.referenceTs).catch((e) => {
+    ctx.log(`coinbase fetch failed for ${m.marketPda.toBase58()}: ${e}`);
+    return null;
+  });
+  if (!obs) {
+    // A missing minute candle at the reference time is a source gap —
+    // permanent, unlike a future observation. Same unresolvable shape
+    // as the Pyth path; void past grace.
+    if (nowSec > m.referenceTs + MAX_STALENESS_SECONDS) {
+      ctx.log(
+        `no coinbase candle for ${m.marketPda.toBase58()} at ${new Date(m.referenceTs * 1000).toISOString()} — unresolvable`
+      );
+      return "unresolvable";
+    }
+    return "pending";
+  }
+  const price = BigInt(Math.round(obs.usd * 10 ** -FEED_EXPO));
+  const outcome = price >= m.thresholdRaw ? 0 : 1;
+  ctx.log(
+    `settling ${m.marketPda.toBase58()}: ${statement} observed=$${obs.usd} ` +
+      `(coinbase ${obs.bucketTs} close) -> ${outcome === 0 ? "YES" : "NO"}`
+  );
+  if (ctx.dryRun) {
+    ctx.tracked.delete(m.marketPda.toBase58());
+    return "settled";
+  }
+
+  cachedAttestor ??= loadAttestor();
+  if (!attestationConfigChecked) {
+    await ensureAttestationConfig({
+      connection: ctx.connection,
+      wallet: ctx.wallet,
+      attestor: cachedAttestor,
+      dryRun: ctx.dryRun,
+      onLog: ctx.log,
+    });
+    attestationConfigChecked = true;
+  }
+
+  const obsTs = Math.floor(Date.now() / 1000);
+  const observation = {
+    fixtureRef: fixtureRefForPriceMarket(m.predicate.matchId),
+    statKey: ATTEST_STAT_KEYS.price_usd_e8,
+    value: price,
+    obsTs,
+  };
+  const message = buildAttestationMessage(observation);
+  // The window only bounds how late the signed observation may arrive —
+  // size it to actual elapsed time so backlog markets still settle.
+  const claim = {
+    op: ATTESTATION_OPS.gte,
+    threshold: m.thresholdRaw,
+    referenceTs: m.referenceTs,
+    windowSeconds: Math.max(600, obsTs - m.referenceTs + 300),
+  };
+  const bundle = buildSettlementBundle(
+    { wallet: ctx.wallet, attestor: cachedAttestor },
+    m.marketPda,
+    statement,
+    outcome,
+    observation,
+    claim,
+    message
+  );
+  const sig = await sendAndConfirm(
+    { connection: ctx.connection, wallet: ctx.wallet },
+    bundle,
+    "settle bundle"
+  );
+  ctx.log(`settled ${m.marketPda.toBase58()} (proof-gated, operator-attested): ${sig}`);
+  ctx.tracked.delete(m.marketPda.toBase58());
+  ctx.onSettled?.(m, {
+    signature: sig,
+    outcome: outcome === 0 ? "yes" : "no",
+    statement,
+    observedPrice: price,
+    observedPublishTime: obsTs,
+  });
+  return "settled";
+}
+
 /**
  * Void a market that can never produce a proof (no in-window Pyth
  * observation). void_market is permissionless once closes_at + the
@@ -529,7 +681,10 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
       if (now < m.referenceTs) continue;
       try {
         const result = await settlePriceMarket(ctx, m);
-        if (result === "unresolvable" && now > m.referenceTs + PRICE_VOID_GRACE_SECONDS) {
+        if (
+          (result === "unresolvable" || result === "unsupported") &&
+          now > m.referenceTs + PRICE_VOID_GRACE_SECONDS
+        ) {
           await voidPriceMarket(ctx, m);
         }
         hermesFailStreak = 0;

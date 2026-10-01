@@ -37,6 +37,11 @@ module.exports = {
         // keeper; without this override the price keeper's telemetry
         // would be misattributed to it.
         OTEL_SERVICE_NAME: "stoppage-price",
+        // Pyth is paused (PYTH_API_KEY lapsed; Hermes requires Bearer
+        // auth). New price markets bind the attestation validator and
+        // settle on an operator-signed Coinbase spot observation.
+        // Revert to "pyth" once a fresh key is in .env.agent.
+        PRICE_ORACLE: "attestation",
       },
     },
     {
@@ -58,6 +63,9 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         OTEL_SERVICE_NAME: "stoppage-week",
+        // Same Pyth pause as stoppage-price — settle weekly windows via
+        // operator attestation until a fresh PYTH_API_KEY lands.
+        PRICE_ORACLE: "attestation",
       },
     },
   ],

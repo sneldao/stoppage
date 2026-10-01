@@ -39,9 +39,9 @@ import {
   type TxLineCredentials,
 } from "@stoppage/txline";
 import { Agent } from "./loop";
-import { runPriceKeeper, type PriceSettleFact, type TrackedPriceMarket } from "./priceKeeper";
+import { PRICE_ORACLE, runPriceKeeper, type PriceSettleFact, type TrackedPriceMarket } from "./priceKeeper";
 import { runWeekKeeper } from "./weekKeeper";
-import { PYTH_VALIDATOR_PROGRAM_ID } from "@stoppage/sdk";
+import { ATTESTATION_VALIDATOR_PROGRAM_ID, PYTH_VALIDATOR_PROGRAM_ID } from "@stoppage/sdk";
 import { loadAttestor, runAttestationKeeper } from "./attestationKeeper";
 import {
   createLiveSource,
@@ -82,7 +82,7 @@ async function main() {
     );
     const rpcUrl = process.env.SOLANA_RPC_URL ?? clusterApiUrl("devnet");
     const connection = new Connection(rpcUrl, "confirmed");
-    console.log(`Mode: price (Pyth) — interval ${priceIntervalSeconds}s`);
+    console.log(`Mode: price (oracle=${PRICE_ORACLE}) — interval ${priceIntervalSeconds}s`);
     console.log(`Chain actions: ${dryRun ? "DRY-RUN (no txs)" : "LIVE"}`);
     console.log(`Keeper wallet: ${wallet.publicKey.toBase58()}`);
     if (!dryRun) {
@@ -96,6 +96,7 @@ async function main() {
       dryRun,
       intervalSeconds: priceIntervalSeconds,
       onSettled: (m: TrackedPriceMarket, fact: PriceSettleFact) => {
+        const attested = m.oracle === ATTESTATION_VALIDATOR_PROGRAM_ID;
         ledger.append({
           occurredAt: Date.now(),
           kind: "settlement_confirmed",
@@ -103,21 +104,22 @@ async function main() {
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: fact.signature,
-          source: "pyth",
+          source: attested ? "attestation" : "pyth",
           outcome: fact.outcome,
-          oracle: PYTH_VALIDATOR_PROGRAM_ID,
+          oracle: m.oracle ?? PYTH_VALIDATOR_PROGRAM_ID,
           statement: fact.statement,
         });
       },
       onVoided: (m: TrackedPriceMarket, signature: string | null) => {
+        const attested = m.oracle === ATTESTATION_VALIDATOR_PROGRAM_ID;
         ledger.append({
           occurredAt: Date.now(),
           kind: "market_voided",
-          label: `price: ${m.predicate.matchId} voided (no in-window Pyth observation)`,
+          label: `price: ${m.predicate.matchId} voided (${attested ? "no Coinbase observation" : "no in-window Pyth observation"})`,
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: signature ?? undefined,
-          source: "pyth",
+          source: attested ? "attestation" : "pyth",
         });
       },
     });
