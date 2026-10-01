@@ -109,6 +109,17 @@ async function main() {
           statement: fact.statement,
         });
       },
+      onVoided: (m: TrackedPriceMarket, signature: string | null) => {
+        ledger.append({
+          occurredAt: Date.now(),
+          kind: "market_voided",
+          label: `price: ${m.predicate.matchId} voided (no in-window Pyth observation)`,
+          matchId: m.predicate.matchId,
+          marketId: m.marketPda.toBase58(),
+          signature: signature ?? undefined,
+          source: "pyth",
+        });
+      },
     });
     return;
   }

@@ -33,6 +33,7 @@ import {
 import type { MatchEventLedger } from "./eventLedger";
 import {
   PRICE_SYMBOL,
+  PRICE_VOID_GRACE_SECONDS,
   ensurePriceMarket,
   recoverOpenPriceMarkets,
   settlePriceMarket,
@@ -87,8 +88,8 @@ export interface WeekKeeperConfig {
   onLog?: (msg: string) => void;
 }
 
-/** void_market is permissionless after closes_at + 1h program grace. */
-const VOID_GRACE_SECONDS = 3600 + 900;
+/** void_market is permissionless after closes_at + 1h program grace (+buffer). */
+const VOID_GRACE_SECONDS = PRICE_VOID_GRACE_SECONDS;
 
 export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
   const log = (msg: string) => {
@@ -199,9 +200,10 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
     }
   }
 
-  /** A window the keeper was down through can never settle (the validator
-   *  rejects observations outside [close, close+staleness]) — void it so the
-   *  loop rolls on; stakers are refunded by the program on void. */
+  /** A market with no in-window observation can never prove — void it
+   *  past grace so the loop rolls on; stakers are refunded by the
+   *  program on void. (A window the keeper was merely down through is
+   *  NOT voided — the timestamped Hermes fetch settles it.) */
   async function voidStale(m: TrackedPriceMarket) {
     settledWindow = m.predicate.matchId;
     ctx.tracked.delete(m.marketPda.toBase58());
@@ -212,7 +214,7 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
         appendLedger({
           occurredAt: Date.now(),
           kind: "market_voided",
-          label: `week: ${m.predicate.matchId} voided (settle window missed while keeper was down)`,
+          label: `week: ${m.predicate.matchId} voided (no in-window Pyth observation)`,
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: sig,
@@ -258,10 +260,9 @@ export async function runWeekKeeper(config: WeekKeeperConfig): Promise<void> {
 
       for (const m of [...ctx.tracked.values()]) {
         if (now < m.referenceTs) continue;
-        if (now > m.referenceTs + VOID_GRACE_SECONDS) {
+        const result = await settlePriceMarket(ctx, m);
+        if (result === "unresolvable" && now > m.referenceTs + VOID_GRACE_SECONDS) {
           await voidStale(m);
-        } else {
-          await settlePriceMarket(ctx, m);
         }
       }
     } catch (e) {

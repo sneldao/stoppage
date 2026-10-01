@@ -52,6 +52,7 @@ import {
   buildCreateMarketIx,
   buildResolveMarketIxFromOracle,
   buildSettleFromProofIx,
+  buildVoidMarketIx,
   findMarketPdaFromPredicate,
   parseMarket,
   pythOracle,
@@ -80,17 +81,40 @@ interface HermesUpdate {
   }>;
 }
 
-export async function fetchLatestUpdate(): Promise<HermesUpdate> {
-  const res = await fetch(
-    `${HERMES}/v2/updates/price/latest?ids[]=${FEED_ID}&encoding=base64&parsed=true`,
-    { headers: PYTH_API_KEY ? { authorization: `Bearer ${PYTH_API_KEY}` } : {} }
-  );
-  if (!res.ok) throw new Error(`Hermes ${res.status}: ${await res.text()}`);
+async function fetchHermes(url: string): Promise<HermesUpdate> {
+  const res = await fetch(url, {
+    headers: PYTH_API_KEY ? { authorization: `Bearer ${PYTH_API_KEY}` } : {},
+  });
+  if (!res.ok) {
+    const hint =
+      res.status === 401 || res.status === 403
+        ? " — PYTH_API_KEY missing/lapsed (Hermes auth is mandatory since the Pyth Core upgrade)"
+        : "";
+    throw new Error(`Hermes ${res.status}: ${await res.text()}${hint}`);
+  }
   const j = (await res.json()) as HermesUpdate;
   if (!j.parsed?.[0] || j.parsed[0].id !== FEED_ID) {
     throw new Error("Hermes returned no update for the feed");
   }
   return j;
+}
+
+export async function fetchLatestUpdate(): Promise<HermesUpdate> {
+  return fetchHermes(
+    `${HERMES}/v2/updates/price/latest?ids[]=${FEED_ID}&encoding=base64&parsed=true`
+  );
+}
+
+/**
+ * The latest price update published at-or-before `publishTime`
+ * (Hermes `/v2/updates/price/{ts}`). Unlike `latest`, this is
+ * deterministic for a closed market — it can recover an in-window
+ * observation for a market that closed minutes or days ago.
+ */
+export async function fetchUpdateAt(publishTime: number): Promise<HermesUpdate> {
+  return fetchHermes(
+    `${HERMES}/v2/updates/price/${publishTime}?ids[]=${FEED_ID}&encoding=base64&parsed=true`
+  );
 }
 
 /** Spot price in native units (i64), from Hermes. */
@@ -139,7 +163,21 @@ export interface PythMarketContext {
   /** Emitted only for real on-chain facts (never in dry-run). */
   onCreated?: (m: TrackedPriceMarket, signature: string | null) => void;
   onSettled?: (m: TrackedPriceMarket, fact: PriceSettleFact) => void;
+  onVoided?: (m: TrackedPriceMarket, signature: string | null) => void;
 }
+
+/** void_market is permissionless after closes_at + 1h program grace; +900s buffer. */
+export const PRICE_VOID_GRACE_SECONDS = 3600 + 900;
+
+/**
+ * Outcome of a settle attempt:
+ *  - "settled": the proof-gated bundle landed (or dry-run).
+ *  - "pending": window still open, no post-close observation yet.
+ *  - "unresolvable": window fully passed AND Hermes has no observation
+ *    in it — the feed gapped for longer than MAX_STALENESS_SECONDS at
+ *    close, so no proof exists. Callers should void past grace.
+ */
+export type PriceSettleResult = "settled" | "pending" | "unresolvable";
 
 export function priceStatement(thresholdRaw: bigint, referenceTs: number): string {
   return `sol_above:${Number(thresholdRaw) / 10 ** -FEED_EXPO}:${referenceTs}`;
@@ -244,31 +282,52 @@ export async function ensurePriceMarket(
   return null;
 }
 
+/** Probe offsets past the reference time when hunting the first post-close observation. */
+const PROBE_OFFSETS_SECONDS = [2, 5, 15, 30, 60, 90, MAX_STALENESS_SECONDS];
+
 /**
- * Settle a tracked price market: poll Hermes for an observation inside
- * [referenceTs, referenceTs + MAX_STALENESS_SECONDS], post the PriceUpdateV2,
- * then land the atomic resolve + settle + attest bundle.
+ * Settle a tracked price market: fetch the earliest Hermes observation
+ * inside [referenceTs, referenceTs + MAX_STALENESS_SECONDS] via the
+ * timestamped endpoint (not `latest` — publish_time only moves forward,
+ * so a polled latest can never re-enter a missed window; that bug
+ * stranded every market the keeper was down through). Post the
+ * PriceUpdateV2, then land the atomic resolve + settle + attest bundle.
+ *
+ * The window is evaluated against `publish_time`, not wall-clock age —
+ * a market orphaned for days still settles if an in-window observation
+ * exists. Only a feed gap > MAX_STALENESS_SECONDS at close is
+ * unresolvable.
  */
 export async function settlePriceMarket(
   ctx: PythMarketContext,
   m: TrackedPriceMarket
-): Promise<void> {
+): Promise<PriceSettleResult> {
   const statement = priceStatement(m.thresholdRaw, m.referenceTs);
+  const nowSec = Math.floor(Date.now() / 1000);
 
-  // Poll Hermes until an observation lands inside [ref, ref + staleness].
+  // Earliest retrievable post-close observation: probe at increasing
+  // offsets; the first response with publish_time >= ref wins.
   let update: HermesUpdate | null = null;
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const j = await fetchLatestUpdate();
-    const publishTime = j.parsed[0].price.publish_time;
-    if (publishTime >= m.referenceTs && publishTime <= m.referenceTs + MAX_STALENESS_SECONDS) {
+  for (const off of PROBE_OFFSETS_SECONDS) {
+    const probeTs = Math.min(m.referenceTs + off, nowSec);
+    const j = await fetchUpdateAt(probeTs);
+    const pt = j.parsed[0].price.publish_time;
+    if (pt >= m.referenceTs && pt <= m.referenceTs + MAX_STALENESS_SECONDS) {
       update = j;
       break;
     }
-    await new Promise((r) => setTimeout(r, 2000));
+    if (probeTs >= m.referenceTs + MAX_STALENESS_SECONDS) break;
   }
   if (!update) {
-    ctx.log(`no observation inside window for ${m.marketPda.toBase58()}; will retry next tick`);
-    return;
+    const windowExpired = nowSec > m.referenceTs + MAX_STALENESS_SECONDS;
+    if (windowExpired) {
+      ctx.log(
+        `no in-window observation for ${m.marketPda.toBase58()} (feed gap >= ${MAX_STALENESS_SECONDS}s at ${new Date(m.referenceTs * 1000).toISOString()}) — unresolvable`
+      );
+      return "unresolvable";
+    }
+    ctx.log(`no post-close observation yet for ${m.marketPda.toBase58()}; retry next tick`);
+    return "pending";
   }
   const price = BigInt(update.parsed[0].price.price);
   const conf = BigInt(update.parsed[0].price.conf);
@@ -279,7 +338,7 @@ export async function settlePriceMarket(
   );
   if (ctx.dryRun) {
     ctx.tracked.delete(m.marketPda.toBase58());
-    return;
+    return "settled";
   }
 
   // tx 1: post the guardian-verified observation on-chain (ephemeral
@@ -307,6 +366,18 @@ export async function settlePriceMarket(
     tx.sign([ctx.wallet, ...signers]);
     const postSig = await ctx.connection.sendTransaction(tx, { skipPreflight: true });
     await ctx.connection.confirmTransaction(postSig, "confirmed");
+    // confirmTransaction doesn't reject on program failure — a reverted
+    // post leaves the PriceUpdateV2 account unowned and the settle tx
+    // then dies on the validator's owner check (custom 6000). Bail here
+    // and retry on the next tick instead.
+    const postStatus = await ctx.connection.getSignatureStatuses([postSig], {
+      searchTransactionHistory: true,
+    });
+    if (postStatus.value[0]?.err) {
+      throw new Error(
+        `price update post reverted on-chain: ${JSON.stringify(postStatus.value[0].err)} (${postSig})`
+      );
+    }
   }
   if (!priceUpdateAccount) throw new Error("price update account not captured");
   ctx.log(`posted price update at ${(priceUpdateAccount as PublicKey).toBase58()}`);
@@ -360,6 +431,39 @@ export async function settlePriceMarket(
     observedPrice: price,
     observedPublishTime: publishTime,
   });
+  return "settled";
+}
+
+/**
+ * Void a market that can never produce a proof (no in-window Pyth
+ * observation). void_market is permissionless once closes_at + the
+ * program's 1h grace has passed; stakers are refunded by the program.
+ */
+export async function voidPriceMarket(
+  ctx: PythMarketContext,
+  m: TrackedPriceMarket
+): Promise<void> {
+  ctx.tracked.delete(m.marketPda.toBase58());
+  if (ctx.dryRun) {
+    ctx.log(`dry-run: would void ${m.marketPda.toBase58()} (${m.predicate.matchId})`);
+    return;
+  }
+  const ix = buildVoidMarketIx(ctx.wallet.publicKey, m.marketPda);
+  const { blockhash, lastValidBlockHeight } = await ctx.connection.getLatestBlockhash();
+  const tx = new Transaction({
+    feePayer: ctx.wallet.publicKey,
+    blockhash,
+    lastValidBlockHeight,
+  }).add(ix);
+  tx.sign(ctx.wallet);
+  const sig = await ctx.connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+  await ctx.connection.confirmTransaction(sig, "confirmed");
+  const status = await ctx.connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
+  if (status.value[0]?.err) {
+    throw new Error(`void tx failed on-chain: ${JSON.stringify(status.value[0].err)} (${sig})`);
+  }
+  ctx.log(`voided ${m.marketPda.toBase58()} (${m.predicate.matchId}): ${sig}`);
+  ctx.onVoided?.(m, sig);
 }
 
 export interface PriceKeeperConfig {
@@ -370,6 +474,7 @@ export interface PriceKeeperConfig {
   intervalSeconds: number;
   onLog?: (msg: string) => void;
   onSettled?: (m: TrackedPriceMarket, fact: PriceSettleFact) => void;
+  onVoided?: (m: TrackedPriceMarket, signature: string | null) => void;
 }
 
 /** Interval markets: `${SYMBOL}:<referenceTs>` — numeric suffix only. */
@@ -389,29 +494,50 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
     log,
     tracked: new Map(),
     onSettled: config.onSettled,
+    onVoided: config.onVoided,
   };
 
   // Boot: recover markets created by a previous keeper run.
   await recoverOpenPriceMarkets(ctx, isIntervalMatchId).catch((e) => log(`recovery scan failed: ${e}`));
 
   const intervalMs = config.intervalSeconds * 1000;
+  let hermesFailStreak = 0;
   for (;;) {
+    const now = Math.floor(Date.now() / 1000);
+    const nextBoundary = now - (now % config.intervalSeconds) + config.intervalSeconds;
+    // Isolated: a Hermes/create hiccup must not starve the settle pass —
+    // that's what orphaned the Oct 1 backlog (creates ~3h apart, zero
+    // settle attempts, OPEN markets piling up).
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const nextBoundary = now - (now % config.intervalSeconds) + config.intervalSeconds;
-      // Make sure both the current and next window have markets.
       await ensurePriceMarket(ctx, {
         matchId: `${PRICE_SYMBOL}:${nextBoundary}`,
         referenceTs: nextBoundary,
       });
-
-      for (const m of [...ctx.tracked.values()]) {
-        if (now >= m.referenceTs) {
-          await settlePriceMarket(ctx, m);
-        }
-      }
+      hermesFailStreak = 0;
     } catch (e) {
-      log(`tick error: ${e}`);
+      hermesFailStreak++;
+      const msg = String(e);
+      log(
+        `create tick failed (streak ${hermesFailStreak}): ${msg}` +
+          (hermesFailStreak >= 5 && /Hermes (401|403)/.test(msg)
+            ? " — PYTH_API_KEY has been failing repeatedly; check the terminal trial key"
+            : "")
+      );
+    }
+
+    for (const m of [...ctx.tracked.values()]) {
+      if (now < m.referenceTs) continue;
+      try {
+        const result = await settlePriceMarket(ctx, m);
+        if (result === "unresolvable" && now > m.referenceTs + PRICE_VOID_GRACE_SECONDS) {
+          await voidPriceMarket(ctx, m);
+        }
+        hermesFailStreak = 0;
+      } catch (e) {
+        const msg = String(e);
+        log(`settle failed for ${m.marketPda.toBase58()}: ${msg}`);
+        if (/Hermes (401|403)/.test(msg)) hermesFailStreak++;
+      }
     }
     await new Promise((r) => setTimeout(r, Math.min(intervalMs / 6, 30_000)));
   }

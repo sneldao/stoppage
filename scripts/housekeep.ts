@@ -46,6 +46,7 @@ import {
   PublicKey,
   Transaction,
   type TransactionInstruction,
+  type VersionedTransaction,
 } from "@solana/web3.js";
 import {
   buildClaimBondIx,
@@ -110,7 +111,7 @@ function loadWallet(): Keypair {
 /** Send pre-signed transactions in order; returns the last signature. */
 async function submitSignedTxs(
   connection: Connection,
-  txs: Transaction[],
+  txs: (Transaction | VersionedTransaction)[],
   label: string
 ): Promise<string> {
   let sig = "";

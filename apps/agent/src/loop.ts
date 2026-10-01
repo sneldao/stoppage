@@ -18,6 +18,7 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  VersionedTransaction,
   clusterApiUrl,
 } from "@solana/web3.js";
 import {
@@ -418,7 +419,7 @@ export class Agent {
   }
 
   private async submitSignedTx(
-    tx: Transaction,
+    tx: Transaction | VersionedTransaction,
     attrs: Record<string, string | number | boolean | undefined>
   ): Promise<string> {
     return withSpan("tx_submit", attrs, async () => {
