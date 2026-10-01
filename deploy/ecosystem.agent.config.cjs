@@ -17,6 +17,8 @@ module.exports = {
         AGENT_HTTP_PORT: "18766",
         // OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME come from .env.agent
         // (sourced before pm2 start/restart — see docs/DEVELOPMENT.md).
+        // The daemon's env doesn't always carry .env.agent — pin the path.
+        SOLANA_KEYPAIR_PATH: "/home/linuxuser/stoppage/secrets/agent-devnet.json",
       },
     },
     {
@@ -42,6 +44,7 @@ module.exports = {
         // settle on an operator-signed Coinbase spot observation.
         // Revert to "pyth" once a fresh key is in .env.agent.
         PRICE_ORACLE: "attestation",
+        SOLANA_KEYPAIR_PATH: "/home/linuxuser/stoppage/secrets/agent-devnet.json",
       },
     },
     {
@@ -66,6 +69,10 @@ module.exports = {
         // Same Pyth pause as stoppage-price — settle weekly windows via
         // operator attestation until a fresh PYTH_API_KEY lands.
         PRICE_ORACLE: "attestation",
+        // Falls back to ~/.config/solana/id.json without this, which
+        // doesn't exist on the box — the daemon's env doesn't always
+        // carry .env.agent, so pin it here.
+        SOLANA_KEYPAIR_PATH: "/home/linuxuser/stoppage/secrets/agent-devnet.json",
       },
     },
   ],
