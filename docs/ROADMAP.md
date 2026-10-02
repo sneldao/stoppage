@@ -115,6 +115,47 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Keeper bond bleed → chain-state sweep (2026-10-02)
+
+**The bleed.** Only live-mode `stoppage-agent` ran housekeeping, and only
+over its in-memory `knownMarketPdas` set. The price keeper had no claim
+path at all — every settled 30-min market stranded its creator bond plus
+account rent. Observed drain ~0.03 SOL/hr: wallet hit 0.0007 SOL twice
+and was manually refilled both times; caught at 0.0023 SOL, minutes from
+`create_market` failing outright. Not adversarial — self-inflicted burn;
+the lamports sit in PDAs releasable only under program rules — but on
+mainnet it is a real cost leak, and on devnet it is a liveness cliff.
+
+**The fix (`c48702f`).** `apps/agent/src/claims.ts` — a chain-state sweep:
+`getProgramAccounts` filtered on `creator`, `claim_bond` on every
+settled/void market with `bondClaimed=false`, batched 8/tx. Covers
+interval + week + sports markets alike (shared keeper wallet) and every
+restart gap, since nothing depends on process memory. `runPriceKeeper`
+runs it at boot and every 15 min, emitting one batched `bond_claimed`
+ledger event per pass. `scripts/sweep-bonds.ts` exposes the same sweep
+to any operator keypair (Punt Desk reclaimed its two bonds in one tx,
+`3xDYnwFr…`); OPERATORS.md documents it.
+
+**Verified live on deploy:** the boot sweep reclaimed 461 stranded bonds
+in ~58 batched txs — keeper wallet 0.0023 → 6.10 SOL (incl. a 1.5 SOL
+house top-up). Market account *rent* remains unrecoverable — no
+close instruction exists; that is the remaining structural item before
+mainnet economics.
+
+**Same pass, web/agent copy:** ledger events that carried raw signed
+statements ("price: sol_above:118:1790971200 -> NO") now render human
+labels via SDK `formatStatement`/`formatPriceMatchId` — at emit (agent),
+at render (web `eventLabel` covers toasts, ticker, MatchkeeperStatus
+timeline, and already-persisted rows), and in ProofPanel (formatted
+statement up top, raw signed bytes under a disclose). `7c8c855`.
+
+**Sunday pre-staged:** four Punt Desk props live on devnet, all closing
+Sun Oct 4 23:00 UTC — `total_punts over 7`, `sacks over 3`, `4th-down
+conversion ≥1`, `pick-six ≥1` (`sun-punts`/`sun-sacks`/`sun-4dc`/
+`sun-pick6`). Smoke bet verified: 0.05 SOL YES into sun-punts through the
+newly-exempted fixture gate (`wDJCGrKn…`). Settle runbook:
+`docs/RUNBOOK-PUNT-DESK.md`.
+
 ## Prop markets, Punt Desk, and the self-serve audit (2026-10-02)
 
 **Prop markets shipped as an operator convention.**
