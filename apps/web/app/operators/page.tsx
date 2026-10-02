@@ -53,16 +53,17 @@ es.onmessage = (e) => {
         </ElectricBorder>
 
         <header className="page-head page-head--compact">
-          <p className="eyebrow">For operators</p>
-          <h1>Settle only when a proof verifies</h1>
+          <p className="eyebrow">For operators · self-serve</p>
+          <h1>Hold the board.</h1>
           <p className="page-lede page-lede--short">
-            Bring the market and the oracle. Funds move on a bool — not a key.
+            Pin your own attestor, bring the market and the oracle. Funds move
+            on a bool — not a key.
           </p>
         </header>
 
         <ol className="cal-steps" aria-label="What you get">
           <li><b>CPI</b> one byte back</li>
-          <li><b>Oracle</b> yours, or ours</li>
+          <li><b>Oracle</b> yours — pinned to your key</li>
           <li><b>Quote</b> optional, reproducible</li>
         </ol>
         <details className="disclose">
@@ -107,27 +108,30 @@ es.onmessage = (e) => {
 
         <section className="op-api">
           <div className="op-api-head">
-            <h2>Hold the board</h2>
-            <span className="op-api-sub">self-serve, multi-tenant</span>
+            <h2>Run it yourself</h2>
+            <span className="op-api-sub">self-serve, multi-tenant — devnet</span>
           </div>
           <p className="op-api-lede">
             The attestation validator is multi-tenant — your config is seeded{" "}
             <code>[b&quot;config&quot;, your_key]</code>. Pin your own attestor, create the
             market, sign the observation, and the vault releases only if the proof
-            verifies. Devnet, no coordination with us.
+            verifies. No coordination with us.
           </p>
-          <details className="disclose">
-            <summary>Run the quickstart <i aria-hidden="true" /></summary>
-            <div className="disclose__body">
-              <CodeBlock code={`git clone https://github.com/sneldao/stoppage
+          <CodeBlock code={`git clone https://github.com/sneldao/stoppage
 cd stoppage && npm install
 npx tsx scripts/operator-quickstart.ts`} />
-              <p>
-                Fresh keypair → your own config PDA → market → signed observation →
-                proof-gated settle → winner claims from the vault.
-              </p>
-            </div>
-          </details>
+          <p className="op-api-lede">
+            Fresh keypair → your own config PDA → market → signed observation →
+            proof-gated settle → winner claims from the vault. Or lift{" "}
+            <a
+              href="https://github.com/sneldao/stoppage/tree/main/examples/prop-desk"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              prop-desk ↗
+            </a>{" "}
+            — a complete operator in one file; we run it on Sundays as Punt Desk.
+          </p>
         </section>
 
         <section className="op-api">
@@ -182,6 +186,14 @@ npx tsx scripts/operator-quickstart.ts`} />
               className="op-cta-link"
             >
               Integration guide ↗
+            </a>
+            <a
+              href="https://github.com/sneldao/stoppage/tree/main/examples/prop-desk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="op-cta-link"
+            >
+              prop-desk example ↗
             </a>
           </div>
         </section>

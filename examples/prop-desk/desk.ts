@@ -4,17 +4,17 @@
  * gate a vault release on. No agent internals, no house key — just
  * @stoppage/sdk and your own attestor.
  *
- *   npx tsx desk.ts create --slug sun-window-1 --prop total_punts \
- *       --stat prop_count --threshold 7 --minutes 240
- *   npx tsx desk.ts list
- *   npx tsx desk.ts settle sun-window-1 --value 9
+ *   npx tsx examples/prop-desk/desk.ts create --slug sun-window-1 \
+ *       --prop total_punts --stat prop_count --threshold 7 --minutes 240
+ *   npx tsx examples/prop-desk/desk.ts list
+ *   npx tsx examples/prop-desk/desk.ts settle sun-window-1 --value 9
  *
- * The desk keypair (DESK_KEYPAIR_PATH, default ../secrets/desk.json,
- * auto-generated) is BOTH the payer and the attestor — it creates the
- * market, pays the refundable bond, and signs the observation. Whoever
- * holds this key can settle your markets; that IS the trust model of
- * operator attestation, and it's published so anyone can audit which
- * key settled what.
+ * The desk keypair (DESK_KEYPAIR_PATH, default ./desk-keypair.json in
+ * this folder, auto-generated and gitignored) is BOTH the payer and the
+ * attestor — it creates the market, pays the refundable bond, and signs
+ * the observation. Whoever holds this key can settle your markets; that
+ * IS the trust model of operator attestation, and it's published so
+ * anyone can audit which key settled what.
  */
 import {
   ComputeBudgetProgram,
@@ -28,6 +28,7 @@ import {
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ATTESTATION_OPS,
   ATTESTATION_VALIDATOR_PROGRAM_ID,
@@ -53,7 +54,7 @@ const STAT_KEYS = {
   prop_bool: 4, // 0/1: did the thing happen at all
 } as const;
 
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTRY = path.join(HERE, ".desk-registry.json");
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 
@@ -83,14 +84,14 @@ function saveRegistry(entries: PropEntry[]): void {
 }
 
 function loadDesk(): Keypair {
-  const p = process.env.DESK_KEYPAIR_PATH ?? path.join(HERE, "..", "..", "secrets", "prop-desk-keypair.json");
+  const p = process.env.DESK_KEYPAIR_PATH ?? path.join(HERE, "desk-keypair.json");
   if (fs.existsSync(p)) {
     return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(p, "utf8"))));
   }
   const kp = Keypair.generate();
-  fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(Array.from(kp.secretKey)), { mode: 0o600 });
-  console.log(`generated desk keypair → ${p} (pubkey ${kp.publicKey.toBase58()})`);
+  console.log(`generated desk keypair → ${p}`);
+  console.log(`desk pubkey ${kp.publicKey.toBase58()} — publish it; it is your identity`);
   return kp;
 }
 
@@ -236,6 +237,11 @@ async function main() {
   }
 
   if (cmd === "list") {
+    const [configPda] = deriveAttestationConfigPda(
+      new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID),
+      desk.publicKey
+    );
+    console.log(`desk ${desk.publicKey.toBase58()} · config ${configPda.toBase58()}`);
     for (const e of loadRegistry()) {
       const info = await connection.getAccountInfo(new PublicKey(e.marketPda));
       const status = info ? parseMarket(info.data, e.marketPda).status : "gone";

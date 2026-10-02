@@ -28,10 +28,12 @@ This is the same path `scripts/operator-quickstart.ts` walks end-to-end;
 git clone https://github.com/sneldao/stoppage && cd stoppage
 npm install
 
-# generates secrets/prop-desk-keypair.json on first use (gitignored)
+# generates desk-keypair.json in this folder on first use (gitignored)
+# and prints your desk pubkey — publish it, it's your identity
 npx tsx examples/prop-desk/desk.ts list
 
-# fund it — devnet SOL only. Bond is ~0.05 SOL per market, refunded
+# fund it — devnet SOL only. Bond is ~0.05 SOL per market, refunded.
+# If the public faucet errors, any devnet wallet can send you SOL.
 solana airdrop 1 <your-desk-pubkey> --url devnet
 
 npx tsx examples/prop-desk/desk.ts create \
