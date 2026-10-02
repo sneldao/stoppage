@@ -58,7 +58,8 @@ describe("attestation oracle adapter", () => {
       });
       expect(spec.validatorProgram.toBase58()).to.equal(ATTESTATION_VALIDATOR_PROGRAM_ID);
       const [configPda] = deriveAttestationConfigPda(
-        new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID)
+        new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID),
+        baseProof.authority
       );
       expect(spec.anchorAccounts[0].toBase58()).to.equal(configPda.toBase58());
       expect(spec.anchorAccounts[1].toBase58()).to.equal(

@@ -76,10 +76,11 @@ pub const ED25519_PROGRAM_ID: Pubkey = pubkey!("Ed25519SigVerify1111111111111111
 pub mod attestation_validator {
     use super::*;
 
-    /// One-time init of the Config PDA pinning the operator authority
-    /// whose ed25519 signatures this validator accepts. Permissionless,
-    /// first-init-wins (devnet reference implementation; an operator
-    /// deploying their own would init this themselves).
+    /// Init a Config PDA pinning `authority` — the key whose ed25519
+    /// signatures this validator accepts for that operator. Multi-tenant:
+    /// the PDA is seeded by the authority itself, so any operator pins
+    /// their own key against this one deployed program (seeds prevent a
+    /// config for authority A answering for authority B). Permissionless.
     pub fn initialize_config(ctx: Context<InitializeConfig>, authority: Pubkey) -> Result<()> {
         ctx.accounts.config.authority = authority;
         msg!("attestation_validator config initialized, authority={}", authority);
@@ -204,8 +205,9 @@ pub struct Config {
 }
 
 #[derive(Accounts)]
+#[instruction(authority: Pubkey)]
 pub struct InitializeConfig<'info> {
-    #[account(init, payer = payer, space = 8 + 32, seeds = [b"config"], bump)]
+    #[account(init, payer = payer, space = 8 + 32, seeds = [b"config", authority.as_ref()], bump)]
     pub config: Account<'info, Config>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -214,9 +216,13 @@ pub struct InitializeConfig<'info> {
 
 #[derive(Accounts)]
 pub struct ValidateAttestation<'info> {
-    /// The Config PDA carrying the pinned authority. Anchor checks
-    /// owner + discriminator; seeds pin it to the canonical PDA.
-    #[account(seeds = [b"config"], bump)]
+    /// The Config PDA carrying the pinned authority — derived per
+    /// operator. Anchor checks owner + discriminator; the seeds
+    /// constraint ties the passed PDA to the authority stored inside it,
+    /// and SignerMismatch then binds that authority to the ed25519
+    /// pubkey. A foreign operator's config cannot answer for the
+    /// signer's key.
+    #[account(seeds = [b"config", config.authority.as_ref()], bump)]
     pub config: Account<'info, Config>,
     /// CHECK: the instructions sysvar; address-checked in the handler.
     pub instructions: UncheckedAccount<'info>,

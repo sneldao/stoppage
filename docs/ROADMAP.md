@@ -115,6 +115,39 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## $STOPPAGE tokenized + Colosseum-week plan (2026-10-01)
+
+**Tokenized at the extended deadline.** `$STOPPAGE` live on
+ClawPump/pump.fun — mint `13EDbdEC35pM8GHBxmrHsAtVWbjQuDSn2kKeLtQVh27Q`
+(Token-2022, 1B supply, mint/freeze/update authorities all null).
+Scoped as the entry ticket per docs/hackathons.md §3: no utility, no
+promises; site strip flips to "is live" via `TOKEN_MINT` in
+`apps/web/lib/campaign/token.ts`. Judging closed Sept 30 — the launch
+preserves eligibility and starts the stewardship clock; it does not
+score token activity. Minimum stewardship: launch post + one update;
+tonight's LUT-packed NFL settle (BRO-STE-18041420, proof window ~6h
+post-FT) is the follow-up artifact if it lands.
+
+**Promo plan (week of Oct 1):** stream the Sunday NFL slate watching
+markets settle live — match room + Jev reads + receipts on screen.
+Novelty markets (arbitrary statements: props, announcer calls) settle
+through the **attestation validator** — the attestation path shipped
+today generalizes to any `{statKey, value, obsTs}` observation, which
+demos oracle-agnosticism in a way TxLINE/Pyth can't. Explicitly
+labeled operator-attested. Streams double as the operator funnel and
+produce Colosseum clips; audience is judges/operators, not bettors
+(devnet onboarding friction rules out consumer participation).
+
+**Colosseum headline decided: operator self-serve.** A third party
+must be able to clone → install → `create → bind validator → settle →
+receipt` without us — that IS the Oct 12 traction metric ("one real
+operator settling one real market"). Build: SDK audit (what's exposed
+vs. what a third party needs), quickstart doc + runnable script, then
+one external (or locally-third-party) end-to-end settle as proof.
+Consumer "create your own market" UI stays in the Icebox — a consumer
+surface is the wrong build for this week; stream chat-request markets
+use the same SDK path an operator would.
+
 ## Pyth paused → attested price settles + oversized-proof LUT fix (2026-10-01)
 
 **What broke:** Hermes (all endpoints, including Benchmarks) requires

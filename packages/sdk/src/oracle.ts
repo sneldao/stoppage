@@ -319,28 +319,33 @@ export interface AttestationProof extends AttestationObservation {
   windowSeconds: number;
 }
 
-/** Derive the attestation validator's Config PDA. */
-export function deriveAttestationConfigPda(programId: PublicKey): [PublicKey, number] {
+/**
+ * Derive an operator's Config PDA — multi-tenant: one PDA per pinned
+ * authority, seeds [b"config", authority].
+ */
+export function deriveAttestationConfigPda(
+  programId: PublicKey,
+  authority: PublicKey
+): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("config")],
+    [Buffer.from("config"), authority.toBuffer()],
     programId
   );
 }
 
 /**
- * Build the one-time initialize_config instruction for the attestation
- * validator. First-init-wins: the Config PDA pins the operator authority
- * whose ed25519 signatures the validator accepts. Returns null if the
- * config already exists (caller checks on-chain state first — this
- * guards against racing a successful init, not against a malicious one:
- * the transaction would fail on-chain anyway).
+ * Build the initialize_config instruction for the attestation
+ * validator. Permissionless and per-authority: the Config PDA at
+ * seeds [b"config", authority] pins the key whose ed25519 signatures
+ * the validator accepts for that operator. Caller checks on-chain
+ * state first — init on an existing PDA fails on-chain anyway.
  */
 export function buildInitializeAttestationConfigIx(
   payer: PublicKey,
   authority: PublicKey
 ): TransactionInstruction {
   const programId = new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID);
-  const [configPda] = deriveAttestationConfigPda(programId);
+  const [configPda] = deriveAttestationConfigPda(programId, authority);
   return new TransactionInstruction({
     programId,
     keys: [
@@ -413,7 +418,8 @@ export const attestationOracle: SettlementOracle = {
       windowBuf,
     ]);
     const [configPda] = deriveAttestationConfigPda(
-      new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID)
+      new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID),
+      p.authority
     );
     return {
       validatorProgram: new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID),

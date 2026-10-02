@@ -510,10 +510,13 @@ async function settlePriceMarketAttested(
     return null;
   });
   if (!obs) {
-    // A missing minute candle at the reference time is a source gap —
-    // permanent, unlike a future observation. Same unresolvable shape
-    // as the Pyth path; void past grace.
-    if (nowSec > m.referenceTs + MAX_STALENESS_SECONDS) {
+    // Coinbase publishes the reference candle minutes after the bucket
+    // closes — a laggy fetch is NOT a source gap, because unlike Pyth's
+    // publish_time the observation we sign is timestamped at signing
+    // and the claim window is sized to it. Stay pending until just
+    // inside the void grace; only a bucket Coinbase never publishes is
+    // truly unresolvable.
+    if (nowSec > m.referenceTs + PRICE_VOID_GRACE_SECONDS - 300) {
       ctx.log(
         `no coinbase candle for ${m.marketPda.toBase58()} at ${new Date(m.referenceTs * 1000).toISOString()} — unresolvable`
       );

@@ -10,10 +10,11 @@
     {
       "name": "initialize_config",
       "docs": [
-        "One-time init of the Config PDA pinning the operator authority",
-        "whose ed25519 signatures this validator accepts. Permissionless,",
-        "first-init-wins (devnet reference implementation; an operator",
-        "deploying their own would init this themselves)."
+        "Init a Config PDA pinning `authority` — the key whose ed25519",
+        "signatures this validator accepts for that operator. Multi-tenant:",
+        "the PDA is seeded by the authority itself, so any operator pins",
+        "their own key against this one deployed program (seeds prevent a",
+        "config for authority A answering for authority B). Permissionless."
       ],
       "discriminator": [
         208,
@@ -41,6 +42,10 @@
                   105,
                   103
                 ]
+              },
+              {
+                "kind": "arg",
+                "path": "authority"
               }
             ]
           }
@@ -88,8 +93,12 @@
         {
           "name": "config",
           "docs": [
-            "The Config PDA carrying the pinned authority. Anchor checks",
-            "owner + discriminator; seeds pin it to the canonical PDA."
+            "The Config PDA carrying the pinned authority — derived per",
+            "operator. Anchor checks owner + discriminator; the seeds",
+            "constraint ties the passed PDA to the authority stored inside it,",
+            "and SignerMismatch then binds that authority to the ed25519",
+            "pubkey. A foreign operator's config cannot answer for the",
+            "signer's key."
           ],
           "pda": {
             "seeds": [
@@ -103,6 +112,11 @@
                   105,
                   103
                 ]
+              },
+              {
+                "kind": "account",
+                "path": "config.authority",
+                "account": "Config"
               }
             ]
           }

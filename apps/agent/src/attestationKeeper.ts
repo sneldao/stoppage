@@ -116,8 +116,8 @@ export function loadAttestor(): Keypair {
 }
 
 /**
- * Ensure the attestation validator's Config PDA exists and is pinned to
- * `attestor`, initializing it (first-init-wins) when absent. Shared by
+ * Ensure the attestation validator's per-authority Config PDA exists
+ * and is pinned to `attestor`, initializing it when absent. Shared by
  * the sports attestation keeper and the attested price-settle path —
  * rule 6: one implementation.
  */
@@ -129,7 +129,7 @@ export async function ensureAttestationConfig(
     cfg.onLog?.(msg);
   };
   const oraclePubkey = new PublicKey(ATTESTATION_VALIDATOR_PROGRAM_ID);
-  const [configPda] = deriveAttestationConfigPda(oraclePubkey);
+  const [configPda] = deriveAttestationConfigPda(oraclePubkey, cfg.attestor.publicKey);
   const configInfo = await withSpan(
     "attest.ensure_config",
     { config_pda: configPda.toBase58(), attestor: cfg.attestor.publicKey.toBase58() },
