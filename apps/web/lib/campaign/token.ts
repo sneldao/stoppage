@@ -9,8 +9,8 @@
 
 export const TOKEN_TICKER = "$STOPPAGE";
 
-/** Launch moment (UTC). */
-export const TOKEN_LAUNCH_AT = Date.parse("2026-09-27T12:00:00Z");
+/** Launch moment (UTC). Deadline-extended launch; strip hides until TOKEN_MINT is set. */
+export const TOKEN_LAUNCH_AT = Date.parse("2026-10-01T04:00:00Z");
 
 /** Entry page (attach token + post here). */
 export const TOKEN_ENTRY_URL = "https://clawpump.tech/ansemhack/entry";
