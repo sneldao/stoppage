@@ -188,10 +188,23 @@ async function main() {
   const connection = new Connection(RPC, "confirmed");
   const desk = loadDesk();
   const cmd = process.argv[2];
+  if (cmd === "--help" || cmd === "-h" || cmd === "help") {
+    console.log("usage: desk.ts create|list|settle — see file header");
+    return;
+  }
 
   if (cmd === "create") {
-    const slug = arg("slug") ?? `prop-${Date.now()}`;
-    const prop = arg("prop") ?? "unnamed_prop";
+    // --slug and --prop are required: a prop named "unnamed_prop" on the
+    // public tape is worse than an error. Defaulting them let
+    // `create --help` silently mint a junk market.
+    const slug = arg("slug");
+    const prop = arg("prop");
+    if (!slug || !prop) {
+      throw new Error(
+        "usage: create --slug <id> --prop <what> [--stat prop_count|prop_bool] " +
+          "[--threshold N] [--op gte|lte|eq] [--minutes N]"
+      );
+    }
     const stat = (arg("stat") ?? "prop_count") as keyof typeof STAT_KEYS;
     const statKey = STAT_KEYS[stat];
     if (statKey === undefined) throw new Error(`unknown --stat ${stat}; keys: ${Object.keys(STAT_KEYS)}`);
