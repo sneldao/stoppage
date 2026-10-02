@@ -1,12 +1,15 @@
 /**
- * Settled Week — the weekly SOL/USD Pyth window campaign surface.
+ * Settled Week — the weekly SOL/USD window campaign surface.
  *
  * One source of truth (mirrors apps/agent/src/weekKeeper.ts): the keeper
  * opens one market per week, matchId `SOL/USD:W<isoYear>-<isoWeek>`, line =
- * spot at creation (the Friday-open anchor), closing Sunday 23:00 UTC and
- * settling through the proof-gated Pyth path. The PDA is NOT derivable
- * offline (the threshold is only known at creation), so the market is found
- * on-chain by its matchId shape — never hardcoded.
+ * spot at creation (the Friday-open anchor), closing Sunday 23:00 UTC.
+ * Settlement path is whichever validator the market binds — currently
+ * operator attestation (Coinbase candles + signed observation) while the
+ * Pyth devnet feed is paused; older windows settled via guardian-verified
+ * Pyth. The PDA is NOT derivable offline (the threshold is only known at
+ * creation), so the market is found on-chain by its matchId shape —
+ * never hardcoded.
  */
 
 import type { Market } from "@stoppage/sdk";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { countryFlag } from "@/lib/format";
+import { countryFlag, isPropMatchId } from "@/lib/format";
 import { fixtureForMatchId, isFixtureLive } from "@/lib/match/fixtures";
 import { useFixtures, useFixtureScore } from "@/lib/match/useFixtures";
 import { snapshotIsFresh } from "@/lib/match/types";
@@ -120,7 +120,7 @@ export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | 
   }
   // Operator prop markets carry no fixture — there is no live feed to
   // show. Say so plainly rather than warning "match data unavailable".
-  if (String(matchId).startsWith("PROP:")) {
+  if (isPropMatchId(String(matchId))) {
     return (
       <section className="market-match-context market-match-context-scheduled" aria-label="Match context">
         <div className="market-match-context-top">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useStoppageStore } from "@/store";
 import { useCountdown } from "@/lib/time/useCountdown";
+import { oracleInfoFor } from "@/lib/oracle";
 import {
   findWeekMarket,
   weekLineUsd,
@@ -14,10 +15,12 @@ import {
 /**
  * WeekStrip — the Settled Week home strip.
  *
- * Surfaces this week's SOL/USD Pyth window: opens with the keeper's Friday
+ * Surfaces this week's SOL/USD window: opens with the keeper's Friday
  * create, counts down to the Sunday 23:00 UTC close, then points at the
  * receipt — both this week's market page and the cumulative /receipts
  * track record. Markets are found on-chain by matchId, never hardcoded.
+ * Settlement copy follows the market's actual bound validator (currently
+ * operator attestation while the Pyth devnet feed is paused).
  */
 export function WeekStrip() {
   const markets = useStoppageStore((s) => s.markets);
@@ -37,7 +40,7 @@ export function WeekStrip() {
       {phase === "countdown" && (
         <span>
           <strong>Settled Week · {win.label}</strong> — this week&apos;s SOL/USD
-          window opens on Friday, settles from a verified Pyth price Sunday 23:00 UTC.
+          window opens on Friday, settles by proof Sunday 23:00 UTC.
         </span>
       )}
       {phase === "window_open" && market && (
@@ -48,14 +51,14 @@ export function WeekStrip() {
       )}
       {phase === "awaiting_receipt" && (
         <span>
-          <strong>Settled Week · {win.label}</strong> — window closed, the Pyth receipt
+          <strong>Settled Week · {win.label}</strong> — window closed, the proof
           settles in the same transaction that releases the funds.
         </span>
       )}
       {phase === "receipt" && market && (
         <span>
           <strong>{win.label} settled {market.outcome.toUpperCase()} by proof</strong> ·
-          Pyth price verified on-chain · 0 admin keys
+          {oracleInfoFor(market.oracle).verifiedEyebrow} · 0 admin keys
         </span>
       )}
       {market ? (

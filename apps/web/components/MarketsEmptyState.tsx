@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { type TapeFilter, FILTER_LABEL } from "@/lib/markets/tapeFilters";
-import { KEYSTONE } from "@/lib/campaign/keystone";
 
 // Filter-specific messaging. The user picked this filter deliberately —
 // treat that choice as binding. No cross-pivot cards (don't drag in markets
@@ -24,7 +23,7 @@ const COPY: Record<
     head: "Markets appear with the next match.",
     badge: "Initializing",
     hint:
-      "Matchkeeper reads the TxLINE feed and publishes a market the moment a match becomes eligible. The page fills itself in — leave it open or tap a filter above to scope the view.",
+      "Matchkeeper publishes fixture markets off the TxLINE feed; operators publish their own desks. The page fills itself in — leave it open or tap a filter above to scope the view.",
     switchTo: null,
     switchHint: null,
   },
@@ -93,15 +92,13 @@ export function MarketsEmptyState({
           </header>
           <p className="empty-state-hint">{copy.hint}</p>
         </div>
-        <Link href="/keystone#notify" className="empty-state-campaign">
+        <Link href="/operators" className="empty-state-campaign">
           {/* eslint-disable-next-line @next/next/no-img-element -- campaign still */}
-          <img src="/campaign/hero.jpg" alt="" />
+          <img src="/campaign/selfserve-hero-branded.jpg" alt="" />
           <span className="empty-state-campaign-copy">
-            <span className="eyebrow">Saturday&apos;s keystone</span>
-            <strong>
-              {KEYSTONE.homeTeam} v {KEYSTONE.awayTeam}
-            </strong>
-            <span>Two proof paths · get on the list →</span>
+            <span className="eyebrow">Self-serve on devnet</span>
+            <strong>Hold the board.</strong>
+            <span>Your key, your proof — run your own desk →</span>
           </span>
         </Link>
       </section>

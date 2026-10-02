@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { impliedProbability, type Market } from "@stoppage/sdk";
-import { formatMarketQuestion } from "@/lib/format";
+import { formatMarketQuestion, isPropMatchId } from "@/lib/format";
 import { isBaselineOracle, oracleInfoFor } from "@/lib/oracle";
 import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
 import { useStoppageStore } from "@/store";
@@ -63,11 +63,9 @@ function isPriceGroupKey(key: string) {
 
 // Operator prop markets (attestation validator) share the price_above
 // predicate kind — without this they'd collapse into a "price:PROP"
-// group labeled "settled via pyth", which is wrong twice. They get
+// group labeled with a price oracle, which is wrong twice. They get
 // their own groups keyed by matchId, labeled by the prop statement.
-function isPropMatchId(key: string) {
-  return key.startsWith("PROP:");
-}
+// isPropMatchId lives in lib/format (rule 6: one classifier).
 
 function formatKickoffMs(ms: number | null | undefined): string | null {
   if (!ms) return null;
@@ -294,7 +292,7 @@ function buildDefaultExpanded(
   let nonLiveCount = 0;
   for (const [matchId] of byMatch) {
     // Price-contract groups stay collapsed — sports are the first
-    // impression; the Pyth tape expands on demand.
+    // impression; the price tape expands on demand.
     if (isPriceGroupKey(matchId)) continue;
     const fixture = fixtures.get(matchId);
     const attest = attestByMatchId?.get(matchId);
@@ -500,7 +498,7 @@ export default function MarketsPage() {
                     onClick={handleShowMore}
                   >
                     Show {Math.min(GROUPS_PER_PAGE, byMatch.length - showMoreLimit)} more{" "}
-                    {byMatch.length - showMoreLimit === 1 ? "match" : "matches"}
+                    {byMatch.length - showMoreLimit === 1 ? "group" : "groups"}
                   </button>
                 )}
               </>

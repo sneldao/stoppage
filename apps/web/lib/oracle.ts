@@ -23,6 +23,8 @@ export interface OracleInfo {
   proofPathEyebrow: string;
   /** One-line activity copy while awaiting settlement. */
   awaitingActivity: string;
+  /** One-line activity copy while the market is open (pre-evidence). */
+  openActivity: string;
   /** Paragraph for the open/awaiting proof panel. */
   waitingParagraph: string;
   /** Paragraph for the settled proof panel. */
@@ -41,6 +43,7 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
     verifiedEyebrow: "TxLINE verified",
     proofPathEyebrow: "TxLINE proof path",
     awaitingActivity: "Waiting for TxLINE to confirm the result",
+    openActivity: "Watching eligible TxLINE match events",
     waitingParagraph:
       "Matchkeeper is waiting for TxLINE to confirm the match. It can only settle this market after a Merkle proof of the result verifies on-chain.",
     settledParagraph:
@@ -54,6 +57,7 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
     verifiedEyebrow: "Pyth price-verified",
     proofPathEyebrow: "Pyth proof path",
     awaitingActivity: "Waiting for a verified Pyth price",
+    openActivity: "Watching for a guardian-verified Pyth price window",
     waitingParagraph:
       "Settles from a Pyth price reading that quorum guardians have signed within a 30-second window. The on-chain validator checks it before settling.",
     settledParagraph:
@@ -67,8 +71,9 @@ const ORACLE_INFO: Readonly<Record<string, OracleInfo>> = {
     verifiedEyebrow: "Operator-attested",
     proofPathEyebrow: "Operator-attested proof path",
     awaitingActivity: "Waiting for the operator's attestation",
+    openActivity: "Watching for the operator's signed observation",
     waitingParagraph:
-      "Settles at full-time from an observation signed by the operator's attestor key (data source: TheSportsDB). The signature is verified on-chain before payout. This is operator-attested — not verified by TxODDS or the network.",
+      "Settles from an observation signed by the operator's attestor key — the operator chooses the data source (TheSportsDB for fixture attestations; desk props are self-declared). The signature is verified on-chain before payout. This is operator-attested — not verified by TxODDS or the network.",
     settledParagraph:
       "This market settled against an observation signed by the operator's attestor key, verified on-chain via the Ed25519 precompile. Operator-attested — not TxODDS- or network-verified. Check the receipt against the recorded outcome here.",
     preBetLine:
@@ -82,6 +87,7 @@ const CUSTOM_ORACLE_INFO: OracleInfo = {
   verifiedEyebrow: "Proof-gated",
   proofPathEyebrow: "Proof path",
   awaitingActivity: "Waiting for validator confirmation",
+  openActivity: "Watching for the bound validator's evidence",
   waitingParagraph:
     "Matchkeeper is waiting for the designated validator to confirm. It can only settle this market after the validator verifies the outcome on-chain.",
   settledParagraph:

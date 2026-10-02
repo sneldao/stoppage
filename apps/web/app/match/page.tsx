@@ -11,7 +11,7 @@ import { useStoppageStore } from "@/store";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
 import { ProofPath } from "@/components/ProofPath";
 import { MarketWindow } from "@/components/MarketWindow";
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, isPropMatchId } from "@/lib/format";
 import { LiveMatchBar, type MatchPhaseState } from "@/components/LiveMatchBar";
 import { ReplayLauncher } from "@/components/ReplayLauncher";
 import { OddsSparkline } from "@/components/OddsSparkline";
@@ -256,6 +256,22 @@ function MatchRoomContent() {
         <ReminderWatcher fixtures={fixtures} />
 
         <section className="control-scoreboard" aria-label="Live match scoreboard">
+          {isPropMatchId(selectedMatchId) ? (
+            /* Operator prop rooms have no fixture and no feed — say so
+               plainly instead of falling through to "TxLINE" + an empty
+               scoreboard. The desk's attestor IS the evidence source. */
+            <>
+              <div className="control-scoreboard-top">
+                <span className="match-next"><i /> Operator prop</span>
+                <span>Desk-settled · attestor-signed</span>
+              </div>
+              <p className="control-scoreboard-idle">
+                No live feed for props — the operator&apos;s attestor signs the
+                observation and the signature is verified on-chain before payout.
+              </p>
+            </>
+          ) : (
+          <>
           <div className="control-scoreboard-top">
             <span className={
               scoreboardMode === "live" ? "match-live"
@@ -301,6 +317,8 @@ function MatchRoomContent() {
             />
           )}
           {deadTime && <ReplayLauncher />}
+          </>
+          )}
         </section>
 
         {/* Idle room becomes the matchday hub: slate links pre-focus a

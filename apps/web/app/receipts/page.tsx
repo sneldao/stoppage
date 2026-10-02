@@ -15,7 +15,7 @@ import { ExpectationsStrip } from "@/components/ExpectationsStrip";
  * /receipts — the cumulative Settled Week track record.
  *
  * Every proof-gated settlement on the market program (sports via TxLINE,
- * price windows via Pyth, attested paths) is a settled Market account. The
+ * price windows, attested paths — each via its bound validator) is a settled Market account. The
  * chain is the source of truth; /api/receipts scans it and only annotates
  * settle-tx signatures from the keeper ledger. The pitch is the count:
  * N proofs, 0 admin keys, every tx inspectable.

@@ -14,6 +14,11 @@ export function formatSol(lamports: number): string {
   return `${(lamports / 1e9).toFixed(3)} SOL`;
 }
 
+/** Operator prop markets carry PROP:<prop>:<slug>:<ts> (legacy PROP:<slug>:<ts>). */
+export function isPropMatchId(matchId: string | null | undefined): boolean {
+  return !!matchId && matchId.startsWith("PROP:");
+}
+
 /**
  * Build a human-readable market question from a predicate.
  * Single source of truth — replaces the 3 local copies that were in
@@ -23,7 +28,7 @@ export function formatMarketQuestion(
   predicate: MarketPredicate,
   opts?: { scoreUnit?: "goals" | "points" }
 ): string {
-  if (predicate.matchId.startsWith("PROP:")) {
+  if (isPropMatchId(predicate.matchId)) {
     // Operator prop markets: matchId is PROP:<prop>:<slug>:<ts>
     // (legacy PROP:<slug>:<ts>). The statement is human-readable; render
     // the prop itself, not the price-feed formatting.

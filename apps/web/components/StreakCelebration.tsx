@@ -58,7 +58,7 @@ export function StreakCelebration({ history }: StreakCelebrationProps) {
   if (!visible) return null;
 
   const tweet = buildTweetIntent(
-    `🔥 ${milestone} wins in a row on Stoppage. Verified on Solana. Who wants the next challenge? stoppage.fun`
+    `🔥 ${milestone} wins in a row on Stoppage. Verified on Solana. Who wants the next challenge? stoppage.sportwarren.com`
   );
 
   const downloadCard = async () => {

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useFixtures, useFixtureScore } from "./useFixtures";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "./fixtures";
 import { snapshotIsFresh } from "./types";
+import { isPropMatchId } from "@/lib/format";
 import type { Market } from "@stoppage/sdk";
 
 /** Betting gate states driven by fixture + feed availability */
@@ -104,15 +105,17 @@ export interface MarketBettingState extends BettingGateState {
 /**
  * True when a market resolves via a TxLINE fixture and therefore needs
  * the betting gate (data availability, match state, 2h pre-match window).
- * Price markets resolve against a price feed and tsdb-linked markets
- * resolve from the operator's attested observation — neither has a
- * TxLINE fixture to gate on, so they are bettable whenever open. (Rule 6:
- * this is the single source for that exemption; the markets tape reuses it.)
+ * Price markets resolve against a price feed, tsdb-linked markets
+ * resolve from the operator's attested observation, and PROP: markets
+ * are operator props — none has a TxLINE fixture to gate on, so they
+ * are bettable whenever open. (Rule 6: this is the single source for
+ * that exemption; the markets tape and the tx-layer validator reuse it.)
  */
 export function isFixtureGatedMarket(market: Market): boolean {
   return (
     market.predicate.kind !== "price_above" &&
-    !market.predicate.matchId.startsWith("tsdb:")
+    !market.predicate.matchId.startsWith("tsdb:") &&
+    !isPropMatchId(market.predicate.matchId)
   );
 }
 

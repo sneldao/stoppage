@@ -13,7 +13,7 @@ import { oracleInfoFor } from "@/lib/oracle";
 /**
  * ValidatorRail — the enumerable "one contract, many oracles" exhibit.
  *
- * Lists every settlement validator currently live on devnet with its
+ * Lists every settlement validator deployed on devnet with its
  * identity (from lib/oracle.ts — the single registry), a link to the
  * deployed program on the Solana Explorer, and the most recent market
  * settled through it. A validator with no settled receipt yet shows
@@ -31,11 +31,11 @@ const VALIDATORS = [
   },
   {
     programId: PYTH_VALIDATOR_PROGRAM_ID,
-    what: "Guardian-attested Pyth price, 30s freshness window",
+    what: "Guardian-attested Pyth price, 30s freshness window — deployed, devnet feed paused",
   },
   {
     programId: ATTESTATION_VALIDATOR_PROGRAM_ID,
-    what: "ed25519-signed operator observation (TheSportsDB data)",
+    what: "ed25519-signed operator observation — the desk chooses the data source",
   },
 ];
 

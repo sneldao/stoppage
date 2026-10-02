@@ -71,9 +71,9 @@ es.onmessage = (e) => {
           <div className="disclose__body">
             <p>
               Funds move only if a CPI into your validator returns true — anything
-              else reverts. Three oracles already live on the same receipt path:
-              TxLINE Merkle, Pyth, ed25519 attest. Pricing is optional Monte Carlo
-              anchored to a snapshot hash.
+              else reverts. Live on the same receipt path: TxLINE Merkle and
+              ed25519 attest (the Pyth validator is deployed; its devnet feed is
+              paused). Pricing is optional Monte Carlo anchored to a snapshot hash.
             </p>
           </div>
         </details>
@@ -157,7 +157,7 @@ npx tsx scripts/operator-quickstart.ts`} />
             </li>
             <li>
               <strong>Oracle-agnostic.</strong>
-              Merkle, Pyth, and attest already live.
+              Merkle and attest live; Pyth deployed, feed paused.
             </li>
             <li>
               <strong>Multi-tenant.</strong>

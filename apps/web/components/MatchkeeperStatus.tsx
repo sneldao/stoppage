@@ -18,7 +18,9 @@ function activityFor(phase?: MarketPhase, oracle?: string) {
   if (phase === "settled") return oracle ? `${oracleInfoFor(oracle).name}-verified settlement recorded` : "Proof-backed settlement recorded";
   if (phase === "void") return "Market voided under program rules";
   if (phase === "awaiting_settlement") return oracleInfoFor(oracle).awaitingActivity;
-  return "Watching eligible TxLINE match events";
+  // Open phase is oracle-aware too: attestation props have no TxLINE
+  // events to watch — the desk's attestor signs the observation.
+  return oracleInfoFor(oracle).openActivity;
 }
 
 function eventLabel(event: MatchEvent) {

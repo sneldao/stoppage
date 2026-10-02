@@ -9,12 +9,13 @@ and returns a boolean inside the same transaction that releases the
 vault. No oracle's word, no multisig, no admin key — the proof is the
 authority.
 
-Oracle-agnostic by contract, demonstrated with three live reference
-oracles: TxLINE's Merkle-proof sports validator, a Pyth
-guardian-verified price validator, and an operator-key attestation
-validator (ed25519-precompile-verified) as the reference custom
-oracle for operator-chosen data. The same receipt path, the same atomic
-settle bundle, three structurally different oracles.
+Oracle-agnostic by contract, demonstrated with three reference
+validators: TxLINE's Merkle-proof sports validator, an operator-key
+attestation validator (ed25519-precompile-verified) as the reference
+custom oracle for operator-chosen data, and a Pyth guardian-verified
+price validator (deployed; its devnet feed is currently paused). The
+same receipt path, the same atomic settle bundle, three structurally
+different oracles.
 
 Built on Solana. Session-key-native for frictionless in-play betting.
 Open-source verifiable quant pricing. The reference UI is a betting app;
