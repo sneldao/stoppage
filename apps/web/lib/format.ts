@@ -5,7 +5,7 @@
  * signing speed display, and country flags (CLAUDE.md rule 6 — DRY).
  */
 
-import { PREDICATE_LABEL, type MarketPredicate } from "@stoppage/sdk";
+import { PREDICATE_LABEL, formatPriceMatchId, formatStatement, type MarketPredicate } from "@stoppage/sdk";
 
 export const LAMPORTS_PER_SOL = 1e9;
 
@@ -31,6 +31,34 @@ export function shortMarketRef(matchId: string): string {
     return ref.length > 28 ? `${ref.slice(0, 27)}…` : ref;
   }
   return matchId.length > 24 ? `${matchId.slice(0, 11)}…${matchId.slice(-6)}` : matchId;
+}
+
+/**
+ * Toast/ticker label for a ledger event. Settlement and void facts carry
+ * the structured fields (statement, outcome, matchId) — re-render them
+ * here rather than trusting the emitted label, since older ledger rows
+ * ship raw machine strings ("price: sol_above:118:1790971200 -> NO").
+ * Falls back to the event's own label when nothing parses.
+ */
+export function eventLabel(e: {
+  kind: string;
+  label: string;
+  matchId?: string;
+  statement?: string;
+  outcome?: string;
+}): string {
+  if (e.kind === "settlement_confirmed" && e.statement) {
+    const s = formatStatement(e.statement);
+    if (s) return `${s} → ${(e.outcome ?? "").toUpperCase() || "SETTLED"}`;
+  }
+  if ((e.kind === "market_voided" || e.kind === "housekeep_void") && e.matchId) {
+    const pretty = formatPriceMatchId(e.matchId);
+    if (pretty !== e.matchId) {
+      const reason = /\(([^)]*)\)\s*$/.exec(e.label)?.[1];
+      return `${pretty} voided${reason ? ` (${reason})` : ""}`;
+    }
+  }
+  return e.label;
 }
 
 /**

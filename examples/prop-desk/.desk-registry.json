@@ -10,5 +10,65 @@
     "referenceTs": 1790946925,
     "marketPda": "2V6G5QW321CyqqXi3G8eL1Ba78F6TPEtJKscgtjkn4nR",
     "statement": "desk_smoke_over:1:desk-smoke"
+  },
+  {
+    "matchId": "PROP:unnamed_prop:prop-1790953252073:1790953252",
+    "slug": "prop-1790953252073",
+    "prop": "unnamed_prop",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 1,
+    "referenceTs": 1790953252,
+    "marketPda": "6W9m2j2df9j5BoJGGDCj1aFqsYaqqeCGsXVCeuy3GDTt",
+    "statement": "unnamed_prop_over:1:prop-1790953252073"
+  },
+  {
+    "matchId": "PROP:total_punts:sun-punts:1790953416",
+    "slug": "sun-punts",
+    "prop": "total_punts",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 7,
+    "referenceTs": 1790953416,
+    "marketPda": "E9wkw4LQeGTiuXp4Gw3E7kCowJZkFZGqVN4i5mXMjCCU",
+    "statement": "total_punts_over:7:sun-punts"
+  },
+  {
+    "matchId": "PROP:sacks:sun-sacks:1790953424",
+    "slug": "sun-sacks",
+    "prop": "sacks",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 3,
+    "referenceTs": 1790953424,
+    "marketPda": "24MHq3vMGTo6k5sbrpTcpK4nckeeGhNQqHQMzEdvTUs7",
+    "statement": "sacks_over:3:sun-sacks"
+  },
+  {
+    "matchId": "PROP:fourth_down_conv:sun-4dc:1790953427",
+    "slug": "sun-4dc",
+    "prop": "fourth_down_conv",
+    "stat": "prop_bool",
+    "statKey": 4,
+    "op": 0,
+    "threshold": 1,
+    "referenceTs": 1790953427,
+    "marketPda": "13LcqjuCo1CyVhYx6RqjWKoeWSKmLdm2WnXoQHfFxMra",
+    "statement": "fourth_down_conv_over:1:sun-4dc"
+  },
+  {
+    "matchId": "PROP:pick_six:sun-pick6:1790953431",
+    "slug": "sun-pick6",
+    "prop": "pick_six",
+    "stat": "prop_bool",
+    "statKey": 4,
+    "op": 0,
+    "threshold": 1,
+    "referenceTs": 1790953431,
+    "marketPda": "4w6pssZvqQsqucA47QgMhcDSCX6ReE1asWvjLQGTYqeA",
+    "statement": "pick_six_over:1:sun-pick6"
   }
 ]

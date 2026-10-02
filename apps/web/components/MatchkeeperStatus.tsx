@@ -2,6 +2,7 @@
 
 import type { MatchEvent } from "@stoppage/sdk";
 import { oracleInfoFor } from "@/lib/oracle";
+import { eventLabel as sharedEventLabel } from "@/lib/format";
 
 type MarketPhase = "open" | "awaiting_settlement" | "settled" | "void";
 
@@ -39,7 +40,7 @@ function eventLabel(event: MatchEvent) {
     bond_claimed: "Bond",
     claim_refund: "Claim",
   };
-  return `${prefix[event.kind]} · ${event.label}`;
+  return `${prefix[event.kind]} · ${sharedEventLabel(event)}`;
 }
 
 export function MatchkeeperStatus({ updatedAt, marketPhase, oracle, compact = false, events = [] }: MatchkeeperStatusProps) {

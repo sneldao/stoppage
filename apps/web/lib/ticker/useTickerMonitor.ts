@@ -18,7 +18,7 @@ import { useEffect, useRef } from "react";
 import { useStoppageStore } from "@/store";
 import type { TickerItem } from "@/store/tickerSlice";
 import { priorityFor, sortTickerItems } from "@/store/tickerSlice";
-import { formatSol } from "@/lib/format";
+import { formatSol, eventLabel } from "@/lib/format";
 import { isFixtureLive, isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
 import { relTime } from "@/lib/activity/useActivityFeed";
 import { KEYSTONE, keystonePhase, keystoneTimes, keystoneMarketIds } from "@/lib/campaign/keystone";
@@ -50,12 +50,13 @@ function protocolItems(): TickerItem[] {
   for (const e of feed) {
     if (items.length >= 6) break;
     if (now - e.occurredAt > PROTOCOL_MAX_AGE_MS) continue;
-    if (e.label === lastLabel) continue;
-    lastLabel = e.label;
+    const label = eventLabel(e);
+    if (label === lastLabel) continue;
+    lastLabel = label;
     items.push({
       id: `protocol:${e.id}`,
       source: "protocol" as const,
-      label: e.label,
+      label,
       ts: e.occurredAt,
       priority: priorityFor("protocol"),
     });

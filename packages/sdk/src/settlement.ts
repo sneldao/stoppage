@@ -355,3 +355,51 @@ export function buildTxlineValidateStatData(params: {
 
 export { Comparison, BinaryExpression };
 export type { ScoreStat, ScoresBatchSummary, ProofNode, StatTerm, TraderPredicate };
+
+// ── Statement rendering ─────────────────────────────────────────────
+//
+// Attestation settlements carry a signed statement string —
+// "<stat>_<op>:<threshold>:<ref>" — e.g. "sol_above:118:1790971200",
+// "total_punts_over:7:sun-punts", "total_goals_over:2:tsdb:18041420".
+// Operators define their own stat names; the grammar is the shared part.
+// These renderers turn the machine statement into readable copy. Both
+// the agent (ledger labels) and the web app (proof panel, toasts) use
+// them — one parser, no drifting per-surface regexes.
+
+const STATEMENT_RE = /^([a-z0-9_]+?)_(over|under|above|below|equals):(-?[\d.]+):(.+)$/i;
+
+/** "sol_above:118:1790971200" → "SOL/USD above $118 · 2 Oct 20:00 UTC".
+ *  Returns null when the statement is off-grammar (caller keeps raw). */
+export function formatStatement(statement: string): string | null {
+  const m = STATEMENT_RE.exec(statement);
+  if (!m) return null;
+  const [, stat, op, threshold, ref] = m;
+  const statLabel = stat === "sol" ? "SOL/USD" : stat.replace(/_/g, " ");
+  const opWord = op === "equals" ? "equals" : op;
+  const prefix = stat === "sol" ? "$" : "";
+  const refLabel = formatStatementRef(ref);
+  return `${statLabel} ${opWord} ${prefix}${threshold}${refLabel ? ` · ${refLabel}` : ""}`;
+}
+
+function formatStatementRef(ref: string): string | null {
+  if (/^\d{9,}$/.test(ref)) {
+    return new Date(Number(ref) * 1000)
+      .toUTCString()
+      .replace(/^[A-Za-z]{3}, /, "")
+      .replace(/ GMT$/, " UTC")
+      .replace(/:(\d{2}) (?=UTC$)/, " ");
+  }
+  if (ref.startsWith("tsdb:")) return null; // event id is plumbing, not copy
+  return ref;
+}
+
+/** "SOL/USD:1790971200" → "SOL/USD window · 2 Oct 20:00 UTC";
+ *  "SOL/USD:W2026-40" → "SOL/USD week W2026-40". */
+export function formatPriceMatchId(matchId: string): string {
+  const m = /^([A-Z]+\/[A-Z]+):(.+)$/.exec(matchId);
+  if (!m) return matchId;
+  const [, pair, ref] = m;
+  if (ref.startsWith("W")) return `${pair} week ${ref}`;
+  const ts = formatStatementRef(ref);
+  return ts ? `${pair} window · ${ts}` : matchId;
+}

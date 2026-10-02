@@ -41,7 +41,12 @@ import {
 import { Agent } from "./loop";
 import { PRICE_ORACLE, runPriceKeeper, type PriceSettleFact, type TrackedPriceMarket } from "./priceKeeper";
 import { runWeekKeeper } from "./weekKeeper";
-import { ATTESTATION_VALIDATOR_PROGRAM_ID, PYTH_VALIDATOR_PROGRAM_ID } from "@stoppage/sdk";
+import {
+  ATTESTATION_VALIDATOR_PROGRAM_ID,
+  PYTH_VALIDATOR_PROGRAM_ID,
+  formatPriceMatchId,
+  formatStatement,
+} from "@stoppage/sdk";
 import { loadAttestor, runAttestationKeeper } from "./attestationKeeper";
 import {
   createLiveSource,
@@ -100,7 +105,7 @@ async function main() {
         ledger.append({
           occurredAt: Date.now(),
           kind: "settlement_confirmed",
-          label: `price: ${fact.statement} -> ${fact.outcome.toUpperCase()}`,
+          label: `${formatStatement(fact.statement) ?? fact.statement} → ${fact.outcome.toUpperCase()}`,
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: fact.signature,
@@ -115,7 +120,7 @@ async function main() {
         ledger.append({
           occurredAt: Date.now(),
           kind: "market_voided",
-          label: `price: ${m.predicate.matchId} voided (${attested ? "no Coinbase observation" : "no in-window Pyth observation"})`,
+          label: `${formatPriceMatchId(m.predicate.matchId)} voided (${attested ? "no Coinbase observation" : "no in-window Pyth observation"})`,
           matchId: m.predicate.matchId,
           marketId: m.marketPda.toBase58(),
           signature: signature ?? undefined,

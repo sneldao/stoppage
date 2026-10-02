@@ -6,6 +6,7 @@ import { useActivityFeedMonitor, relTime } from "@/lib/activity/useActivityFeed"
 import { useTickerMonitor } from "@/lib/ticker/useTickerMonitor";
 import { useTickerEnrichment } from "@/lib/ticker/useTickerEnrichment";
 import type { MatchEvent } from "@stoppage/sdk";
+import { eventLabel } from "@/lib/format";
 import type { TickerItem, TickerSource } from "@/store/tickerSlice";
 
 /**
@@ -98,7 +99,7 @@ function EventToasts({ toasts, dismiss }: { toasts: MatchEvent[]; dismiss: (id: 
       {toasts.map((t) => (
         <div key={t.id} className={`event-toast event-toast--${t.kind}`} onClick={() => dismiss(t.id)} role="status">
           <span className="event-toast-badge">{TOAST_BADGE[t.kind] ?? t.kind}</span>
-          <span className="event-toast-text">{t.label}</span>
+          <span className="event-toast-text">{eventLabel(t)}</span>
           {t.signature && (
             <a className="event-toast-link" href={`https://explorer.solana.com/tx/${t.signature}?cluster=devnet`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>view ↗</a>
           )}

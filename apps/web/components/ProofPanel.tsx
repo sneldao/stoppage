@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Market } from "@stoppage/sdk";
+import { formatStatement, type Market } from "@stoppage/sdk";
 import { oracleInfoFor } from "@/lib/oracle";
 import { buildProofTweet, buildTweetIntent, proofVerifyLine } from "@/lib/share/tweet";
 import { operatorLabelFor } from "@/lib/desks";
@@ -232,8 +232,16 @@ export function ProofPanel({ market }: ProofPanelProps) {
             </div>
             <div className="proof-stat-detail">
               <span>Statement</span>
-              <strong>{verify.data.statement}</strong>
+              <strong>{formatStatement(verify.data.statement!) ?? verify.data.statement}</strong>
             </div>
+            {formatStatement(verify.data.statement!) && (
+              <details className="disclose">
+                <summary>Raw signed statement <i aria-hidden="true" /></summary>
+                <div className="disclose__body">
+                  <p className="proof-hash">{verify.data.statement}</p>
+                </div>
+              </details>
+            )}
             <div className="proof-stat-detail">
               <span>Anchored root</span>
               <strong>{shortHash(verify.data.merkleRoot, 10)}</strong>
