@@ -127,14 +127,19 @@ async function main() {
           source: attested ? "attestation" : "pyth",
         });
       },
-      onBondSweep: (claimed) => {
+      onBondSweep: (res) => {
+        const parts: string[] = [];
+        if (res.claimed > 0)
+          parts.push(`${res.claimed} creator bond${res.claimed === 1 ? "" : "s"}`);
+        if (res.closed > 0)
+          parts.push(`closed ${res.closed} dead market account${res.closed === 1 ? "" : "s"}`);
         ledger.append({
           occurredAt: Date.now(),
           kind: "bond_claimed",
-          label: `bond sweep reclaimed ${claimed.length} creator bond${claimed.length === 1 ? "" : "s"}`,
-          matchId: claimed[claimed.length - 1]?.matchId ?? "",
-          marketId: claimed[claimed.length - 1]?.marketPda,
-          signature: claimed[claimed.length - 1]?.signature,
+          label: `bond sweep reclaimed ${parts.join(" + ")}`,
+          matchId: res.lastMatchId,
+          marketId: res.lastMarketPda,
+          signature: res.lastSignature,
           source: "housekeep",
         });
       },

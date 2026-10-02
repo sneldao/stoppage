@@ -633,7 +633,13 @@ export interface PriceKeeperConfig {
   onVoided?: (m: TrackedPriceMarket, signature: string | null) => void;
   /** Emitted once per sweep pass that reclaimed anything (batched — a
    *  backlog sweep is one ledger line, not hundreds). */
-  onBondSweep?: (claimed: { marketPda: string; matchId: string; signature: string }[]) => void;
+  onBondSweep?: (res: {
+    claimed: number;
+    closed: number;
+    lastMatchId: string;
+    lastMarketPda?: string;
+    lastSignature?: string;
+  }) => void;
 }
 
 /** Interval markets: `${SYMBOL}:<referenceTs>` — numeric suffix only. */
@@ -672,7 +678,16 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
       log,
     })
       .then((r) => {
-        if (r.claimed.length > 0) config.onBondSweep?.(r.claimed);
+        if (r.claimed.length > 0 || r.closed.length > 0) {
+          const last = r.closed[r.closed.length - 1] ?? r.claimed[r.claimed.length - 1];
+          config.onBondSweep?.({
+            claimed: r.claimed.length,
+            closed: r.closed.length,
+            lastMatchId: last?.matchId ?? "",
+            lastMarketPda: last?.marketPda,
+            lastSignature: last?.signature,
+          });
+        }
       })
       .catch((e) => log(`bond sweep failed: ${e}`));
   await sweep();

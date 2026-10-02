@@ -54,11 +54,11 @@ describe("stoppage / attestation validator", () => {
   const program = anchor.workspace.AttestationValidator as ValidatorProgram;
   const connection = provider.connection;
   const payer = (provider.wallet as any).payer as Keypair;
+  const attestor = Keypair.generate();
   const [configPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("config")],
+    [Buffer.from("config"), attestor.publicKey.toBuffer()],
     program.programId
   );
-  const attestor = Keypair.generate();
   const impostor = Keypair.generate();
 
   const REF = fixtureRef("tsdb:552880");
@@ -147,13 +147,25 @@ describe("stoppage / attestation validator", () => {
   it("rejects a second initialize (first-init-wins)", async () => {
     try {
       await program.methods
-        .initializeConfig(impostor.publicKey)
+        .initializeConfig(attestor.publicKey)
         .accounts({ config: configPda, payer: provider.wallet.publicKey })
         .rpc();
       expect.fail("expected re-init to fail");
     } catch (e) {
       // Anchor init constraint violation (account already in use)
       expect(String(e)).to.match(/already in use|Simulation failed|0x0/i);
+    }
+  });
+
+  it("rejects a config PDA seeded by a different authority", async () => {
+    try {
+      await program.methods
+        .initializeConfig(impostor.publicKey)
+        .accounts({ config: configPda, payer: provider.wallet.publicKey })
+        .rpc();
+      expect.fail("expected foreign config PDA to fail seeds check");
+    } catch (e) {
+      expect(String(e)).to.match(/ConstraintSeeds|seeds constraint|Simulation failed|0x7d6/i);
     }
   });
 

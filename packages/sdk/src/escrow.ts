@@ -383,6 +383,28 @@ export function buildClaimBondIx(
   });
 }
 
+/**
+ * Seconds after settles_at before close_market is allowed on-chain —
+ * mirrors MARKET_CLOSE_GRACE_SECONDS in programs/market/src/lib.rs.
+ * Keepers scan with this so they don't send closes that the program
+ * will reject mid-window.
+ */
+export const MARKET_CLOSE_GRACE_SECONDS = 604_800; // 7 days
+
+export function buildCloseMarketIx(
+  creator: PublicKey,
+  market: PublicKey
+): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    keys: [
+      { pubkey: creator, isSigner: true, isWritable: true },
+      { pubkey: market, isSigner: false, isWritable: true },
+    ],
+    data: ixDiscriminator("close_market"),
+  });
+}
+
 export function buildAttestVerificationIx(
   verifier: PublicKey,
   market: PublicKey

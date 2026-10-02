@@ -282,6 +282,41 @@
       "args": []
     },
     {
+      "name": "close_market",
+      "docs": [
+        "Creator closes a dead market account and recovers its rent.",
+        "Allowed only after the claims window (settles_at +",
+        "MARKET_CLOSE_GRACE_SECONDS) so a market can't disappear while",
+        "claimants still need it readable. The close= constraint sweeps",
+        "the account's entire lamport balance to the creator — rent, an",
+        "unclaimed bond, and any pool residue left by unclaimed positions",
+        "(the claims window is the claimant protection; residue forfeits",
+        "to the creator after it lapses, like abandoned-property escheat)."
+      ],
+      "discriminator": [
+        88,
+        154,
+        248,
+        186,
+        48,
+        14,
+        123,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_market",
       "docs": [
         "Create a market for a predicate. Requires a refundable bond",
@@ -1258,6 +1293,19 @@
       ]
     },
     {
+      "name": "MarketClosed",
+      "discriminator": [
+        86,
+        91,
+        119,
+        43,
+        94,
+        0,
+        217,
+        113
+      ]
+    },
+    {
       "name": "MarketCreated",
       "discriminator": [
         88,
@@ -1562,26 +1610,31 @@
     },
     {
       "code": 6029,
+      "name": "ClaimWindowOpen",
+      "msg": "Claims window still open — market cannot be closed yet"
+    },
+    {
+      "code": 6030,
       "name": "NotProtocolAuthority",
       "msg": "Signer is not the protocol authority"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "NotAgentAuthority",
       "msg": "Signer is not the authorized agent"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "SnapshotHashMismatch",
       "msg": "Provided snapshot does not match the stored hash"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "ModelVersionTooLong",
       "msg": "Model version exceeds 64 bytes"
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "EmptyAgentSignature",
       "msg": "Agent signature cannot be empty"
     }
@@ -1733,6 +1786,26 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "refunded",
+            "type": "u64"
           }
         ]
       }

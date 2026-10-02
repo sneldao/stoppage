@@ -38,6 +38,11 @@ const STATUS_VOID: u8 = 3;
 
 /// After closes_at + this, anyone can void an unsettled market.
 const GRACE_PERIOD_SECONDS: i64 = 3_600;
+/// After settles_at + this, the creator may close the market account and
+/// recover its rent. Until then the account must stay readable so
+/// claimants can verify and claim; closing early would strand unclaimed
+/// payouts inside the swept lamports.
+const MARKET_CLOSE_GRACE_SECONDS: i64 = 604_800; // 7 days
 const MIN_BOND_LAMPORTS: u64 = 10_000_000; // 0.01 SOL — spam filter
 const MAX_MODEL_VERSION_LEN: usize = 64;
 
@@ -546,6 +551,37 @@ pub mod market {
         Ok(())
     }
 
+    /// Creator closes a dead market account and recovers its rent.
+    /// Allowed only after the claims window (settles_at +
+    /// MARKET_CLOSE_GRACE_SECONDS) so a market can't disappear while
+    /// claimants still need it readable. The close= constraint sweeps
+    /// the account's entire lamport balance to the creator — rent, an
+    /// unclaimed bond, and any pool residue left by unclaimed positions
+    /// (the claims window is the claimant protection; residue forfeits
+    /// to the creator after it lapses, like abandoned-property escheat).
+    pub fn close_market(ctx: Context<CloseMarket>) -> Result<()> {
+        let market = &ctx.accounts.market;
+        require!(
+            market.status == STATUS_SETTLED || market.status == STATUS_VOID,
+            MarketError::NotSettled
+        );
+        require!(
+            market.creator == ctx.accounts.creator.key(),
+            MarketError::NotCreator
+        );
+        require!(
+            Clock::get()?.unix_timestamp
+                > market.settles_at + MARKET_CLOSE_GRACE_SECONDS,
+            MarketError::ClaimWindowOpen
+        );
+        emit!(MarketClosed {
+            market: market.key(),
+            creator: ctx.accounts.creator.key(),
+            refunded: market.to_account_info().lamports(),
+        });
+        Ok(())
+    }
+
     /// Permissionless attestation: anyone can sign to increment a
     /// market's verification counter after it's settled. Makes
     /// "permissionless validation" legible on chain — a judge can see
@@ -1038,6 +1074,14 @@ pub struct ClaimBond<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CloseMarket<'info> {
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    #[account(mut, close = creator)]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
 pub struct AttestVerification<'info> {
     pub verifier: Signer<'info>,
     #[account(mut)]
@@ -1173,6 +1217,13 @@ pub struct BondClaimed {
 }
 
 #[event]
+pub struct MarketClosed {
+    pub market: Pubkey,
+    pub creator: Pubkey,
+    pub refunded: u64,
+}
+
+#[event]
 pub struct VerificationAttested {
     pub market: Pubkey,
     pub verifier: Pubkey,
@@ -1262,6 +1313,8 @@ pub enum MarketError {
     NotCreator,
     #[msg("Bond has already been claimed")]
     BondAlreadyClaimed,
+    #[msg("Claims window still open — market cannot be closed yet")]
+    ClaimWindowOpen,
     #[msg("Signer is not the protocol authority")]
     NotProtocolAuthority,
     #[msg("Signer is not the authorized agent")]

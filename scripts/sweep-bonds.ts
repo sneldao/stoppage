@@ -11,7 +11,7 @@
 
 import { Connection, Keypair, clusterApiUrl } from "@solana/web3.js";
 import * as fs from "fs";
-import { findUnclaimedBonds, sweepCreatorBonds } from "../apps/agent/src/claims";
+import { findDeadMarkets, sweepCreatorBonds } from "../apps/agent/src/claims";
 
 async function main() {
   const keypairPath = process.argv[2];
@@ -32,13 +32,17 @@ async function main() {
   const bal = await connection.getBalance(wallet.publicKey);
   console.log(`wallet ${wallet.publicKey.toBase58()} — ${bal / 1e9} SOL`);
 
-  const pending = await findUnclaimedBonds(connection, wallet.publicKey);
-  console.log(`${pending.length} settled/void market(s) with unclaimed bond`);
-  if (pending.length === 0) return;
+  const dead = await findDeadMarkets(connection, wallet.publicKey);
+  const closable = dead.filter((d) => d.closable).length;
+  console.log(
+    `${dead.length} settled/void market(s) — ${closable} past the claims window (closable)`
+  );
+  if (dead.length === 0) return;
 
   const res = await sweepCreatorBonds({ connection, wallet, dryRun, log });
   console.log(
-    `${dryRun ? "would claim" : "claimed"}: ${res.claimed.length}, failed: ${res.failed.length}`
+    `${dryRun ? "would recover" : "recovered"}: ${res.claimed.length} bond(s), ` +
+      `${res.closed.length} market account(s) closed, failed: ${res.failed.length}`
   );
 }
 

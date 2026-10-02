@@ -360,6 +360,71 @@ describe("stoppage / market program (M2)", () => {
     // closes_at in the past.
   });
 
+  // ── close_market (rent recovery) ──────────────────────────────────
+  //
+  // The positive close path needs the claims window (settles_at + 7d) to
+  // elapse, which has the same clock-warp problem as the void test above.
+  // The guard rails — status, creator, window — are testable without it;
+  // devnet's >7d-old market backlog exercises the real close.
+
+  it("rejects close_market on an open market", async () => {
+    const creator = Keypair.generate();
+    await fund(creator.publicKey);
+    const closesAt = Math.floor(Date.now() / 1000) + 60;
+    const m = marketFor("m-close-open", 600, closesAt);
+    await createMarket(creator, m);
+    try {
+      await program.methods
+        .closeMarket()
+        .accounts({ creator: creator.publicKey, market: m.marketPda })
+        .signers([creator])
+        .rpc();
+      assert.fail("should have rejected close on open market");
+    } catch (e) {
+      expect((e as Error).message).to.match(/NotSettled|custom program error/i);
+    }
+  });
+
+  it("rejects close_market inside the claims window", async () => {
+    const creator = Keypair.generate();
+    await fund(creator.publicKey);
+    const closesAt = Math.floor(Date.now() / 1000) + 60;
+    const m = marketFor("m-close-early", 600, closesAt);
+    await createMarket(creator, m);
+    await forceSettle(SIDE_YES, m.marketPda);
+    try {
+      await program.methods
+        .closeMarket()
+        .accounts({ creator: creator.publicKey, market: m.marketPda })
+        .signers([creator])
+        .rpc();
+      assert.fail("should have rejected close inside claims window");
+    } catch (e) {
+      expect((e as Error).message).to.match(/ClaimWindowOpen|custom program error/i);
+    }
+  });
+
+  it("rejects close_market from a non-creator", async () => {
+    const creator = Keypair.generate();
+    const stranger = Keypair.generate();
+    await fund(creator.publicKey);
+    await fund(stranger.publicKey);
+    const closesAt = Math.floor(Date.now() / 1000) + 60;
+    const m = marketFor("m-close-stranger", 600, closesAt);
+    await createMarket(creator, m);
+    await forceSettle(SIDE_YES, m.marketPda);
+    try {
+      await program.methods
+        .closeMarket()
+        .accounts({ creator: stranger.publicKey, market: m.marketPda })
+        .signers([stranger])
+        .rpc();
+      assert.fail("should have rejected non-creator close");
+    } catch (e) {
+      expect((e as Error).message).to.match(/NotCreator|custom program error/i);
+    }
+  });
+
   // ── Session-key delegation (M1 + M2 cap enforcement) ───────────────
 
   async function delegate(
