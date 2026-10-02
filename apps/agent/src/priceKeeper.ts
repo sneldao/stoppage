@@ -74,6 +74,7 @@ import {
   sendAndConfirm,
 } from "./attestationKeeper";
 import { fetchSpotUsdAt, fetchSpotUsdNow } from "./attest/coinbase";
+import { sweepCreatorBonds } from "./claims";
 
 // Pyth Core upgrade (2026-08-26): Hermes requires Bearer auth. Get a key
 // from Pyth Terminal (free trial) and set PYTH_API_KEY on the agent host.
@@ -630,6 +631,9 @@ export interface PriceKeeperConfig {
   onLog?: (msg: string) => void;
   onSettled?: (m: TrackedPriceMarket, fact: PriceSettleFact) => void;
   onVoided?: (m: TrackedPriceMarket, signature: string | null) => void;
+  /** Emitted once per sweep pass that reclaimed anything (batched — a
+   *  backlog sweep is one ledger line, not hundreds). */
+  onBondSweep?: (claimed: { marketPda: string; matchId: string; signature: string }[]) => void;
 }
 
 /** Interval markets: `${SYMBOL}:<referenceTs>` — numeric suffix only. */
@@ -654,6 +658,26 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
 
   // Boot: recover markets created by a previous keeper run.
   await recoverOpenPriceMarkets(ctx, isIntervalMatchId).catch((e) => log(`recovery scan failed: ${e}`));
+
+  // Boot + periodic bond sweep: reclaim the creator bond on every settled/
+  // voided market this wallet created — the historical backlog on first run,
+  // then anything any keeper misses (claims are in-memory elsewhere; this
+  // sweep reads chain state). Without it each market strands its bond and
+  // the wallet starves (~0.03 SOL/hr at 30-min intervals).
+  const sweep = () =>
+    sweepCreatorBonds({
+      connection: ctx.connection,
+      wallet: ctx.wallet,
+      dryRun: ctx.dryRun,
+      log,
+    })
+      .then((r) => {
+        if (r.claimed.length > 0) config.onBondSweep?.(r.claimed);
+      })
+      .catch((e) => log(`bond sweep failed: ${e}`));
+  await sweep();
+  let lastSweep = Date.now();
+  const SWEEP_EVERY_MS = 15 * 60 * 1000;
 
   const intervalMs = config.intervalSeconds * 1000;
   let hermesFailStreak = 0;
@@ -696,6 +720,10 @@ export async function runPriceKeeper(config: PriceKeeperConfig): Promise<void> {
         log(`settle failed for ${m.marketPda.toBase58()}: ${msg}`);
         if (/Hermes (401|403)/.test(msg)) hermesFailStreak++;
       }
+    }
+    if (Date.now() - lastSweep > SWEEP_EVERY_MS) {
+      lastSweep = Date.now();
+      await sweep();
     }
     await new Promise((r) => setTimeout(r, Math.min(intervalMs / 6, 30_000)));
   }

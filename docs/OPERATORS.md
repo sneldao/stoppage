@@ -271,3 +271,11 @@ non-house key — settle `2jvSE3yD…`, winner claim `51syh8W6…`.
 From there: swap the observation source for yours, then graduate to the
 generic-oracle path above or TxLINE/Pyth. One real operator settling one
 real market is the milestone. Not fifty seeded markets.
+
+**Recovering your bond.** The creation bond is refundable once the market
+settles or voids, but nothing claims it for you. One pass over chain
+state reclaims everything outstanding:
+
+```bash
+npx tsx scripts/sweep-bonds.ts <your-keypair.json>
+```

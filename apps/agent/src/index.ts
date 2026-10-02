@@ -127,6 +127,17 @@ async function main() {
           source: attested ? "attestation" : "pyth",
         });
       },
+      onBondSweep: (claimed) => {
+        ledger.append({
+          occurredAt: Date.now(),
+          kind: "bond_claimed",
+          label: `bond sweep reclaimed ${claimed.length} creator bond${claimed.length === 1 ? "" : "s"}`,
+          matchId: claimed[claimed.length - 1]?.matchId ?? "",
+          marketId: claimed[claimed.length - 1]?.marketPda,
+          signature: claimed[claimed.length - 1]?.signature,
+          source: "housekeep",
+        });
+      },
     });
     return;
   }
