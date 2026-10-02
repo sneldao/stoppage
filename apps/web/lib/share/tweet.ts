@@ -120,12 +120,13 @@ export function buildResolutionTweet(
  * Build a proof-centric tweet — the proof is the primary marketing artifact.
  *
  * Unlike buildResolutionTweet (which is about the user's call), this leads
- * with the cryptographic proof: the Merkle root, the on-chain CPI
+ * with the cryptographic proof: the anchored root/digest, the on-chain CPI
  * verification, and the Explorer transaction link. The market question
  * and outcome are context, not the headline.
  *
  * @param market - The settled market
- * @param merkleRoot - The anchored Merkle root (hex string)
+ * @param merkleRoot - The anchored root (Merkle root for TxLINE, observation
+ *   digest for attestation/Pyth — the API field keeps the historical name)
  * @param explorerUrl - Solana Explorer link to the settlement transaction
  * @param marketUrl - The market page URL for "verify yourself"
  * @param verifyLine - Optional validator-specific confirmation line

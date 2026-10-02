@@ -101,9 +101,16 @@ both from one shared helper (`apps/agent/src/settle.ts` →
 
 The deployed `pyth_validator` program settles `price_above` markets against
 a Pyth PriceUpdateV2 account posted on-chain via pyth-solana-receiver
-(guardian-signed). The keeper fetches the signed observation from Hermes
-(free API), posts it on-chain, and the validator re-checks owner, account
-discriminator, feed id, and publication window before returning the bool:
+(guardian-signed). The keeper fetches the signed observation from Hermes,
+posts it on-chain, and the validator re-checks owner, account
+discriminator, feed id, and publication window before returning the bool.
+
+> **Devnet status:** the Pyth devnet feed is paused — Hermes requires an
+> API key now (`PYTH_API_KEY`) and the legacy feed no longer publishes, so
+> Pyth-bound markets cannot currently resolve. Live price markets settle
+> through the attestation validator (Coinbase candles + a signed
+> observation) until the feed returns. The validator program itself is
+> deployed and its verification path is unchanged:
 
 ```ts
 import { pythOracle, buildResolveMarketIxFromOracle, PYTH_FEED_IDS } from "@stoppage/sdk";

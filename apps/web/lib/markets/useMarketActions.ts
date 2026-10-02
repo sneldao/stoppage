@@ -7,8 +7,10 @@
  * join — rule 5). Results are reflected into the store by callers.
  *
  * HARD GATE: join methods validate fixture availability before building
- * transactions. Cannot bet on markets without match data (trust violation:
- * users staking SOL on conditions they can't verify).
+ * transactions. Fixture-gated markets can't take bets without match data
+ * (users staking SOL on conditions they can't verify is a trust
+ * violation); non-fixture markets — price, tsdb:, PROP: — are exempt
+ * per isFixtureGatedMarket.
  */
 
 import { useCallback } from "react";
@@ -98,8 +100,8 @@ export function useMarketActions() {
   const joinViaWallet = useCallback(
     async ({ market, side, amountLamports }: JoinParams) => {
       if (!publicKey) throw new Error("Wallet not connected");
-      
-      // Gate: cannot bet without fixture data
+
+      // Gate: fixture-gated markets can't bet without match data
       validateFixture(market);
       
       const ix = buildJoinViaWalletIx(publicKey, market, side, amountLamports);
@@ -119,9 +121,9 @@ export function useMarketActions() {
       owner: PublicKey,
       { market, side, amountLamports }: JoinParams
     ) => {
-      // Gate: cannot bet without fixture data
+      // Gate: fixture-gated markets can't bet without match data
       validateFixture(market);
-      
+
       const ix = buildJoinViaSessionKeyIx(
         sessionKeypair.publicKey,
         owner,

@@ -317,7 +317,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
       {market.verifications > 0 && (
         <p className="proof-confirmation">
           {market.verifications} verification{market.verifications > 1 ? "s" : ""} ·
-          this market&apos;s outcome is independently attested on-chain.
+          {oracle.verifiedEyebrow} on-chain.
         </p>
       )}
     </section>

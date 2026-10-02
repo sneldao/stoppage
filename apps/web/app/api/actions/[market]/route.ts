@@ -21,6 +21,7 @@ import {
 } from "@stoppage/sdk";
 import { fetchFixtures, loadCredentials, attachReplayableFlags, matchIdFromFixture } from "@stoppage/txline";
 import { validateFixtureForBettingAsync } from "@/lib/markets/fixtureValidator";
+import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
 import { formatMarketQuestion } from "@/lib/format";
 import { actionJson, ACTIONS_CORS_HEADERS, getRequestOrigin } from "@/lib/actions/cors";
 import { devnetConnection } from "@/lib/rpc";
@@ -130,9 +131,9 @@ export async function POST(
     }
 
     // HARD GATE: validate fixture availability before building transaction.
-    // Fixtures don't exist for price markets — they resolve against a price
-    // feed window, so the gate doesn't apply.
-    if (m.predicate.kind !== "price_above") {
+    // Non-fixture markets (price feeds, tsdb:, PROP: operator props) resolve
+    // through their bound validator — no fixture fetch needed, no gate.
+    if (isFixtureGatedMarket(m)) {
       const { network, creds } = loadCredentials();
       const fixtures = await fetchFixtures(network, creds);
       const enriched = await attachReplayableFlags(network, creds, fixtures);

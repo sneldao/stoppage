@@ -7,7 +7,7 @@ import { impliedProbability, type Market, type Position } from "@stoppage/sdk";
 import { useMarkets } from "@/lib/markets/useMarkets";
 import { useMyPositions } from "@/lib/markets/useMyPositions";
 import { useStoppageStore } from "@/store";
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, isPropMatchId } from "@/lib/format";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PositionHistory } from "@/components/PositionHistory";
 import { MatchPulse } from "@/components/MatchPulse";
@@ -48,7 +48,7 @@ function OpenPositionCard({ market, position }: { market: Market; position: Posi
         <div className="open-position-card-meta">
           <h2>{formatMarketQuestion(market.predicate)}</h2>
           <p>
-            Match {market.predicate.matchId} · {market.status.replace("_", " ")}
+            {isPropMatchId(String(market.predicate.matchId)) ? "Prop" : "Match"} {market.predicate.matchId} · {market.status.replace("_", " ")}
             {isSettling && <span className="open-position-card-settling"> · settling</span>}
           </p>
         </div>

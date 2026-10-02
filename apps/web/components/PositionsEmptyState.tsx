@@ -7,7 +7,7 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { impliedProbability, type Market } from "@stoppage/sdk";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { useStoppageStore } from "@/store";
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, isPropMatchId } from "@/lib/format";
 
 interface PositionsEmptyStateProps {
   /** Force a particular branch (used for visual testing). Default branches
@@ -61,7 +61,7 @@ function MarketNudgeCard({ market }: { market: Market }) {
       <div className="empty-state-nudge-q">
         <strong>{formatMarketQuestion(market.predicate)}</strong>
         <small>
-          Match {market.predicate.matchId} · {SOL(pool)} pool · closes{" "}
+          {isPropMatchId(String(market.predicate.matchId)) ? "Prop" : "Match"} {market.predicate.matchId} · {SOL(pool)} pool · closes{" "}
           {closes.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </small>
       </div>

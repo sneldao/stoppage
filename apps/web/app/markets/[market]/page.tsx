@@ -9,7 +9,7 @@ import { Keypair } from "@solana/web3.js";
 import { getMarket, impliedProbability, type Market, type Side } from "@stoppage/sdk";
 import { useMarketActions } from "@/lib/markets/useMarketActions";
 import { classifyBetError, simpleBetError, type BetErrorInfo } from "@/lib/markets/betErrors";
-import { oracleInfoFor } from "@/lib/oracle";
+import { oracleInfoFor, isBaselineOracle } from "@/lib/oracle";
 import type { ActionResult } from "@/lib/markets/useMarketActions";
 import { useSessionKey } from "@/lib/session-key/useSessionKey";
 import { MatchkeeperStatus } from "@/components/MatchkeeperStatus";
@@ -798,10 +798,16 @@ export default function MarketDetailPage() {
           <div className="market-proof-row">
             <ProofPath status={market.status} oracle={market.oracle} />
           </div>
-          <div className="market-proof-row market-proof-pair">
-            <PricingPanel market={market} />
-            <PricingReceiptPanel market={market} />
-          </div>
+          {/* Matchkeeper fair-value + pricing-attestation panels are
+              TxLINE-plane features — operator desks price (or don't)
+              themselves, so these would sit "awaiting quote" forever on
+              attestation/Pyth/custom markets. */}
+          {isBaselineOracle(market.oracle) && (
+            <div className="market-proof-row market-proof-pair">
+              <PricingPanel market={market} />
+              <PricingReceiptPanel market={market} />
+            </div>
+          )}
           <div className="market-proof-row" id="proof">
             <ProofPanelLazy market={market} />
           </div>

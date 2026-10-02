@@ -142,7 +142,7 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
 
     ctx.font = "500 12px 'Courier New', monospace";
     ctx.fillStyle = MUTED;
-    ctx.fillText(`Root ${root}`, 38, 182);
+    ctx.fillText(`Proof ${root}`, 38, 182);
     ctx.fillText(`Settle ${sig}`, 38, 202);
   } else {
     const question = formatMarketQuestion(data.market.predicate);

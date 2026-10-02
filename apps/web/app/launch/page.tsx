@@ -56,6 +56,25 @@ export default function LaunchPage() {
   }, [oracleProgramId]);
 
   const valueLabel = kind === "next_goal_within" ? "Window (seconds)" : kind === "price_above" ? "Threshold (µUSD)" : "Line / threshold";
+  // Attestation-bound markets carry operator conventions (PROP:/tsdb:/
+  // window ids), not price-feed hashes — the feed-shape hint only applies
+  // to genuinely feed-bound markets.
+  const matchIdHint =
+    oracleChoice === "attestation"
+      ? kind === "price_above"
+        ? "(PROP:prop:slug — e.g. PROP:total_punts:sun)"
+        : "(tsdb:XXXX or PROP:prop:slug)"
+      : kind === "price_above"
+      ? "(64-hex feed)"
+      : "";
+  const matchIdPlaceholder =
+    oracleChoice === "attestation"
+      ? kind === "price_above"
+        ? "PROP:total_punts:sun-window"
+        : "tsdb:2406978"
+      : kind === "price_above"
+      ? "9cdf3c593f9cdc4219203f1801b62e31ad824ad5c3deeb0cca4b4aca3d81aef6"
+      : "tsdb:2406978";
 
   const onPublish = async () => {
     setResult(null);
@@ -101,8 +120,8 @@ export default function LaunchPage() {
               </select>
             </label>
             <label>
-              Match / feed id {kind === "price_above" ? "(64-hex feed)" : oracleChoice === "attestation" ? "(tsdb:XXXX or PROP:prop:slug)" : ""}
-              <input value={matchId} onChange={(e) => setMatchId(e.target.value)} placeholder={kind === "price_above" ? "9cdf3c593f9cdc4219203f1801b62e31ad824ad5c3deeb0cca4b4aca3d81aef6" : "tsdb:2406978"} />
+              Match / feed id {matchIdHint}
+              <input value={matchId} onChange={(e) => setMatchId(e.target.value)} placeholder={matchIdPlaceholder} />
             </label>
             <label>
               Team (optional)
