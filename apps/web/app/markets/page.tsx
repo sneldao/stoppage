@@ -207,7 +207,7 @@ function MatchGroup({
     ? `${fixture.Participant1} v ${fixture.Participant2}`
     : attest
     ? `${attest.homeTeam} v ${attest.awayTeam}`
-    : `Match ${matchId}`;
+    : matchId;
   const time = live
     ? null
     : fixture

@@ -7,7 +7,7 @@
  * Called from ResolutionCard when the user clicks "Download ticket".
  */
 
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, shortMarketRef } from "@/lib/format";
 import type { Market, Position } from "@stoppage/sdk";
 
 interface TicketData {
@@ -143,7 +143,7 @@ export async function exportTicketAsPng(data: TicketData, filename = "stoppage-t
     ["YOUR CALL", position.side.toUpperCase()],
     ["OUTCOME", market.outcome.toUpperCase()],
     ["STAKE", `${SOL(position.amountLamports)} SOL`],
-    ["MATCH ID", market.predicate.matchId.toString().slice(0, 18)],
+    ["MARKET", shortMarketRef(market.predicate.matchId.toString())],
     ...(signingMs !== undefined ? [["SIGNED IN", `${Math.round(signingMs)}ms ⚡`] as [string, string]] : []),
   ];
 

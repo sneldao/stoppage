@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { Market, Position } from "@stoppage/sdk";
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, shortMarketRef } from "@/lib/format";
 import { buildResolutionTweet, buildTweetIntent } from "@/lib/share/tweet";
 import { exportTicketAsPng } from "@/lib/share/exportTicketAsPng";
 import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
@@ -96,8 +96,8 @@ export function ResolutionCard({ market, position, isWinner, pageUrl, signingMs 
         <div className="ticket-divider" />
         <div className="ticket-body">
           <div className="ticket-row">
-            <span>MATCH ID</span>
-            <strong>{market.predicate.matchId}</strong>
+            <span>MARKET ID</span>
+            <strong>{shortMarketRef(String(market.predicate.matchId))}</strong>
           </div>
           <div className="ticket-row">
             <span>MARKET</span>

@@ -5,7 +5,7 @@
  * triggers download. Uses the Canvas API directly — no external dependency.
  */
 
-import { formatSol as SOL, formatMarketQuestion } from "@/lib/format";
+import { formatSol as SOL, formatMarketQuestion, isPropMatchId, shortMarketRef } from "@/lib/format";
 import type { Market } from "@stoppage/sdk";
 
 interface StreakCardData {
@@ -157,7 +157,11 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
 
     ctx.font = "500 12px 'Courier New', monospace";
     ctx.fillStyle = MUTED;
-    ctx.fillText(`Match ${data.market.predicate.matchId} · Verified on Solana`, 38, 200);
+    ctx.fillText(
+      `${isPropMatchId(String(data.market.predicate.matchId)) ? "Prop" : "Market"} ${shortMarketRef(String(data.market.predicate.matchId))} · Verified on Solana`,
+      38,
+      200
+    );
   }
 
   // Divider

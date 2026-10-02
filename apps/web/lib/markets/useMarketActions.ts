@@ -33,6 +33,7 @@ import {
 } from "@stoppage/sdk";
 import type { Keypair } from "@solana/web3.js";
 import { useStoppageStore } from "@/store";
+import { formatMarketQuestion } from "@/lib/format";
 import { validateFixtureForBetting } from "./fixtureValidator";
 
 export interface JoinParams {
@@ -163,7 +164,7 @@ export function useMarketActions() {
             outcome: m.outcome ?? "void",
             payoutLamports,
             settledAt: Date.now(),
-            label: `${m.predicate.kind} ${m.predicate.params.windowSeconds ?? m.predicate.params.threshold ?? ""}`,
+            label: formatMarketQuestion(m.predicate),
           });
         }
       } catch {

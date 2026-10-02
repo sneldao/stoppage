@@ -20,6 +20,20 @@ export function isPropMatchId(matchId: string | null | undefined): boolean {
 }
 
 /**
+ * Compact market ref for space-tight surfaces (cards, ticket PNGs, ledger
+ * labels). Props keep prop:slug and drop the timestamp; long ids shorten
+ * to head…tail.
+ */
+export function shortMarketRef(matchId: string): string {
+  if (isPropMatchId(matchId)) {
+    const parts = matchId.split(":");
+    const ref = parts.length >= 4 ? `PROP:${parts[1]}:${parts[2]}` : matchId;
+    return ref.length > 28 ? `${ref.slice(0, 27)}…` : ref;
+  }
+  return matchId.length > 24 ? `${matchId.slice(0, 11)}…${matchId.slice(-6)}` : matchId;
+}
+
+/**
  * Build a human-readable market question from a predicate.
  * Single source of truth — replaces the 3 local copies that were in
  * page.tsx, match/page.tsx, and markets/[market]/page.tsx.
