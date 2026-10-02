@@ -41,8 +41,28 @@ export function formatMarketQuestion(
   }
   if (predicate.kind === "price_above") {
     // threshold is in feed-native units (USD * 1e8 for the Pyth majors)
-    const threshold = Number(predicate.params.threshold ?? 0) / 1e8;
-    return `${PREDICATE_LABEL[predicate.kind]} $${threshold} on ${predicate.matchId}`;
+    const raw = Number(predicate.params.threshold ?? 0) / 1e8;
+    const price =
+      raw >= 1 ? (Number.isInteger(raw) ? `${raw}` : raw.toFixed(2)) : raw.toPrecision(2);
+    // matchId conventions: SYMBOL:<unixTs> (attested windows), SYMBOL:W<isoWeek>
+    // (Settled Week), or a bare 64-hex Pyth feed id. Render the symbol and a
+    // human suffix — never the raw timestamp or the full feed hash.
+    if (/^[0-9a-f]{64}$/i.test(predicate.matchId)) {
+      return `${PREDICATE_LABEL[predicate.kind]} $${price} on feed ${predicate.matchId.slice(0, 4)}…${predicate.matchId.slice(-4)}`;
+    }
+    const [symbol, suffix] = predicate.matchId.split(":");
+    let on = symbol;
+    if (suffix) {
+      if (/^W\d{4}-\d{2}$/.test(suffix)) {
+        on = `${symbol} · ${suffix}`;
+      } else if (/^\d{9,}$/.test(suffix)) {
+        const d = new Date(Number(suffix) * 1000);
+        on = `${symbol} · ${d.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+      } else {
+        on = `${symbol}:${suffix}`;
+      }
+    }
+    return `${PREDICATE_LABEL[predicate.kind]} $${price} on ${on}`;
   }
   const param = predicate.params.windowSeconds ?? predicate.params.threshold ?? "";
   const team = predicate.params.team ? ` for ${predicate.params.team}` : "";

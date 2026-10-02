@@ -61,10 +61,12 @@ function HeroMarketRail({ markets }: { markets: Market[] }) {
       <div className="hero-market-tape">
         {markets.map((market) => {
           const odds = impliedProbability(market);
+          // An empty pool has no price — 50% would be pool math lying.
+          const seeded = market.yesPool + market.noPool > 0;
           return (
             <Link className="hero-market-ticket" href={`/markets/${market.id}`} key={market.id}>
               <strong>{formatMarketQuestion(market.predicate)}</strong>
-              <span><b>{Math.round(odds.yes * 100)}%</b> YES</span>
+              <span>{seeded ? <><b>{Math.round(odds.yes * 100)}%</b> YES</> : <b>new</b>}</span>
             </Link>
           );
         })}

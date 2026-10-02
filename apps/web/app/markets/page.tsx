@@ -154,10 +154,15 @@ function MarketRow({ market, fixture }: { market: Market; fixture?: FixtureWithM
 
       <div className="market-tape-row__odds">
         {isOpen ? (
-          <>
-            <span className="market-tape-row__yes">{Math.round(odds.yes * 100)}% YES</span>
-            <span className="market-tape-row__no">{Math.round(odds.no * 100)}% NO</span>
-          </>
+          // An empty pool has no price — show "unseeded" rather than 50/50.
+          market.yesPool + market.noPool > 0 ? (
+            <>
+              <span className="market-tape-row__yes">{Math.round(odds.yes * 100)}% YES</span>
+              <span className="market-tape-row__no">{Math.round(odds.no * 100)}% NO</span>
+            </>
+          ) : (
+            <span className="market-tape-row__status">unseeded pool</span>
+          )
         ) : market.status === "settled" ? (
           <span className={`market-tape-row__outcome outcome--${market.outcome}`}>
             {market.outcome?.toUpperCase()} resolved
