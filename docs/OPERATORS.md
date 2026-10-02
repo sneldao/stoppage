@@ -154,6 +154,29 @@ feeds, or copy its shape for your own signing scheme. The trust model —
 atomicity guaranteed, epistemic truth on the operator — is spelled out
 in docs/ATTESTATION-ORACLE.md; present it that way to users.
 
+### Prop markets (self-declared statements)
+
+The attestation validator also covers arbitrary operator statements —
+props, binary yes/no observations, anything your desk will stand behind
+with a signature. Conventions used by `scripts/prop-market.ts` and the
+copyable `examples/prop-desk/` desk:
+
+- **matchId:** `PROP:<prop>:<slug>:<referenceTs>` — self-describing so
+  tape, receipts, and share copy render the statement, not a feed id.
+- **Predicate:** `price_above` — the threshold carries the over/under
+  line (a bool prop is `prop_bool` ≥ 1). The statement lives in the
+  matchId, not the predicate params.
+- **`referenceTs` is window-open, not close.** `settle_from_proof` has
+  no `closes_at` gate — if `referenceTs` lands after your observation
+  timestamp, the validator reverts `BeforeReference`. Set it at market
+  creation; `closesAt` still bounds betting.
+- **Stat keys:** `prop_count` (3) for integer counts, `prop_bool` (4)
+  for 0/1 observations — defined in `packages/sdk` `ATTEST_STAT_KEYS`.
+
+`examples/prop-desk/desk.ts` runs the whole loop as a named third-party
+desk — create/list/settle against your own pinned attestor, ~200 lines,
+SDK + web3.js only. It is the reference for "run your own desk".
+
 ### Bring your own oracle
 
 Run your own validator (a Merkle-anchor program, a TWAP verifier for
@@ -188,20 +211,24 @@ Your keeper then bundles three instructions in one transaction:
 If step 1's proof is invalid, the whole transaction reverts and nothing
 settles.
 
-## Current state (as of 2026-08-24)
+## Current state (as of 2026-10-02)
 
 - **Oracle-agnostic settlement is live on devnet.** Both programs were
   upgraded; the settlement and market programs support any validator via
   remaining_accounts, with market-oracle binding enforced on-chain. The
   oracle-agnostic CPI path has been exercised end-to-end with TxLINE as
   the reference validator.
-- **Two reference oracles, one receipt path.** Sports markets settle via
-  TxLINE's Merkle-proof `validate_stat`; price markets settle via the
-  deployed `pyth_validator` program against Pyth PriceUpdateV2 accounts.
-  Templates proven live on devnet: `total_goals_over` (EPL + MLS),
-  `corners_over` (MLS, settled from a two-stat P1+P2 proof),
-  `price_above`. New predicates need a deterministic mapping to a
-  validator proof.
+- **Live proof paths: TxLINE + multi-tenant attestation.** Sports
+  markets settle via TxLINE's Merkle-proof `validate_stat`; price and
+  prop markets settle via the attestation validator (Coinbase candles /
+  operator-signed observations — Pyth's devnet feed is paused, the
+  validator is deployed but its markets cannot currently resolve).
+  Three tenants settle on the one attestation deployment today: the
+  house attestor, the quickstart operator, and Punt Desk
+  (`examples/prop-desk/`). Templates proven live on devnet:
+  `total_goals_over` (EPL + MLS), `corners_over` (MLS, settled from a
+  two-stat P1+P2 proof), `price_above`, `prop_count`/`prop_bool`. New
+  predicates need a deterministic mapping to a validator proof.
 - **Settlement tx layout.** With two-stat proofs the settle bundle is
   compute-budget + `resolve_market` + `settle_from_proof` (atomic); the
   permissionless `attest_verification` counter runs as a best-effort

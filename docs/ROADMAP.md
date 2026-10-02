@@ -115,6 +115,60 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Prop markets, Punt Desk, and the self-serve audit (2026-10-02)
+
+**Prop markets shipped as an operator convention.**
+`scripts/prop-market.ts` creates arbitrary attestation-bound statements —
+`PROP:<prop>:<slug>:<ts>` matchIds, `prop_count`/`prop_bool` stat keys,
+`referenceTs` = window-open (creation) time. The subtlety worth
+recording: `settle_from_proof` has no `closes_at` gate, so `referenceTs`
+must precede the observation or `BeforeReference` reverts mid-game.
+First live prop: `total_punts_over:7` (`6457fsjC…`), created and settled
+by the quickstart operator key — a *second* tenant on the shared
+validator, settling mid-window on stream semantics.
+
+**`examples/prop-desk/` — the third-party operator artifact.** ~200
+lines importing only `@stoppage/sdk` + web3.js — the demonstration that
+a desk needs nothing but the SDK and a keypair. Punt Desk (attestor
+`DEBUEWK6…`, config PDA `8c5QyRnq…`) created and settled
+`desk_smoke_over:1` end-to-end (`3F2soKyM…`), auto-initializing its own
+config on first settle — a *third* tenant. Desk keypair lives in the
+example dir, gitignored; `ATTESTOR.txt` publishes its identity.
+
+**Self-serve campaign + landing surface.** The "Hold the board" kit ran
+through the existing Runware/GPT Image 2 pipeline
+(`generate-campaign.ts selfserve`) — same navy/lime zine language,
+$0.08. `/operators` now leads with the runnable path (visible
+clone/install/quickstart commands, not a collapsed details block),
+links prop-desk, and carries OG/Twitter metadata on the campaign art.
+Social traffic lands on the site; GitHub is the implementation handoff.
+
+**Three-pass consistency audit (`5272f1f`, `5b64846`, `0bbaee2`).** The
+prop surface was inconsistent in ways a demo would expose: props
+rendered as price contracts on tape/receipts/tweets; the tx-layer
+validator rejected prop bets with "Awaiting match data" where the UI
+showed them bettable; the blinks route duplicated the exemption as a raw
+kind check; proof cards labeled attestation settles "TxLINE" and
+footered `stoppage.fun`; Pyth claimed "live" in six places while its
+devnet feed is paused; pricing panels awaited Matchkeeper quotes that
+can never exist on desk markets; the match room labeled prop rooms
+"TxLINE"; the empty state promoted a keystone fixture six weeks past.
+Fixes routed through the single-source classifiers —
+`isFixtureGatedMarket`, `isPropMatchId` (lib/format), `oracleInfoFor`
+(which gained `openActivity`) — not per-page string matching. Operator
+attribution added to proof cards + share tweets via `lib/desks.ts`
+(resolver → desk name) — a desk's settle now produces a co-branded
+receipt, which is the operator-side viral hook.
+
+**Next:** (1) live smoke bet through the newly-exempted prop path —
+the exemption is consistent by construction but has never carried a
+real bet on devnet; (2) Sunday props pre-staged under the Punt Desk
+key so markets exist before the stream; (3) `pm2 status` health check
+on the VPS keepers (no deploy needed — audit commits were web-only,
+keeper changes shipped earlier); (4) the Punt Desk follow-up post once
+markets exist. Per-desk filtering (`?desk=` / a `/desks` index) is
+Icebox unless Sunday produces real volume.
+
 ## Multi-tenant attestation + operator quickstart (2026-10-02)
 
 **The attestation validator is now multi-tenant.** Config seeds moved
@@ -1387,7 +1441,9 @@ Rive interactive animation (CLI/RML
 spike approved for the SettlementMoment celebrate trigger — free during
 the technical preview, agent-authored, no account; ship gated on spike
 quality AND Cadet ($9/mo) to remove the free-plan splash screen;
-production integration stays out until post-Oct 1).
+production integration stays out until post-Oct 1), per-desk market
+filtering (`?desk=` param or a `/desks` index — revisit only if a second
+operator's tape volume makes "which markets are whose" a real question).
 
 ## Risk register
 
