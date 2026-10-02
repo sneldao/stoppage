@@ -8,6 +8,19 @@
 import type { Market } from "@stoppage/sdk";
 import { impliedProbability } from "@stoppage/sdk";
 import { formatMarketQuestion } from "@/lib/format";
+import { operatorLabelFor } from "@/lib/desks";
+
+/**
+ * The one-line oracle-specific verification claim for share copy.
+ * Attestation settles name the signing key — operator attribution is the
+ * co-branding hook (desk name when known, short key otherwise).
+ */
+export function proofVerifyLine(oracleName: string, resolver?: string | null): string {
+  if (oracleName === "TxLINE") return "TxLINE validate_stat CPI confirmed in-tx.";
+  if (oracleName === "Pyth") return "Guardian-verified Pyth update checked in-tx.";
+  const by = resolver ? ` — attested by ${operatorLabelFor(resolver)}` : "";
+  return `Operator-signed observation verified on-chain via ed25519${by}.`;
+}
 
 /**
  * Build a tweet-friendly string for a market.
@@ -32,7 +45,7 @@ export function buildMarketTweet(
   return [
     `⚽ ${label}`,
     `YES ${yesPct}% · NO ${noPct}% · ${poolSol} SOL pool`,
-    `Live call with proof-backed settlement on @stoppage.`,
+    `Live call with proof-backed settlement on @sportwarren.`,
     fullUrl,
   ].join("\n");
 }
@@ -133,7 +146,7 @@ export function buildProofTweet(
     `⚽ Settlement verified from on-chain proof.`,
     ``,
     `${label} → outcome ${market.outcome.toUpperCase()}`,
-    `Merkle root: ${shortRoot}`,
+    `Proof root: ${shortRoot}`,
     verifyLine,
     ``,
     `Inspect the proof:`,

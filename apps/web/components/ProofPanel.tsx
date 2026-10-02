@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { Market } from "@stoppage/sdk";
 import { oracleInfoFor } from "@/lib/oracle";
-import { buildProofTweet, buildTweetIntent } from "@/lib/share/tweet";
+import { buildProofTweet, buildTweetIntent, proofVerifyLine } from "@/lib/share/tweet";
+import { operatorLabelFor } from "@/lib/desks";
 import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
 import { useStoppageStore } from "@/store";
 
@@ -20,6 +21,7 @@ interface ProofResponse {
   merkleRoot?: string;
   outcome?: string;
   outcomeBool?: number;
+  resolver?: string;
   timestamp?: number;
   explorerUrl?: string;
   error?: string;
@@ -57,6 +59,8 @@ export function ProofPanel({ market }: ProofPanelProps) {
       market,
       merkleRoot: verify.data.merkleRoot ?? "",
       settleSig: verify.data.signature ?? "",
+      oracleLabel: oracle.name,
+      attestedBy: operatorLabelFor(verify.data.resolver) ?? undefined,
     }, `stoppage-proof-${market.id.slice(0, 8)}.png`);
     recordShare();
   };
@@ -287,6 +291,7 @@ export function ProofPanel({ market }: ProofPanelProps) {
                 verify.data.merkleRoot ?? "",
                 verify.data.explorerUrl,
                 refUrl,
+                proofVerifyLine(oracle.name, verify.data.resolver),
               ),
             )}
             target="_blank"

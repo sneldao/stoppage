@@ -204,7 +204,7 @@ async function main() {
     // no closes_at gate, so a mid-game prop settles live.
     const referenceTs = Math.floor(Date.now() / 1000);
     const closesAt = referenceTs + minutes * 60;
-    const matchId = `PROP:${slug}:${referenceTs}`;
+    const matchId = `PROP:${prop}:${slug}:${referenceTs}`;
     const opWord = op === ATTESTATION_OPS.gte ? "over" : op === ATTESTATION_OPS.lte ? "under" : "equals";
     const statement = `${prop}_${opWord}:${threshold}:${slug}`;
     const predicate = {

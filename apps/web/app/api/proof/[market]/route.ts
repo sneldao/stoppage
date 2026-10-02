@@ -155,6 +155,7 @@ export async function GET(
             outcome: resolved.outcome,
             outcomeBool: resolved.outcomeBool,
             validatorProgram: resolved.validatorProgram,
+            resolver: resolved.resolver,
             timestamp: resolved.timestamp,
             validatedOnChain: resolved.validatedOnChain,
             explorerUrl: `https://explorer.solana.com/tx/${sig.signature}?cluster=devnet`,

@@ -49,13 +49,14 @@ export function AgentStrip() {
           <i className="live-dot" /> MATCHKEEPER
         </span>
         <span className="agent-strip-role">
-          autonomous operator — opens, prices &amp; settles every market on this tape
+          autonomous operator — opens, prices &amp; settles the house tape; outside
+          operators run their own desks
         </span>
       </div>
 
       <div className="agent-strip-stats">
         <span>
-          <b>{operated}</b> markets operated
+          <b>{operated}</b> markets on tape
         </span>
         <span>
           <b>{proven}</b> settled by proof

@@ -7,7 +7,8 @@ import { useMarkets } from "@/lib/markets/useMarkets";
 import { useStoppageStore } from "@/store";
 import { oracleInfoFor } from "@/lib/oracle";
 import { exportCardAsPng } from "@/lib/share/exportCardAsPng";
-import { buildProofTweet, buildTweetIntent, buildWeekReceiptTweet } from "@/lib/share/tweet";
+import { buildProofTweet, buildTweetIntent, buildWeekReceiptTweet, proofVerifyLine } from "@/lib/share/tweet";
+import { operatorLabelFor } from "@/lib/desks";
 import { ExpectationsStrip } from "@/components/ExpectationsStrip";
 
 /**
@@ -49,6 +50,7 @@ interface ProofResponse {
   statement?: string;
   merkleRoot?: string;
   outcome?: string;
+  resolver?: string;
   explorerUrl?: string;
   error?: string;
 }
@@ -106,6 +108,7 @@ function ReceiptRow({
           merkleRoot: p.merkleRoot!,
           settleSig: p.signature ?? row.settleSignature ?? "",
           oracleLabel: oracle.name,
+          attestedBy: operatorLabelFor(p.resolver) ?? undefined,
         },
         `stoppage-proof-${row.marketId.slice(0, 8)}.png`
       );
@@ -134,9 +137,7 @@ function ReceiptRow({
             p.merkleRoot!,
             explorerUrl,
             `${window.location.origin}/markets/${row.marketId}`,
-            oracle.name === "Pyth"
-              ? "Guardian-verified Pyth price confirmed in-tx."
-              : `${oracle.name} proof verified in-tx.`
+            proofVerifyLine(oracle.name, p.resolver)
           );
       window.open(buildTweetIntent(text), "_blank", "noopener,noreferrer");
     } catch (e) {

@@ -28,6 +28,9 @@ interface ProofCardData {
   /** Validator short name (oracleInfoFor(...).name). Non-TxLINE cards are
    *  labeled with their data source and marked devnet. */
   oracleLabel?: string;
+  /** Who signed the observation — desk name or short key. Turns each
+   *  operator's settle into a co-branded artifact. */
+  attestedBy?: string;
 }
 
 export type ShareCardData = StreakCardData | WinCardData | ProofCardData;
@@ -173,9 +176,9 @@ export async function exportCardAsPng(data: ShareCardData, filename = "stoppage-
   ctx.fillText(
     data.kind === "proof"
       ? data.oracleLabel && data.oracleLabel !== "TxLINE"
-        ? `Settled on Stoppage · Data ${data.oracleLabel} · Devnet`
+        ? `Settled on Stoppage · ${data.attestedBy ? `Attested by ${data.attestedBy}` : data.oracleLabel} · Devnet`
         : "Settled on Stoppage · Data TxLINE · Reads Jev via Vercel"
-      : "stoppage.fun",
+      : "stoppage.sportwarren.com",
     38,
     270
   );

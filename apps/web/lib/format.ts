@@ -23,6 +23,17 @@ export function formatMarketQuestion(
   predicate: MarketPredicate,
   opts?: { scoreUnit?: "goals" | "points" }
 ): string {
+  if (predicate.matchId.startsWith("PROP:")) {
+    // Operator prop markets: matchId is PROP:<prop>:<slug>:<ts>
+    // (legacy PROP:<slug>:<ts>). The statement is human-readable; render
+    // the prop itself, not the price-feed formatting.
+    const parts = predicate.matchId.split(":");
+    const hasProp = parts.length >= 4;
+    const prop = hasProp ? parts[1].replace(/_/g, " ") : null;
+    const slug = (hasProp ? parts[2] : parts[1]).replace(/-/g, " ");
+    const threshold = Number(predicate.params.threshold ?? 0);
+    return hasProp ? `${prop} over ${threshold} · ${slug}` : `${slug} over ${threshold}`;
+  }
   if (predicate.kind === "price_above") {
     // threshold is in feed-native units (USD * 1e8 for the Pyth majors)
     const threshold = Number(predicate.params.threshold ?? 0) / 1e8;
