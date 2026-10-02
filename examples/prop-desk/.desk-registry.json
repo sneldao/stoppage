@@ -1,0 +1,14 @@
+[
+  {
+    "matchId": "PROP:desk-smoke:1790946925",
+    "slug": "desk-smoke",
+    "prop": "desk_smoke",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 1,
+    "referenceTs": 1790946925,
+    "marketPda": "2V6G5QW321CyqqXi3G8eL1Ba78F6TPEtJKscgtjkn4nR",
+    "statement": "desk_smoke_over:1:desk-smoke"
+  }
+]

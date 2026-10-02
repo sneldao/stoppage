@@ -107,6 +107,31 @@ es.onmessage = (e) => {
 
         <section className="op-api">
           <div className="op-api-head">
+            <h2>Hold the board</h2>
+            <span className="op-api-sub">self-serve, multi-tenant</span>
+          </div>
+          <p className="op-api-lede">
+            The attestation validator is multi-tenant — your config is seeded{" "}
+            <code>[b&quot;config&quot;, your_key]</code>. Pin your own attestor, create the
+            market, sign the observation, and the vault releases only if the proof
+            verifies. Devnet, no coordination with us.
+          </p>
+          <details className="disclose">
+            <summary>Run the quickstart <i aria-hidden="true" /></summary>
+            <div className="disclose__body">
+              <CodeBlock code={`git clone https://github.com/sneldao/stoppage
+cd stoppage && npm install
+npx tsx scripts/operator-quickstart.ts`} />
+              <p>
+                Fresh keypair → your own config PDA → market → signed observation →
+                proof-gated settle → winner claims from the vault.
+              </p>
+            </div>
+          </details>
+        </section>
+
+        <section className="op-api">
+          <div className="op-api-head">
             <h2>Quote in, proof out</h2>
             <span className="op-api-sub">optional pricing line</span>
           </div>
@@ -129,6 +154,10 @@ es.onmessage = (e) => {
             <li>
               <strong>Oracle-agnostic.</strong>
               Merkle, Pyth, and attest already live.
+            </li>
+            <li>
+              <strong>Multi-tenant.</strong>
+              Your key settles; ours can&apos;t speak for you.
             </li>
             <li>
               <strong>The receipt is the artifact.</strong>

@@ -49,6 +49,7 @@ const FONTS_DIR = path.join(ROOT, ".runtime/campaign/fonts");
 const PUBLIC_CAMPAIGN = path.join(ROOT, "apps/web/public/campaign");
 const RECEIPT_DIR = path.join(ROOT, ".runtime/campaign/receipt");
 const INVITE_DIR = path.join(ROOT, ".runtime/campaign/invite");
+const SELFSERVE_DIR = path.join(ROOT, ".runtime/campaign/selfserve");
 const SIDELINE_REF = path.join(CAST_DIR, "sideline.jpg");
 const SIDELINE_PORTRAIT_REF = path.join(CAST_DIR, "sideline-portrait.jpg");
 const RUNWARE_URL = "https://api.runware.ai/v1";
@@ -1761,6 +1762,153 @@ async function invite() {
   console.log(`Total invite cost: $${total.toFixed(4)}`);
 }
 
+const SELFSERVE_GESTURE = `
+Use Image 1 as the photographic core: night stadium sideline, the fourth
+official's substitution board with lime "+4" LEDs, floodlights, wet grass,
+paste-up collage grammar — torn paper, masking tape, ticket stubs, bone
+and navy scraps. Change the agent: this is a HANDOVER. The black-kit
+official's hands and a second pair of hands — civilian, a supporter's
+sleeves — hold the same board together, mid-transfer. Two operators, one
+board. No faces, no crests, no FIFA marks, no Nike, no broadcast graphics,
+no watermarks, no URLs, no fake scorelines, no dollar amounts. The only
+readable marks in the photograph are "+4" on the board. Lime #00ff88 is
+the signal colour. Pre-whistle energy — anyone can hold the board.
+`.trim();
+
+const SELFSERVE_TWIST = `
+ARTISTIC TWIST — a CREDENTIAL, not a receipt and not an invitation. Tucked
+into the collage: a laminated OPERATOR pass on a lanyard clipped to the
+torn paper, abstract unreadable text only; a taped scrap with a hand-drawn
+skeleton-key glyph in lime; one thermal strip shows abstract hex-like
+marks (unreadable hash fragments — not a real signature, not a UI). No
+settled check stamp, no bone X — this is before the whistle, the board
+is still live and being handed over. Same collage chrome as Image 1,
+different paper. Zine energy, Saturday-night sideline.
+`.trim();
+
+async function selfserve() {
+  if (!fs.existsSync(SIDELINE_REF)) {
+    throw new Error(`missing ${path.relative(ROOT, SIDELINE_REF)} — run mls-cast first`);
+  }
+  fs.mkdirSync(SELFSERVE_DIR, { recursive: true });
+  const { serif, mono } = await ensureFonts();
+
+  const shots: { id: string; width: number; height: number; reference: string }[] = [
+    { id: "hero", width: WIDTH, height: HEIGHT, reference: SIDELINE_REF },
+    {
+      id: "portrait",
+      width: PORTRAIT_WIDTH,
+      height: PORTRAIT_HEIGHT,
+      reference: fs.existsSync(SIDELINE_PORTRAIT_REF) ? SIDELINE_PORTRAIT_REF : SIDELINE_REF,
+    },
+  ];
+
+  console.log(`Selfserve: ${shots.length} stills on ${LOCK_MODEL} — the handover`);
+  const results: { id: string; file: string; costUsd?: number }[] = [];
+  let total = 0;
+
+  for (const shot of shots) {
+    const row = await inferImage({
+      prompt: `${SELFSERVE_GESTURE}\n${SELFSERVE_TWIST}`,
+      width: shot.width,
+      height: shot.height,
+      reference: shot.reference,
+      quality: "medium",
+    });
+    const file = `${shot.id}.jpg`;
+    await download(row.imageURL!, path.join(SELFSERVE_DIR, file));
+    const cost = row.cost ?? 0;
+    total += cost;
+    results.push({ id: shot.id, file, costUsd: row.cost });
+    console.log(`  ${shot.id}  cost=${cost.toFixed(4)}  → ${file}`);
+  }
+
+  const overlay = {
+    kicker: "NFL  ·  SUN  ·  SELF-SERVE DEVNET",
+    title: "Hold the board.",
+    sub: "YOUR KEY  ·  YOUR PROOF  ·  THE VAULT RELEASES",
+  };
+
+  brandStill({
+    input: path.join(SELFSERVE_DIR, "hero.jpg"),
+    output: path.join(SELFSERVE_DIR, "hero-branded.jpg"),
+    serif,
+    mono,
+    mode: "landscape",
+    ...overlay,
+  });
+  brandStill({
+    input: path.join(SELFSERVE_DIR, "portrait.jpg"),
+    output: path.join(SELFSERVE_DIR, "portrait-branded.jpg"),
+    serif,
+    mono,
+    mode: "portrait",
+    ...overlay,
+  });
+
+  const ogWork = path.join(SELFSERVE_DIR, "_og-crop.jpg");
+  execFileSync("magick", [
+    path.join(SELFSERVE_DIR, "hero.jpg"),
+    "-gravity",
+    "center",
+    "-crop",
+    "1200x630+0+0",
+    "+repage",
+    ogWork,
+  ]);
+  brandStill({
+    input: ogWork,
+    output: path.join(SELFSERVE_DIR, "og.jpg"),
+    serif,
+    mono,
+    mode: "og",
+    ...overlay,
+  });
+  fs.unlinkSync(ogWork);
+
+  const downloads = path.join(process.env.HOME ?? "", "Downloads/stoppage-selfserve");
+  fs.mkdirSync(downloads, { recursive: true });
+  const copies = [
+    ["01-hero.jpg", "hero.jpg"],
+    ["02-hero-branded.jpg", "hero-branded.jpg"],
+    ["03-portrait.jpg", "portrait.jpg"],
+    ["04-portrait-branded.jpg", "portrait-branded.jpg"],
+    ["05-og.jpg", "og.jpg"],
+  ] as const;
+  for (const [name, src] of copies) {
+    fs.copyFileSync(path.join(SELFSERVE_DIR, src), path.join(downloads, name));
+  }
+
+  const publish = [
+    ["selfserve-hero.jpg", "hero.jpg"],
+    ["selfserve-portrait.jpg", "portrait.jpg"],
+    ["selfserve-hero-branded.jpg", "hero-branded.jpg"],
+    ["selfserve-portrait-branded.jpg", "portrait-branded.jpg"],
+    ["selfserve-og.jpg", "og.jpg"],
+  ] as const;
+  for (const [name, src] of publish) {
+    fs.copyFileSync(path.join(SELFSERVE_DIR, src), path.join(PUBLIC_CAMPAIGN, name));
+  }
+
+  fs.writeFileSync(
+    path.join(SELFSERVE_DIR, "manifest.json"),
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        source: "mls-cast/sideline.jpg",
+        model: LOCK_MODEL,
+        totalCostUsd: total,
+        shots: results,
+      },
+      null,
+      2
+    )
+  );
+  console.log(`\nSelfserve kit → ${downloads}`);
+  console.log(`App copies → ${path.relative(ROOT, PUBLIC_CAMPAIGN)}/selfserve-*`);
+  console.log(`Total selfserve cost: $${total.toFixed(4)}`);
+}
+
 async function main() {
   loadEnv();
   const cmd = process.argv[2] ?? "explore";
@@ -1777,9 +1925,10 @@ async function main() {
   else if (cmd === "title") await title();
   else if (cmd === "receipt") await receipt();
   else if (cmd === "invite") await invite();
+  else if (cmd === "selfserve") await selfserve();
   else {
     console.error(
-      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title|receipt|invite]"
+      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title|receipt|invite|selfserve]"
     );
     process.exit(1);
   }
