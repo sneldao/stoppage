@@ -1909,6 +1909,143 @@ async function selfserve() {
   console.log(`Total selfserve cost: $${total.toFixed(4)}`);
 }
 
+const DESK_DIR = path.join(ROOT, ".runtime/campaign/desk");
+
+const DESK_BOARD_GESTURE = `
+Use Image 1 as the photographic core: night stadium sideline, the fourth
+official's LED substitution board, floodlights, wet grass, paste-up
+collage grammar — torn paper, masking tape, ticket stubs, bone and navy
+scraps. The handover is complete: the board is held aloft by ONE pair of
+hands — civilian, a supporter's rolled sleeves — and the official's
+black-kit hands have dropped away, just leaving frame. The LED board
+reads "O 7" in the same dotted lime digits. No faces, no crests, no FIFA
+marks, no Nike, no broadcast graphics, no watermarks, no URLs, no fake
+scorelines, no dollar amounts. The only readable marks in the photograph
+are "O 7" on the board. Lime #00ff88 is the signal colour. The board is
+theirs now — the operator holds it alone.
+`.trim();
+
+const DESK_BOARD_TWIST = `
+ARTISTIC TWIST — the signed observation. Tucked into the collage: a lime
+paper slip carrying a circular rubber-stamp mark and an inked tick (the
+attestation landed); a taped scrap with a hand-drawn skeleton-key glyph;
+one thermal strip of abstract hex-like marks (unreadable hash fragments —
+not a real signature, not a UI). Same collage chrome as Image 1,
+different paper. Zine energy — the promise kept.
+`.trim();
+
+const DESK_TABLE_GESTURE = `
+Use Image 1 as the photographic grammar: night stadium sideline,
+floodlights, paste-up collage — torn paper, masking tape, ticket stubs,
+bone and navy scraps. The subject changes: a small FOLDING DESK stands on
+the touchline at the pitch edge — a scorekeeper's table with a lit desk
+lamp, an open paper ledger, and a hand pressing a round rubber stamp onto
+a lime paper slip. A tiny LED counter on the desk reads "O 7". A skeleton
+key lies beside the ledger. No faces, no crests, no FIFA marks, no Nike,
+no broadcast graphics, no watermarks, no URLs, no fake scorelines, no
+dollar amounts. The only readable marks are "O 7" on the counter. Lime
+#00ff88 is the signal colour. The desk IS the oracle — someone stamps,
+the vault releases.
+`.trim();
+
+const DESK_TABLE_TWIST = `
+ARTISTIC TWIST — the working desk. Tucked into the collage: a ledger
+fragment with faint ruled lines and abstract tally marks (unreadable);
+a ticket stub; one thermal strip of abstract hex-like marks. The rubber
+stamp's ink ring is lime. Same collage chrome as Image 1. Zine energy —
+quiet authority, mid-observation.
+`.trim();
+
+async function desk() {
+  if (!fs.existsSync(SIDELINE_REF)) {
+    throw new Error(`missing ${path.relative(ROOT, SIDELINE_REF)} — run mls-cast first`);
+  }
+  fs.mkdirSync(DESK_DIR, { recursive: true });
+  const { serif, mono } = await ensureFonts();
+
+  const shots = [
+    {
+      id: "board",
+      prompt: `${DESK_BOARD_GESTURE}\n${DESK_BOARD_TWIST}`,
+      kicker: "NFL  ·  SUN  ·  PUNT DESK",
+      title: "We held it.",
+      sub: "PUNTS O7  ·  SACKS O3  ·  4DC  ·  PICK-6",
+    },
+    {
+      id: "table",
+      prompt: `${DESK_TABLE_GESTURE}\n${DESK_TABLE_TWIST}`,
+      kicker: "NFL  ·  SUN  ·  PUNT DESK",
+      title: "The desk settles.",
+      sub: "YOUR STATEMENT  ·  YOUR KEY  ·  THE VAULT RELEASES",
+    },
+  ];
+
+  console.log(`Desk: ${shots.length} stills on ${LOCK_MODEL}`);
+  const results: { id: string; file: string; costUsd?: number }[] = [];
+  let total = 0;
+
+  for (const shot of shots) {
+    const row = await inferImage({
+      prompt: shot.prompt,
+      width: WIDTH,
+      height: HEIGHT,
+      reference: SIDELINE_REF,
+      quality: "medium",
+    });
+    const file = `${shot.id}.jpg`;
+    await download(row.imageURL!, path.join(DESK_DIR, file));
+    const cost = row.cost ?? 0;
+    total += cost;
+    results.push({ id: shot.id, file, costUsd: row.cost });
+    console.log(`  ${shot.id}  cost=${cost.toFixed(4)}  → ${file}`);
+
+    brandStill({
+      input: path.join(DESK_DIR, file),
+      output: path.join(DESK_DIR, `${shot.id}-branded.jpg`),
+      serif,
+      mono,
+      mode: "landscape",
+      kicker: shot.kicker,
+      title: shot.title,
+      sub: shot.sub,
+    });
+  }
+
+  const downloads = path.join(process.env.HOME ?? "", "Downloads/stoppage-desk");
+  fs.mkdirSync(downloads, { recursive: true });
+  for (const shot of shots) {
+    fs.copyFileSync(
+      path.join(DESK_DIR, `${shot.id}.jpg`),
+      path.join(downloads, `${shot.id}-raw.jpg`)
+    );
+    fs.copyFileSync(
+      path.join(DESK_DIR, `${shot.id}-branded.jpg`),
+      path.join(downloads, `${shot.id}-branded.jpg`)
+    );
+    fs.copyFileSync(
+      path.join(DESK_DIR, `${shot.id}-branded.jpg`),
+      path.join(PUBLIC_CAMPAIGN, `desk-${shot.id}.jpg`)
+    );
+  }
+
+  fs.writeFileSync(
+    path.join(DESK_DIR, "manifest.json"),
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        source: "mls-cast/sideline.jpg",
+        model: LOCK_MODEL,
+        totalCostUsd: total,
+        shots: results,
+      },
+      null,
+      2
+    )
+  );
+  console.log(`\nDesk kit → ${downloads}`);
+  console.log(`Total desk cost: $${total.toFixed(4)}`);
+}
+
 async function main() {
   loadEnv();
   const cmd = process.argv[2] ?? "explore";
@@ -1926,9 +2063,10 @@ async function main() {
   else if (cmd === "receipt") await receipt();
   else if (cmd === "invite") await invite();
   else if (cmd === "selfserve") await selfserve();
+  else if (cmd === "desk") await desk();
   else {
     console.error(
-      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title|receipt|invite|selfserve]"
+      "Usage: npx tsx scripts/generate-campaign.ts [explore|lock|motion|round2|mls|mls-lock|mls-cast|brand|flash|mls-motion|title|receipt|invite|selfserve|desk]"
     );
     process.exit(1);
   }
