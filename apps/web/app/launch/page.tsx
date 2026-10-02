@@ -24,9 +24,9 @@ import { oracleInfoFor } from "@/lib/oracle";
 type OracleChoice = "txline" | "pyth" | "attestation" | "custom";
 
 const ORACLE_CHOICES: { id: OracleChoice; programId: string; blurb: string }[] = [
+  { id: "attestation", programId: ATTESTATION_VALIDATOR_PROGRAM_ID, blurb: "Multi-tenant — you sign the observation with your own pinned key and settle it yourself (prop-desk is the reference)." },
   { id: "txline", programId: DEFAULT_ORACLE.toBase58(), blurb: "TxODDS fixtures (settled by the Matchkeeper while live)." },
-  { id: "pyth", programId: PYTH_VALIDATOR_PROGRAM_ID, blurb: "Guardian-verified price. Pair with price_above + a feed id." },
-  { id: "attestation", programId: ATTESTATION_VALIDATOR_PROGRAM_ID, blurb: "Stoppage operator attestor (tsdb-linked markets)." },
+  { id: "pyth", programId: PYTH_VALIDATOR_PROGRAM_ID, blurb: "Guardian-verified price — paused: no live devnet feed, markets cannot resolve right now." },
   { id: "custom", programId: "", blurb: "Any deployed program that returns a bool via return data." },
 ];
 
@@ -41,7 +41,7 @@ export default function LaunchPage() {
   const [team, setTeam] = useState("");
   const [value, setValue] = useState("2");
   const [closesAt, setClosesAt] = useState("");
-  const [oracleChoice, setOracleChoice] = useState<OracleChoice>("pyth");
+  const [oracleChoice, setOracleChoice] = useState<OracleChoice>("attestation");
   const [customOracle, setCustomOracle] = useState("");
   const [result, setResult] = useState<{ marketId: string; signature: string } | null>(null);
 
@@ -101,7 +101,7 @@ export default function LaunchPage() {
               </select>
             </label>
             <label>
-              Match / feed id {kind === "price_above" ? "(64-hex feed)" : oracleChoice === "attestation" ? "(tsdb:XXXX)" : ""}
+              Match / feed id {kind === "price_above" ? "(64-hex feed)" : oracleChoice === "attestation" ? "(tsdb:XXXX or PROP:prop:slug)" : ""}
               <input value={matchId} onChange={(e) => setMatchId(e.target.value)} placeholder={kind === "price_above" ? "9cdf3c593f9cdc4219203f1801b62e31ad824ad5c3deeb0cca4b4aca3d81aef6" : "tsdb:2406978"} />
             </label>
             <label>

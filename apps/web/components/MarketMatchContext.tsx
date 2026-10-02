@@ -118,6 +118,22 @@ export function MarketMatchContext({ matchId, onSnapshot }: { matchId: string | 
   if (tsdbId !== null && Number.isInteger(tsdbId)) {
     return <TsdbMatchContext eventId={tsdbId} />;
   }
+  // Operator prop markets carry no fixture — there is no live feed to
+  // show. Say so plainly rather than warning "match data unavailable".
+  if (String(matchId).startsWith("PROP:")) {
+    return (
+      <section className="market-match-context market-match-context-scheduled" aria-label="Match context">
+        <div className="market-match-context-top">
+          <span>Operator prop</span>
+          <strong className="mmc-status">Desk-settled</strong>
+        </div>
+        <span className="mmc-ts">
+          No live feed — the operator&apos;s attestor signs the observation and the
+          signature is verified on-chain before payout.
+        </span>
+      </section>
+    );
+  }
   const { fixtures, fixturesLoading } = useFixtures();
   const [scoreFlash, setScoreFlash] = useState(0);
   const prevScore = useMemo(() => ({ home: -1, away: -1 }), []);

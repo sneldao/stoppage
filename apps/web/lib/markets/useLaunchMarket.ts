@@ -16,6 +16,7 @@ import { useCallback, useState } from "react";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import {
+  ATTESTATION_VALIDATOR_PROGRAM_ID,
   buildCreateMarketIx,
   findMarketPdaFromPredicate,
   type MarketPredicate,
@@ -42,10 +43,16 @@ export interface LaunchResult {
 
 function validate(input: LaunchInput): string | null {
   if (!input.matchId.trim()) return "Match / feed id is required";
-  if (input.kind === "price_above" && !/^[0-9a-f]{64}$/i.test(input.matchId))
-    return "price_above needs the 64-char hex price feed id";
-  if (input.kind !== "price_above" && Buffer.from(input.matchId, "utf8").length > 32)
-    return "Match / feed id exceeds 32 bytes";
+  // Attestation-bound markets carry operator conventions (tsdb:<id>,
+  // PROP:<prop>:<slug>:<ts>), not price-feed ids — the desk's attestor
+  // defines the claim, so the feed-shape rules don't apply.
+  const attestationBound = input.oracle.toBase58() === ATTESTATION_VALIDATOR_PROGRAM_ID;
+  if (!attestationBound) {
+    if (input.kind === "price_above" && !/^[0-9a-f]{64}$/i.test(input.matchId))
+      return "price_above needs the 64-char hex price feed id";
+    if (input.kind !== "price_above" && Buffer.from(input.matchId, "utf8").length > 32)
+      return "Match / feed id exceeds 32 bytes";
+  }
   if (Buffer.from(input.team ?? "", "utf8").length > 8) return "Team id exceeds 8 bytes";
   if (input.closesAt <= Math.floor(Date.now() / 1000) + 60)
     return "Close time must be more than a minute in the future";

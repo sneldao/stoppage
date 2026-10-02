@@ -28,7 +28,7 @@ import { formatSol as SOL, LAMPORTS_PER_SOL, formatMarketQuestion, formatSigning
 import { OddsNumber } from "@/components/OddsNumber";
 import { OddsSparkline } from "@/components/OddsSparkline";
 import { MarketMatchContext } from "@/components/MarketMatchContext";
-import { useBettingGate } from "@/lib/match/useBettingGate";
+import { useMarketBettingState } from "@/lib/match/useBettingGate";
 import { useFixtures } from "@/lib/match/useFixtures";
 import { fixtureForMatchId, scoreUnitForFixture } from "@/lib/match/fixtures";
 import { CallCard } from "@/components/CallCard";
@@ -203,9 +203,11 @@ export default function MarketDetailPage() {
   const amountLamports = Math.round(parseFloat(amountSol || "0") * LAMPORTS_PER_SOL);
 
   // Betting gate — blocks betting when fixture data is unavailable or match state
-  // doesn't allow it. The proof path panel shows "awaiting" for these states;
-  // the bet slip must not contradict it.
-  const bettingGate = useBettingGate(market?.predicate.matchId ?? "");
+  // doesn't allow it. useMarketBettingState applies the isFixtureGatedMarket
+  // exemption (prop/attestation markets have no TxLINE fixture to gate on —
+  // they are bettable whenever open). The proof path panel shows "awaiting"
+  // for gated states; the bet slip must not contradict it.
+  const bettingGate = useMarketBettingState(market);
 
   // Score-unit for the question label: NFL markets reuse the
   // total_goals_over predicate but the stat is points (comp 500001).

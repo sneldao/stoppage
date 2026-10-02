@@ -11,7 +11,7 @@ export function ExpectationsStrip() {
         <b>Devnet</b> test funds — every settle leaves an on-chain receipt
       </span>
       <span>
-        <b>Token</b> launching as our AnsemHack entry — an entry ticket, not a
+        <b>Token</b> live as our AnsemHack entry — an entry ticket, not a
         claim on the protocol · no promised utility
       </span>
     </p>

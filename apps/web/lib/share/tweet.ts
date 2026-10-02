@@ -162,13 +162,14 @@ export function buildProofTweet(
 export function buildWeekReceiptTweet(
   market: Market,
   explorerUrl: string,
+  verifyLine = "Guardian-verified Pyth price, checked on-chain in the settle tx.",
 ): string {
   const thresholdUsd = Number(market.predicate.params.threshold ?? 0) / 1e8;
   return [
     `⚽ ${market.predicate.matchId} settled by proof.`,
     ``,
     `SOL/USD above $${thresholdUsd.toFixed(0)} → ${market.outcome.toUpperCase()}`,
-    `Guardian-verified Pyth price, checked on-chain in the settle tx.`,
+    verifyLine,
     `0 admin keys moved a lamport.`,
     ``,
     `Inspect the receipt:`,

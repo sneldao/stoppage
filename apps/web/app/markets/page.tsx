@@ -61,6 +61,14 @@ function isPriceGroupKey(key: string) {
   return key.startsWith(PRICE_GROUP_PREFIX);
 }
 
+// Operator prop markets (attestation validator) share the price_above
+// predicate kind — without this they'd collapse into a "price:PROP"
+// group labeled "settled via pyth", which is wrong twice. They get
+// their own groups keyed by matchId, labeled by the prop statement.
+function isPropMatchId(key: string) {
+  return key.startsWith("PROP:");
+}
+
 function formatKickoffMs(ms: number | null | undefined): string | null {
   if (!ms) return null;
   const d = new Date(ms);
@@ -187,7 +195,10 @@ function MatchGroup({
 }) {
   const live = isFixtureLive(fixture) || (attest?.inPlay ?? false);
   const isPriceGroup = isPriceGroupKey(matchId);
-  const label = isPriceGroup
+  const isPropGroup = isPropMatchId(matchId);
+  const label = isPropGroup
+    ? formatMarketQuestion(markets[0].predicate)
+    : isPriceGroup
     ? `${matchId.slice(PRICE_GROUP_PREFIX.length)} price contracts`
     : fixture
     ? `${fixture.Participant1} v ${fixture.Participant2}`
@@ -231,12 +242,20 @@ function MatchGroup({
                 operator-attested
               </em>
             )}
+            {isPropGroup && (
+              <em
+                className="tape-match-attested"
+                title="Operator prop — the desk's attestor key signs the observation; the signature is verified on-chain before payout."
+              >
+                operator prop
+              </em>
+            )}
             {isPriceGroup && (
               <em
                 className="tape-match-attested tape-match-pyth"
-                title="Priced from Pyth Hermes updates at creation; settled by the on-chain pyth_validator against a guardian-verified price."
+                title={`Settled by the bound validator: ${oracleInfoFor(markets[0].oracle).name}.`}
               >
-                settled via pyth
+                settled via {oracleInfoFor(markets[0].oracle).name.toLowerCase()}
               </em>
             )}
             {time && <small className="tape-match-heading__time">{time}</small>}
@@ -335,7 +354,7 @@ export default function MarketsPage() {
     for (const market of list) {
       const matchId = String(market.predicate.matchId);
       const key =
-        market.predicate.kind === "price_above"
+        market.predicate.kind === "price_above" && !isPropMatchId(matchId)
           ? `${PRICE_GROUP_PREFIX}${matchId.split(":")[0]}`
           : matchId;
       groups.set(key, [...(groups.get(key) ?? []), market]);

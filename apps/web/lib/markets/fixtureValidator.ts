@@ -9,6 +9,7 @@
 import { PublicKey } from "@solana/web3.js";
 import type { FixtureWithMatchId } from "@/lib/match/types";
 import { isFixtureScheduled, fixtureStartTimeMs } from "@/lib/match/fixtures";
+import { isFixtureGatedMarket } from "@/lib/match/useBettingGate";
 import type { Market } from "@stoppage/sdk";
 
 export interface FixtureValidationResult {
@@ -63,6 +64,15 @@ export function validateFixtureForBetting(
     return { canBet: false, reason: "Market data still loading" };
   }
 
+  // Non-fixture markets (price feeds, tsdb-linked, PROP: operator props)
+  // have no TxLINE fixture to validate against — they settle through
+  // their bound oracle, not the sports feed. Bettable whenever open;
+  // the same exemption as useMarketBettingState / the tape.
+  const market = markets[marketAddr.toBase58()];
+  if (market && !isFixtureGatedMarket(market)) {
+    return { canBet: true };
+  }
+
   // No fixture for this match — the trust-violation case
   if (!fixture) {
     return { canBet: false, reason: "Awaiting match data" };
@@ -105,6 +115,13 @@ export async function validateFixtureForBettingAsync(
     const market = await fetchMarket();
     if (!market) {
       return { canBet: false, reason: "Market not found" };
+    }
+
+    // Non-fixture markets (price feeds, tsdb-linked, PROP: operator props)
+    // settle through their bound oracle — no TxLINE fixture required.
+    // Same exemption as the sync path and useMarketBettingState.
+    if (!isFixtureGatedMarket(market)) {
+      return { canBet: true };
     }
 
     const matchId = String(market.predicate.matchId);

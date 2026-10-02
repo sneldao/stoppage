@@ -131,7 +131,7 @@ function ReceiptRow({
       if (!p) return;
       const explorerUrl = p.explorerUrl!;
       const text = row.week
-        ? buildWeekReceiptTweet(market, explorerUrl)
+        ? buildWeekReceiptTweet(market, explorerUrl, proofVerifyLine(oracle.name, p.resolver))
         : buildProofTweet(
             market,
             p.merkleRoot!,
