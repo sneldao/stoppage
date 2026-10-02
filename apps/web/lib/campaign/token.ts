@@ -16,7 +16,7 @@ export const TOKEN_LAUNCH_AT = Date.parse("2026-10-01T04:00:00Z");
 export const TOKEN_ENTRY_URL = "https://clawpump.tech/ansemhack/entry";
 
 /** Mint address once tokenized, else null. */
-export const TOKEN_MINT: string | null = null;
+export const TOKEN_MINT: string | null = "13EDbdEC35pM8GHBxmrHsAtVWbjQuDSn2kKeLtQVh27Q";
 
 export function tokenPageUrl(): string | null {
   return TOKEN_MINT ? `https://clawpump.tech/tokens/${TOKEN_MINT}` : null;
