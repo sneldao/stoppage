@@ -69,7 +69,17 @@ import { recordAction, withSpan } from "./telemetry";
 // ── Stat-key registry (single source of truth for attestation claims) ─
 // Opaque to the validator (bound into the signed message); new sports
 // statistics add an entry here and a source mapping in the adapter.
-export const ATTEST_STAT_KEYS = { total_goals: 1, price_usd_e8: 2 } as const;
+export const ATTEST_STAT_KEYS = {
+  total_goals: 1,
+  price_usd_e8: 2,
+  prop_count: 3, // integer counts: punts, turnovers, sacks…
+  prop_bool: 4, // 0/1: did the prop happen at all
+} as const;
+
+/** fixture_ref binding for operator/stream prop markets: sha256("prop:<matchId>")[..16]. */
+export function fixtureRefForPropMarket(matchId: string): Uint8Array {
+  return createHash("sha256").update(`prop:${matchId}`).digest().subarray(0, 16);
+}
 
 /** fixture_ref binding: sha256("tsdb:<eventId>")[..16]. */
 export function fixtureRefForEvent(eventId: number): Uint8Array {
