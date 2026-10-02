@@ -115,6 +115,48 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## close_market: rent recovery + deploy-size fix (2026-10-02)
+
+**The gap.** The bond sweep recovered creator bonds but left ~0.0016 SOL
+of account rent locked per dead market — 393 past-due accounts on the
+keeper wallet alone. `close_market` closes the loop.
+
+**Design.** Creator-signed; allowed only after `settles_at +
+MARKET_CLOSE_GRACE_SECONDS` (7d claims window — a market cannot vanish
+while claimants still need it readable). `close = creator` sweeps the
+account's full balance to the creator: rent, unclaimed bond, and any
+residue left by unclaimed positions (window lapsed → escheat). No
+layout change, backward compatible with every existing account.
+
+- Program: `close_market` ix, `MarketClosed` event, `ClaimWindowOpen`.
+- SDK: `buildCloseMarketIx` + `MARKET_CLOSE_GRACE_SECONDS`.
+- Sweep: `sweepCreatorBonds` now prefers `close_market` for past-window
+  markets (subsumes `claim_bond`), `claim_bond` inside it; one batched
+  ledger event per pass reports both. `sweep-bonds.ts` prints closable
+  vs bond-only counts. Same command serves operator desks.
+- Tests: guards covered on localnet (open market → NotSettled, inside
+  window → ClaimWindowOpen, non-creator → NotCreator); positive path
+  exercised on devnet backlog.
+- Fixed stale `attestation_validator` tests along the way: config seeds
+  are `[b"config", authority]` since multi-tenant; second-init now
+  reuses the same authority + added a foreign-seed rejection test.
+
+**Deployed.** `market.so` grew past its programdata allocation
+(523,920B — upgrade failed `invalid program argument`); extended +100KB
+via `solana program extend`, redeployed via `deploy.sh`. Live e2e: 393
+dead market accounts closed on devnet in ~49 batched txs, 0 failures —
+keeper wallet +0.63 SOL rent back. Tape drops ~400 dead rows; proofs
+survive (tx-log based); receipts board reads the ledger, unaffected.
+187 dead markets remain inside the window — the periodic sweep closes
+them as they age out.
+
+**Also this pass.** `desk.ts create` now requires `--slug`/`--prop` and
+`--help` prints usage — it used to mint a junk `unnamed_prop` market.
+`next` 16.2.6 → 16.3.6 clears the critical advisories (≥7d published);
+remaining criticals are transitive-only: `minimist` under mocha
+(dev-only) and `protobufjs` under @trezor adapters (Trezor path only) —
+both need breaking wallet-adapter major bumps, deferred.
+
 ## Keeper bond bleed → chain-state sweep (2026-10-02)
 
 **The bleed.** Only live-mode `stoppage-agent` ran housekeeping, and only
@@ -138,9 +180,8 @@ to any operator keypair (Punt Desk reclaimed its two bonds in one tx,
 
 **Verified live on deploy:** the boot sweep reclaimed 461 stranded bonds
 in ~58 batched txs — keeper wallet 0.0023 → 6.10 SOL (incl. a 1.5 SOL
-house top-up). Market account *rent* remains unrecoverable — no
-close instruction exists; that is the remaining structural item before
-mainnet economics.
+house top-up). Market account *rent* stayed locked at that point — the
+`close_market` instruction landed later the same day (see entry above).
 
 **Same pass, web/agent copy:** ledger events that carried raw signed
 statements ("price: sol_above:118:1790971200 -> NO") now render human
