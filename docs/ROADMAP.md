@@ -115,6 +115,35 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Multi-tenant attestation + operator quickstart (2026-10-02)
+
+**The attestation validator is now multi-tenant.** Config seeds moved
+from singleton `[b"config"]` to `[b"config", authority]` — any operator
+pins their own attestor key on the same deployed program (`CJ5Vvv…`)
+and settles observations signed by their key. Without this, every
+attested settle needed our signature — a service dependency, not
+self-serve. ProgramData extended +64KiB (new ELF outgrew the deployed
+allocation by 448 bytes — `solana program extend`, then `deploy.sh`
+upgrade). Our price keeper's attestor migrated transparently via
+`ensureAttestationConfig`; VPS pulled and settled the backlog
+immediately (`5F1NK8Q3…`, `42Rzh889…`).
+
+**Attested-settle staleness fix:** the price keeper's `unresolvable`
+cutoff reused Pyth's `MAX_STALENESS_SECONDS` (120s), but Coinbase
+publishes the reference candle minutes after the bucket closes — and
+the attested claim window is dynamic (obs signed at settle time), so a
+laggy fetch is `pending`, not a gap. Cutoff moved to just inside the
+void grace.
+
+**`scripts/operator-quickstart.ts` — the Oct 12 milestone, runnable.**
+Fresh third-party wallet → `initialize_config` (own config PDA) →
+create attestation-bound `price_above` market → stake both sides →
+sign a Coinbase observation → one-tx proof-gated settle → winner
+claims + bond reclaimed. Verified end-to-end on devnet with non-house
+key `Du28nfpc…`: settle `2jvSE3yD…`, claim `51syh8W6…`. Documented in
+docs/OPERATORS.md "The loop to run first". This is the Colosseum
+traction artifact: the SDK alone is sufficient to run the primitive.
+
 ## $STOPPAGE tokenized + Colosseum-week plan (2026-10-01)
 
 **Tokenized at the extended deadline.** `$STOPPAGE` live on

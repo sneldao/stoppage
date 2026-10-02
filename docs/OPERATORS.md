@@ -135,8 +135,11 @@ digest is the audit trail.
 ### Reference custom oracle: operator attestation (ed25519)
 
 `programs/attestation_validator` is the worked example of a custom
-validator: it accepts observations signed by a single operator key
-pinned in its Config PDA, verified via the ed25519 precompile in the
+validator, and it is **multi-tenant**: the Config PDA is seeded
+`[b"config", authority]`, so you call `initialize_config` once to pin
+YOUR key and then settle observations signed by that key — no
+coordination with us, no shared authority. It accepts observations
+signed by your pinned key, verified via the ed25519 precompile in the
 same transaction as settlement. Its receipt digest commits to
 (authority, fixture_ref, stat_key, value, obs_ts, signature). Use it
 directly (via `attestationOracle` in the SDK) for operator-attested
@@ -214,12 +217,23 @@ settles.
 
 ## The loop to run first
 
-1. Subscribe to a data source (TxLINE free tier, or your own feed).
-2. Create a market with `buildCreateMarketIx`.
-3. On resolution, fetch the proof, build the verify spec, and send the
-   settle transaction (resolve_market + settle_from_proof), then attest
-   in a follow-up tx.
-4. Winners claim; the receipt and event are the public proof.
+It is one script, and it is runnable:
 
-One real operator settling one real market through their own validator is
-the milestone. Not fifty seeded markets.
+```bash
+npm install
+npx tsx scripts/operator-quickstart.ts
+```
+
+`scripts/operator-quickstart.ts` performs the entire loop as a third
+party, SDK-only, on devnet: generates your operator keypair
+(persisted under `.runtime/`), pins it as your attestor via
+`initialize_config` (multi-tenant — your own Config PDA), creates a
+`price_above` market bound to the attestation validator, stakes both
+sides from two wallets, signs an observation of a real Coinbase SOL/USD
+minute candle, settles proof-gated in one transaction, then claims the
+payout and the bond. Verified end-to-end 2026-10-02 with a fresh
+non-house key — settle `2jvSE3yD…`, winner claim `51syh8W6…`.
+
+From there: swap the observation source for yours, then graduate to the
+generic-oracle path above or TxLINE/Pyth. One real operator settling one
+real market is the milestone. Not fifty seeded markets.
