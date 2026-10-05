@@ -115,6 +115,39 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Punt Desk Sunday slate settled (2026-10-05)
+
+All four pre-staged props settled proof-gated, one day after their Oct 4
+23:00 UTC betting close — post-window settling is by design
+(`settle_from_proof` has no closes gate). Reference game pinned before
+observing: **NY Jets @ Chicago, Oct 4 (ESPN event 401872972, final
+12–23)**; the desk's word is the scope, per the runbook.
+
+| slug | statement | observed | outcome | settle tx |
+|---|---|---|---|---|
+| sun-punts | total punts over 7 | 5 (NYJ 5, CHI 0) | NO | `64x1ck3S…` |
+| sun-sacks | sacks over 3 | 4 (NYJ 3, CHI 1) | YES | `5qr1CusU…` |
+| sun-4dc | 4th-down conv ≥1 | 2 (CHI 2-for-3) | YES | `aooaHcf3…` |
+| sun-pick6 | pick-six ≥1 | 0 | NO | `3yqjWSXS…` |
+
+Each tx is the full atomic bundle: ed25519 observation → `resolve_market`
+CPI → `settle_from_proof` → `attest_verification`, attested by Punt Desk
+(`DEBUEWK6…`) as a third tenant on the shared validator. Bond sweep
+reclaimed all four bonds in one tx (`5z6gSqoJ…`). Markets stay open until
+the 7-day claims window lapses, then `close_market` escheats — including
+the losing 0.05 SOL YES smoke bet on sun-punts, which sits in the vault
+unclaimable (correct: it lost).
+
+This is the Colosseum traction artifact exercised end-to-end: a
+non-house desk settling arbitrary real-world statements with no code,
+no house signature, and a co-branded proof card per settle.
+
+**Open:** (1) Punt Desk follow-up post with the four proof cards —
+the operator-side viral hook the Oct 2 audit built attribution for;
+(2) the late settle means Sunday's stream beat was missed — for the
+next slate, pre-stage props *and* pre-watch the box score so settles
+land inside the window as the demo intends.
+
 ## close_market: rent recovery + deploy-size fix (2026-10-02)
 
 **The gap.** The bond sweep recovered creator bonds but left ~0.0016 SOL
