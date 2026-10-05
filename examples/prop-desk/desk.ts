@@ -59,7 +59,7 @@ const STAT_KEYS = {
 } as const;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REGISTRY = path.join(HERE, ".desk-registry.json");
+const REGISTRY = process.env.DESK_REGISTRY_PATH ?? path.join(HERE, ".desk-registry.json");
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 const WEBHOOK = process.env.ALERT_WEBHOOK_URL;
 

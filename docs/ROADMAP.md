@@ -115,6 +115,30 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Fresh-desk e2e + World's Fair pitch skeleton (2026-10-05)
+
+**Fourth tenant on the shared validator.** A key generated this
+afternoon (`8BiEYkby…` — `.runtime/freshdesk/`, house-funded 0.15
+devnet SOL, otherwise a stranger) ran the whole loop: `list` → own
+config PDA `4as5wjGK…` auto-initialized at first settle → two props
+created → `watch --espn 401872972` proposed the feed-backed one →
+`watch --yes` settled it proof-gated (`31fSaSuV…`) → the feed-free
+prop `recap_names_player` (ESPN recap headline names Monangai — a
+statement no stat feed indexes, the desk's word is the observation)
+settled YES via `--value` (`51d8jXBQ…`) → bonds swept (`4XJFhyMK…`).
+~90s wall time; transcript `.runtime/freshdesk/TRANSCRIPT.txt` is
+the raw footage for the demo video. `desk.ts` gained
+`DESK_REGISTRY_PATH` so a second desk runs isolated from Punt Desk's
+book.
+
+**Pitch skeleton: docs/PITCH-WORLDSFAIR.md.** 2:30 act structure
+(problem → primitive → oracle-agnostic → self-serve → verifiable
+pricing → vision), GTM section naming the one metric (one external
+operator, one settle), the honest-asterisks list (house-run desks,
+devnet legality, paused Pyth feed, $STOPPAGE framing, unwritten team
+section), drafted outreach copy for X + operator DMs, and the assets
+checklist. Remaining open decisions for Oct 12 are all in there.
+
 ## Desk settle-assist + overdue pager (2026-10-05)
 
 The Oct 4 slate's ~20h open-past-close gap had two causes, now both

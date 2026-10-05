@@ -418,6 +418,7 @@ Misrepresentation = disqualification.
    self-serve (SDK consumable by a third party, "settle your market"
    quickstart), not another consumer surface.
 3. **Pitch + demo videos, GTM write-up, prior-work disclosure.**
+   Working skeleton + assets checklist: docs/PITCH-WORLDSFAIR.md.
 
 ---
 

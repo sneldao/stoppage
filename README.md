@@ -102,6 +102,7 @@ Full toolchain, deploy, and agent ops: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.
 | [SUBMISSION.md](./docs/SUBMISSION.md) | Demo script, proof txs, TxLINE usage |
 | [OBSERVABILITY.md](./docs/OBSERVABILITY.md) | SigNoz / OpenTelemetry for the agent |
 | [hackathons.md](./docs/hackathons.md) | Hackathon fit notes (KeeperHub, SigNoz) |
+| [PITCH-WORLDSFAIR.md](./docs/PITCH-WORLDSFAIR.md) | Colosseum pitch skeleton, GTM, assets checklist |
 
 Working rules for contributors: [CLAUDE.md](./CLAUDE.md).
 
