@@ -70,5 +70,41 @@
     "referenceTs": 1790953431,
     "marketPda": "4w6pssZvqQsqucA47QgMhcDSCX6ReE1asWvjLQGTYqeA",
     "statement": "pick_six_over:1:sun-pick6"
+  },
+  {
+    "matchId": "PROP:total_punts:verify-punts:1791206886",
+    "slug": "verify-punts",
+    "prop": "total_punts",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 7,
+    "referenceTs": 1791206886,
+    "marketPda": "ncYchMx5H3v9gnkry3gS8r6fL8scA31XMaSn7WK624A",
+    "statement": "total_punts_over:7:verify-punts"
+  },
+  {
+    "matchId": "PROP:sacks:verify-sacks:1791206888",
+    "slug": "verify-sacks",
+    "prop": "sacks",
+    "stat": "prop_count",
+    "statKey": 3,
+    "op": 0,
+    "threshold": 3,
+    "referenceTs": 1791206888,
+    "marketPda": "H75KhGxshv5kJ8FRDBCUx42zmngus848XxeVX8zPnhj8",
+    "statement": "sacks_over:3:verify-sacks"
+  },
+  {
+    "matchId": "PROP:pick_six:verify-pick6:1791206891",
+    "slug": "verify-pick6",
+    "prop": "pick_six",
+    "stat": "prop_bool",
+    "statKey": 4,
+    "op": 0,
+    "threshold": 1,
+    "referenceTs": 1791206891,
+    "marketPda": "HyhaB7FiKb9xwAk8vboPPRXJFG2QjusTRFGSSiMj5Uq1",
+    "statement": "pick_six_over:1:verify-pick6"
   }
 ]
