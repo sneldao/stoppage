@@ -7,8 +7,9 @@ proof-gated — the vault releases only if the ed25519 signature and the
 claim verify on-chain.
 
 This is the same path `scripts/operator-quickstart.ts` walks end-to-end;
-`desk.ts` is the minimal everyday-tool version. ~200 lines, imports only
-`@stoppage/sdk` and `@solana/web3.js`.
+`desk.ts` is the minimal everyday-tool version. One file, imports only
+`@stoppage/sdk` and `@solana/web3.js` plus a public ESPN endpoint for
+source-pinned observations.
 
 ## The trust model (say it plainly)
 
@@ -21,6 +22,10 @@ This is the same path `scripts/operator-quickstart.ts` walks end-to-end;
   you can't settle through anyone else's.
 - Bettors who don't trust your attestations shouldn't take your markets.
   Publishing your desk pubkey (see `ATTESTOR.txt`) makes that auditable.
+- `--espn <eventId>` doesn't change the trust model — you're still
+  signing the claim. It means you attest to a number pulled from a
+  pinned public endpoint (printed as evidence before you sign), which
+  watchers can re-check themselves, instead of a number read by eye.
 
 ## Run it (devnet)
 
@@ -42,12 +47,37 @@ npx tsx examples/prop-desk/desk.ts create \
 
 # when the game says 9 punts happened:
 npx tsx examples/prop-desk/desk.ts settle my-first-prop --value 9
+
+# or let the desk read a pinned ESPN box score for known props:
+npx tsx examples/prop-desk/desk.ts settle my-first-prop --espn 401872972
 ```
 
 The settle transaction is one bundle:
 `ed25519 verify → resolve_market (validator CPI) → settle_from_proof →
 attest`. If your signature or claim fails verification, the whole thing
 reverts. There is no authority-only settle path.
+
+## Watch + pending
+
+```bash
+# open markets past closes_at — exit 1, optional ALERT_WEBHOOK_URL post.
+# Cron it (e.g. */5 * * * * during your slate) and it pages instead of
+# silently aging markets.
+npx tsx examples/prop-desk/desk.ts pending
+
+# one ESPN event → proposals for every open prop with an extractor,
+# each with the evidence detail you'd be signing. Dry-run by default.
+npx tsx examples/prop-desk/desk.ts watch --espn 401872972
+
+# reviewed the proposals? --yes signs and settles each atomically.
+npx tsx examples/prop-desk/desk.ts watch --espn 401872972 --yes
+```
+
+`ESPN_EXTRACTORS` covers the shared conventions (`total_punts`,
+`sacks`, `fourth_down_conv`, `pick_six`). Props without an extractor
+are skipped with a pointer to `--value` — feed-free claims are the
+product's reason to exist. Add your own extractors the same way you
+claim stat keys.
 
 ## Claim your own stat keys
 

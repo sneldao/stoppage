@@ -40,14 +40,24 @@ doesn't encode game scope, the desk's word does.
 
 ## Settling
 
-`--value` is the observed integer:
+All four props have ESPN extractors now — pin the event and let the desk
+propose, or pass the observed integer yourself:
 
 ```bash
-npx tsx desk.ts settle sun-punts  --value 9    # observed 9 punts → YES
-npx tsx desk.ts settle sun-sacks  --value 2    # observed 2 sacks → NO
-npx tsx desk.ts settle sun-4dc    --value 1    # conversion happened → YES
-npx tsx desk.ts settle sun-pick6  --value 0    # none → NO
+# dry-run: prints observed value + evidence detail per open prop
+npx tsx desk.ts watch --espn <eventId>
+
+# reviewed? sign and settle each atomically
+npx tsx desk.ts watch --espn <eventId> --yes
+
+# manual path unchanged (feed-free props, or you disagree with the feed)
+npx tsx desk.ts settle sun-punts --value 9
+npx tsx desk.ts settle sun-punts --espn <eventId>
 ```
+
+**Pager during the slate:** `npx tsx desk.ts pending` exits 1 when a
+market is open past `closes_at` — cron it at `*/5` during the slate (set
+`ALERT_WEBHOOK_URL` for a push). Oct 4 sat open ~20h without it.
 
 Each call is the full proof-gated bundle: ed25519 observation signature →
 `resolve_market` → `settle_from_proof` → `attest_verification`, atomic.
@@ -68,5 +78,10 @@ The settle tx signature is the receipt — keep it.
 - **Desk wallet empty**: needs ~0.01 SOL/settle + sweep fee. Check
   `solana balance` first; `solana airdrop` is the fallback.
 - **Registry lost**: settle takes a market PDA instead of a slug —
-  `npx tsx desk.ts settle <pda> --value N` still works; the on-chain
-  market is the source of truth.
+  `npx tsx desk.ts settle <pda> --value N` still works IF a registry
+  entry exists for it (the entry carries op/threshold/referenceTs —
+  without it there's no claim to sign). `.desk-registry.json` is the
+  desk's book; don't lose it. The on-chain market is the source of
+  truth for settlement state, not for what you claimed.
+- **No extractor**: `watch`/`--espn` cover the shared prop conventions
+  only. A feed-free prop settles with `--value` — that's the feature.

@@ -115,6 +115,42 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Desk settle-assist + overdue pager (2026-10-05)
+
+The Oct 4 slate's ~20h open-past-close gap had two causes, now both
+fixed in `examples/prop-desk/desk.ts`:
+
+- **No pager.** `desk.ts pending` exits 1 when a desk market is open
+  past `closes_at`, honors `ALERT_WEBHOOK_URL` (same shape as
+  pyth-health). Cron it during a slate.
+- **No source wiring.** `settle --espn <eventId>` and
+  `watch --espn <eventId> [--yes]` observe pinned ESPN summaries via
+  `ESPN_EXTRACTORS` (`total_punts`, `sacks`, `fourth_down_conv`,
+  `pick_six` — player-stats, team-stats, and scoring-play shapes).
+  `watch` is dry-run by default, printing the evidence detail the
+  operator would sign; `--yes` settles each open prop atomically.
+
+Trust model unchanged and documented: the desk key still signs every
+claim — the adapter means the desk attests to a number from a pinned
+public endpoint watchers can re-check, not a number read by eye. Props
+without an extractor get a `--value` pointer; feed-free claims are the
+feature. Fixed a runbook lie along the way: PDA-as-slug settle needs a
+registry entry (it carries op/threshold/referenceTs) — the on-chain
+market is truth for state, not for the claim.
+
+Verified e2e on devnet against NYJ@CHI (event 401872972): three props
+created (verify-punts/sacks/pick6), `pending` fired overdue at
+closes_at (exit 1), `watch` dry-run proposed 5→NO / 4→YES / 0→NO,
+`watch --yes` settled all three proof-gated (`4awGHf2k…`, `2R868FRc…`,
+`4WQ9ngc1…`), `pending` green, bonds reclaimed in one sweep
+(`4stSd6Bn…`).
+
+**Deferred:** the agent-side prop keeper (an `attest/espn.ts` adapter +
+config mapping) is only useful if a desk runs unattended on the VPS —
+that's a deploy decision, not missing code. Cron `pending` + `watch
+--yes` covers attended operation; revisit if desk volume justifies
+unattended settling.
+
 ## Punt Desk Sunday slate settled (2026-10-05)
 
 All four pre-staged props settled proof-gated, one day after their Oct 4
