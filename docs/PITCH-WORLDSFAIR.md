@@ -25,6 +25,53 @@ it in an Explorer transaction.
 | 1:50–2:15 | **Second proof surface.** Matchkeeper anchors quote inputs on-chain; "Verify this price" re-runs the open model in-browser against the exact snapshot. The black-box sportsbook can't do this. | VerifyLatestQuote reproducing |
 | 2:15–2:30 | **Vision + ask.** The resolution layer for anything that needs a verified bool to move money — prediction markets, futarchy, data vendors. 25 bps protocol fee on settled volume. Devnet today; mainnet after legal review. | /operators page |
 
+## Competitive landscape (Colosseum Copilot research, 2026-10-07)
+
+**Prediction markets win every hackathon — as apps.** Prize winners are
+distribution surfaces that treat resolution as plumbing:
+[Capitola](https://colosseum.com/projects/explore/capitola) (1st
+Consumer, Cypherpunk, $25K — liquidity meta-aggregator),
+[Melee Markets](https://colosseum.com/projects/explore/melee-markets)
+(2nd Consumer, Breakout, $20K — viral markets, hand-waved "dual
+resolution"), [Pregame](https://colosseum.com/projects/explore/pregame)
+(1st Consumer, Radar, $30K — P2P sportsbook via blinks, tagged
+"oracle-based settlement"), [Mentioned](https://colosseum.com/projects/explore/mentioned)
+(Frontier winner — word/phrase prop markets resolved by AI
+transcription confidence), Pythia, Fora. Every one of them is a
+potential customer: their resolution is the weak link we remove.
+
+**The settlement/oracle-infra idea has a graveyard.** Frontier alone
+fielded ≥15 submissions in this shape — Verisettle, Agent Settlement
+Protocol, [SettleProof](https://colosseum.com/projects/explore/settleproof-by-aap),
+[Opal](https://colosseum.com/projects/explore/opal), RealitySync,
+Overheat, VERITAS, Arena, EPP Verdict, Basira AI, RiskMesh, Solia,
+Agent Dispute Protocol — **none awarded**. Two failure modes, both
+avoidable and named in the pitch: (a) conceptual submissions with thin
+or missing demos (Opal's technical demo was a 4-second Loom library
+page); (b) the mechanism re-creates the trust shape — proposer-disputer
+games, AI-swarm oracles, social consensus are all committees wearing
+different clothes. They re-skin the resolution trust; they don't
+remove it.
+
+**Infra does win when it names a failing customer.**
+[Autonom](https://colosseum.com/projects/explore/autonom-unleashing-rwas-in-solana)
+(1st RWAs, Cypherpunk, $25K) — a Merkle-proof pull oracle — won by
+naming the concrete downstream user whose current oracle fails: perp
+DEXs that can't list equities because incumbent feeds ignore corporate
+actions. Same shape we should take: name the operator whose multisig
+settlement is the complaint.
+
+**Our differential vs the whole field:** deployed + exercised +
+mechanism deletes the trust step instead of re-skinning it (the CPI
+verifies the proof inside the settle tx; there is no committee). The
+receipts board is the artifact none of the graveyard had. Closest
+structural comp is SettleProof (custody released on signed proof —
+agent-commerce scoped, narrower, unawarded).
+
+**Outreach target surfaced by the research:** Mentioned-type apps are
+the ideal external desk — live prop markets whose resolution is AI
+confidence, i.e. exactly what attestation-bounded settlement fixes.
+
 ## GTM write-up (submission section)
 
 - **Wedge:** operators whose settlement is today a multisig or admin

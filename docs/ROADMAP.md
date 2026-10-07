@@ -115,6 +115,25 @@ operator self-serve. Work is judged only if done Sep 14 – Oct 12;
 prior hackathon work must be disclosed. Stocklana (tokenized stocks,
 closed Sept 25) was assessed and skipped as off-identity.
 
+## Colosseum Copilot landscape research (2026-10-07)
+
+First actual use of the Copilot evidence API for this repo — the §4
+fit table had been hand-reasoned. Findings recorded in
+docs/PITCH-WORLDSFAIR.md "Competitive landscape": prediction markets
+win consistently as *apps* (Capitola, Melee, Pregame, Mentioned — all
+potential customers, resolution is their weak link); the
+settlement/oracle-infra shape has a ~15-project Frontier graveyard of
+unawarded, mostly-conceptual submissions that re-skin the committee
+trust model; infra wins when it names a failing downstream customer
+(Autonom, 1st RWAs). Our differential: deployed + exercised + the CPI
+removes the trust step rather than re-skinning it.
+
+**Account check (`/me`):** registered for World's Fair, but the draft
+project on the account is **"claflin"** (voice-first trading desk), not
+Stoppage — and "Proof Of Ship" (builder-credit platform) shows
+submitted. Open question raised in session: which entry is Stoppage
+entering under?
+
 ## Fresh-desk e2e + World's Fair pitch skeleton (2026-10-05)
 
 **Fourth tenant on the shared validator.** A key generated this
